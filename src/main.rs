@@ -233,6 +233,14 @@ fn main() -> Result<(), String> {
         let runtime = Runtime::create(root_ast);
         runtime.execute();
     }
+
+    {
+        let source = "var x = 1\nvar y = x\ny\n";
+        let parser = Parser::create(source);
+        let root_ast = parser.parse()?;
+        let runtime = Runtime::create(root_ast);
+        runtime.execute();
+    }
     eprintln!("end");
     Ok(())
 }
