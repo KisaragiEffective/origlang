@@ -31,6 +31,7 @@ impl Runtime {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
         match expression {
             Expression::IntLiteral(inner) => Ok(*inner),
