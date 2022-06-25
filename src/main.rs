@@ -74,7 +74,7 @@ impl Parser {
 
     fn consume(&self, c: char) -> Result<(), String> {
         if self.current_char() == c {
-            self.advance_index(1);
+            self.advance_index_by(1);
             Ok(())
         } else {
             Err(format!("Invalid character. expected: `{expected}`, got: `{found}`", expected = c, found = self.current_char()))
@@ -108,9 +108,9 @@ impl Parser {
     fn parse_int_literal(&self) -> Result<i32, String> {
         let start_index = *self.current_index.borrow().deref();
         while (self.numeric_chars().contains(&self.current_char())) {
-            self.advance_index(1);
+            // todo rename to advance and advance_by
+            self.advance_index_by(1);
         }
-
 
         let exclusive_end_index = *self.current_index.borrow().deref();
         let slice = &self.current_source.as_str()[start_index..exclusive_end_index];
@@ -137,7 +137,7 @@ impl Parser {
         let start_index = *self.current_index.borrow();
         // [a-z]+
         while Self::lower_alphabet_chars().contains(&self.current_char()) {
-            self.advance_index(1);
+            self.advance_index_by(1);
         }
         let exclusive_end_index = *self.current_index.borrow();
         if start_index == exclusive_end_index {
@@ -167,7 +167,7 @@ impl Parser {
         ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     }
 
-    fn advance_index(&self, step: usize) {
+    fn advance_index_by(&self, step: usize) {
         *self.current_index.borrow_mut() += step;
     }
 }
