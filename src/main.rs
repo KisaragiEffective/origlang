@@ -46,7 +46,7 @@ impl Parser {
 
     fn consume_newline(&self) -> Result<(), String> {
         assert_eq!(self.current_char(), '\n');
-        *self.current_index.borrow_mut() += 1;
+        self.advance_index(1);
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl Parser {
     fn parse_int_literal(&self) -> Result<i32, String> {
         let start_index = *self.current_index.borrow().deref();
         while (self.numeric_chars().contains(&self.current_char())) {
-            *self.current_index.borrow_mut() += 1;
+            self.advance_index(1);
         }
 
 
@@ -85,6 +85,10 @@ impl Parser {
     #[inline]
     const fn numeric_chars(&self) -> [char; 10] {
         ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    }
+
+    fn advance_index(&self, step: usize) {
+        *self.current_index.borrow_mut() += step;
     }
 }
 
