@@ -17,8 +17,8 @@ impl Parser {
 
     pub(crate) fn parse(&self) -> Result<RootAst, String> {
         let mut statements = vec![];
-        while (self.current_source.len() > *self.current_index.borrow()) {
-            let parsed_statement = self.parse_statement().expect("an error occured during parsing statement");
+        while self.current_source.len() > *self.current_index.borrow() {
+            let parsed_statement = self.parse_statement()?;
             statements.push(parsed_statement);
         }
 
@@ -54,25 +54,23 @@ impl Parser {
     fn parse_print(&self) -> Result<Statement, String> {
         self.parse_expression().map(|parsed| {
             Statement::Print {
-                expression: parsed.into()
+                expression: parsed
             }
         })
     }
 
     fn parse_expression(&self) -> Result<Expression, String> {
-        let expression = if !self.numeric_chars().contains(&self.current_char()) {
+        if self.numeric_chars().contains(&self.current_char()) {
+            self.parse_int_literal().map(|parsed| {
+                Expression::IntLiteral(parsed)
+            })
+        } else {
             let ident = self.parse_identifier()?;
             let expr: Expression = Expression::Variable {
                 name: ident
             };
             Ok(expr)
-        } else {
-            self.parse_int_literal().map(|parsed| {
-                Expression::IntLiteral(parsed)
-            })
-        };
-
-        expression
+        }
     }
 
     fn parse_int_literal(&self) -> Result<i32, String> {
@@ -86,7 +84,7 @@ impl Parser {
         let slice = &self.current_source.as_str()[start_index..exclusive_end_index];
         println!("debug: {slice}");
         // TODO: this can be more user-friendly
-        let parsed = slice.parse::<i32>().unwrap();
+        let parsed = slice.parse::<i32>().map_err(|e| e.to_string())?;
         Ok(parsed)
     }
 

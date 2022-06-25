@@ -1,15 +1,14 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 mod parser;
 mod ast;
 mod runtime;
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::Deref;
 use ast::{Expression, RootAst, Statement};
 use runtime::Runtime;
 
 fn main() -> Result<(), String> {
-    use crate::parser::Parser;
     eprintln!("start");
     test_source("123456\n")?;
     test_source("var x = 1\nx\n")?;
