@@ -64,15 +64,12 @@ impl Parser {
             _ => self.parse_print()
         }?;
 
-        self.consume_newline();
+        self.consume_newline()?;
         Ok(parse_result)
     }
 
     fn consume_newline(&self) -> Result<(), String> {
-        // TODO: shouldn't panic
-        assert_eq!(self.current_char(), '\n');
-        self.advance_index(1);
-        Ok(())
+        self.consume('\n')
     }
 
     fn consume(&self, c: char) -> Result<(), String> {
