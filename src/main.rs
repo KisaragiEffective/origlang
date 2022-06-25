@@ -193,7 +193,9 @@ impl Runtime {
                     println!("{value}", value = self.evaluate(expression).unwrap());
                 }
                 Statement::VariableDeclaration { identifier, expression } => {
-                    self.environment.borrow_mut().insert(identifier.clone(), self.evaluate(expression).expect("error happened during evaluating expression"));
+                    // NOTE: please do not inline. it causes BorrowError.
+                    let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
+                    self.environment.borrow_mut().insert(identifier.clone(), evaluated);
                 }
             }
         }
