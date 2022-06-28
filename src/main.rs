@@ -27,12 +27,21 @@ fn main() -> Result<(), String> {
 
     // minus operator test (binary)
     integrated_test("1 - 2\n")?;
-    integrated_test("var x = 1\n1 - x")?;
+    integrated_test("var x = 1\n1 - x\n")?;
     integrated_test("var x = 1\nvar y = 3\nx - y\n")?;
 
     // minus operator test (more than twice)
     // NOTE: should be zero
-    integrated_test("var x = 1\nvar y = 2\nvar z = 3\nz - x - y")?;
+    integrated_test("var x = 1\nvar y = 2\nvar z = 3\nz - x - y\n")?;
+
+    // paren test
+    // should be 1
+    integrated_test("(1)\n")?;
+    // should be 2
+    integrated_test("3 - (2 - 1)\n")?;
+    // should be 0
+    integrated_test("(3 - 2) - 1\n")?;
+
 
     eprintln!("end");
     Ok(())

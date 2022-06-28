@@ -36,30 +36,31 @@ impl Runtime {
     fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
         let eval_term = |term: &Term| {
             match term {
-                Term::IntLiteral(inner) => *inner,
+                Term::IntLiteral(inner) => Ok(*inner),
                 Term::Variable {
                     name
                 } => {
                     // temporary value
                     let read_view = self.environment.borrow();
                     let variable = read_view.get(name).expect("variable does not exist");
-                    *variable
+                    Ok(*variable)
+                }
+                Term::Parenthesized(inner) => {
+                    self.evaluate(inner.as_ref())
                 }
             }
         };
 
-        let result = match expression {
+        match expression {
             Expression::Binary { operator, lhs, rhs } => {
-                match operator {
+                Ok(match operator {
                     BuiltinOperatorKind::Plus => self.evaluate(lhs)? + self.evaluate(rhs)?,
                     BuiltinOperatorKind::Minus => self.evaluate(lhs)? - self.evaluate(rhs)?,
-                }
+                })
             }
             Expression::WrappedTerm(term) => {
                 eval_term(term)
             }
-        };
-
-        Ok(result)
+        }
     }
 }

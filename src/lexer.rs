@@ -50,6 +50,14 @@ impl Lexer {
                 self.advance();
                 Token::SymMinus
             },
+            '(' => {
+                self.advance();
+                Token::SymLeftPar
+            },
+            ')' => {
+                self.advance();
+                Token::SymRightPar
+            },
             c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
             c if ASCII_LOWERS.contains(&c) => {
                 let scan_result = self.scan_lowers().expect("oops");
@@ -79,10 +87,13 @@ impl Lexer {
             if self.reached_end() {
                 break
             }
-            let c = self.consume_char()?;
+
+            // DON'T CONSUME!!
+            let c = self.current_char()?;
             if !ASCII_NUMERIC_CHARS.contains(&c) {
                 break
             }
+            let c = self.consume_char()?;
 
             buf.push(c);
         }
@@ -98,10 +109,13 @@ impl Lexer {
             if self.reached_end() {
                 break
             }
-            let c = self.consume_char()?;
+
+            // DON'T CONSUME!!
+            let c = self.current_char()?;
             if !ASCII_LOWERS.contains(&c) {
                 break
             }
+            let c = self.consume_char()?;
 
             buf.push(c);
         }
@@ -171,6 +185,10 @@ pub enum Token {
     SymPlus,
     /// `"-"`
     SymMinus,
+    /// `"("`
+    SymLeftPar,
+    /// `")"`
+    SymRightPar,
     /// reserved for future use.
     Reserved {
         matched: String,
