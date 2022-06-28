@@ -1,6 +1,6 @@
 
 
-use crate::{Expression, Lexer, RootAst, Statement};
+use crate::{Term, Lexer, RootAst, Statement};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -39,7 +39,7 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_expression()?
+                expression: self.parse_first_expression()?
             }
         };
         Ok(result)
@@ -48,23 +48,31 @@ impl Parser {
     /// 現在のトークン位置から式をパースしようと試みる。
     /// 事前条件: 現在の位置が式として有効である必要がある
     /// 違反した場合はpanic。
-    fn parse_expression(&self) -> Result<Expression, String> {
+    fn parse_first_expression(&self) -> Result<Term, String> {
         let token = self.lexer.peek();
+        // TODO: +演算子
         match token {
             Token::Identifier { inner } => {
                 // consume
                 self.lexer.next();
-                Ok(Expression::Variable {
+                Ok(Term::Variable {
                     name: inner
                 })
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|parsed| {
-                    Expression::IntLiteral(parsed)
+                    Term::IntLiteral(parsed)
                 })
             }
             _ => Err("int literal or identifier is expected".to_string())
         }
+    }
+
+    /// 現在のトークン位置から「項」をパースしようと試みる。
+    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 違反した場合はErr
+    fn parse_term(&self) -> Result<Term, String> {
+
     }
 
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
@@ -96,7 +104,7 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_expression()?;
+        let expression = self.parse_first_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression

@@ -42,6 +42,10 @@ impl Lexer {
                 self.advance();
                 Token::SymEq
             },
+            '+' => {
+                self.advance();
+                Token::SymPlus
+            },
             c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
             c if ASCII_LOWERS.contains(&c) => {
                 let scan_result = self.scan_lowers().expect("oops");
@@ -159,6 +163,8 @@ pub enum Token {
     VarKeyword,
     /// `"="`
     SymEq,
+    /// `"+"`
+    SymPlus,
     /// reserved for future use.
     Reserved {
         matched: String,

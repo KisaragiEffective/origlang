@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::{Expression, RootAst, Statement};
+use crate::{Term, RootAst, Statement};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -32,10 +32,10 @@ impl Runtime {
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
+    fn evaluate(&self, expression: &Term) -> Result<i32, String> {
         match expression {
-            Expression::IntLiteral(inner) => Ok(*inner),
-            Expression::Variable {
+            Term::IntLiteral(inner) => Ok(*inner),
+            Term::Variable {
                 name
             } => {
                 // temporary value

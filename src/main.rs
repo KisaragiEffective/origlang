@@ -7,7 +7,7 @@ mod runtime;
 mod lexer;
 mod char_list;
 
-use ast::{Expression, RootAst, Statement};
+use ast::{Term, RootAst, Statement};
 use runtime::Runtime;
 use crate::lexer::Lexer;
 
