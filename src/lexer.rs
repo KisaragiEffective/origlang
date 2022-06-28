@@ -165,6 +165,8 @@ pub enum Token {
     SymEq,
     /// `"+"`
     SymPlus,
+    /// `"-"`
+    SymMinus,
     /// reserved for future use.
     Reserved {
         matched: String,

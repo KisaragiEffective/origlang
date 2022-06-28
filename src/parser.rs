@@ -81,9 +81,17 @@ impl Parser {
                 self.lexer.next();
                 let lhs = maybe_lhs.into();
                 // 左再帰の問題を避ける。現在は右結合になっている
-                // TODO: +演算子は左結合のほうが自然と感じられるなので左結合にしたい
+                // TODO: +演算子は左結合のほうが自然と感じられるので左結合にしたい
                 let rhs = self.parse_expression()?;
                 Ok(Expression::binary_plus(lhs, rhs))
+            }
+            Token::SymMinus => {
+                // SymMinus
+                self.lexer.next();
+                let lhs = maybe_lhs.into();
+                // FIXME: 減算は左結合であるべき
+                let rhs = self.parse_expression()?;
+                Ok(Expression::binary_minus(lhs, rhs))
             }
             _ => Ok(maybe_lhs.into())
         }

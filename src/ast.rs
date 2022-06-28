@@ -29,12 +29,23 @@ pub enum Expression {
         lhs: Box<Expression>,
         rhs: Box<Expression>,
     },
+    BinaryMinus {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+    },
     WrappedTerm(Term),
 }
 
 impl Expression {
     pub fn binary_plus(lhs: Expression, rhs: Expression) -> Self {
         Self::BinaryPlus {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
+    }
+
+    pub fn binary_minus(lhs: Expression, rhs: Expression) -> Self {
+        Self::BinaryMinus {
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         }
