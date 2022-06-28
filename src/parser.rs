@@ -95,7 +95,7 @@ impl Parser {
 
             let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
             let mut operator_token = self.lexer.peek();
-            while operator_token == Token::SymPlus || operator_token == Token::SymMinus {
+            while plus_or_minus(&operator_token) {
                 // SymPlus | SymMinus
                 self.lexer.next();
                 let new_rhs = self.parse_term()?;
