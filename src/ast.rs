@@ -16,7 +16,7 @@ pub enum Statement {
 }
 
 /// 「項」を表す。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Term {
     IntLiteral(i32),
     Variable {
@@ -24,28 +24,26 @@ pub enum Term {
     },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
-    BinaryPlus {
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
-    BinaryMinus {
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
+    Binary {
+        operator: BuiltinOperatorKind,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
     },
     WrappedTerm(Term),
 }
 
-impl Expression {
-    pub fn binary_plus(lhs: Expression, rhs: Expression) -> Self {
-        Self::BinaryPlus {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        }
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum BuiltinOperatorKind {
+    Plus,
+    Minus,
+}
 
-    pub fn binary_minus(lhs: Expression, rhs: Expression) -> Self {
-        Self::BinaryMinus {
+impl Expression {
+    pub fn binary(operator: BuiltinOperatorKind, lhs: Self, rhs: Self) -> Self {
+        Self::Binary {
+            operator,
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         }
