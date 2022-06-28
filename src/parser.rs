@@ -1,6 +1,7 @@
 
 
-use crate::{Expression, Lexer, RootAst, Statement};
+use crate::{Term, Lexer, RootAst, Statement};
+use crate::ast::Expression;
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -45,25 +46,46 @@ impl Parser {
         Ok(result)
     }
 
-    /// 現在のトークン位置から式をパースしようと試みる。
-    /// 事前条件: 現在の位置が式として有効である必要がある
-    /// 違反した場合はpanic。
-    fn parse_expression(&self) -> Result<Expression, String> {
+    /// 現在のトークン位置から項をパースしようと試みる。
+    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 違反した場合はErr。
+    fn parse_term(&self) -> Result<Term, String> {
         let token = self.lexer.peek();
+        // TODO: +演算子
         match token {
             Token::Identifier { inner } => {
                 // consume
                 self.lexer.next();
-                Ok(Expression::Variable {
+                Ok(Term::Variable {
                     name: inner
                 })
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|parsed| {
-                    Expression::IntLiteral(parsed)
+                    Term::IntLiteral(parsed)
                 })
             }
             _ => Err("int literal or identifier is expected".to_string())
+        }
+    }
+
+    /// 現在のトークン位置から「式」をパースしようと試みる。
+    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 違反した場合はErr
+    fn parse_expression(&self) -> Result<Expression, String> {
+        let maybe_lhs = self.parse_term()?;
+        let next_token = self.lexer.peek();
+        match next_token {
+            Token::SymPlus => {
+                // SymPlus
+                self.lexer.next();
+                let lhs = maybe_lhs.into();
+                // 左再帰の問題を避ける。現在は右結合になっている
+                // TODO: +演算子は左結合のほうが自然と感じられるなので左結合にしたい
+                let rhs = self.parse_expression()?;
+                Ok(Expression::binary_plus(lhs, rhs))
+            }
+            _ => Ok(maybe_lhs.into())
         }
     }
 

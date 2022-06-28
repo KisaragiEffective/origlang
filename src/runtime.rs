@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::{Expression, RootAst, Statement};
+use crate::{Term, RootAst, Statement};
+use crate::ast::Expression;
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -33,16 +34,29 @@ impl Runtime {
 
     #[allow(clippy::unnecessary_wraps)]
     fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
-        match expression {
-            Expression::IntLiteral(inner) => Ok(*inner),
-            Expression::Variable {
-                name
-            } => {
-                // temporary value
-                let read_view = self.environment.borrow();
-                let variable = read_view.get(name).expect("variable does not exist");
-                Ok(*variable)
+        let eval_term = |term: &Term| {
+            match term {
+                Term::IntLiteral(inner) => *inner,
+                Term::Variable {
+                    name
+                } => {
+                    // temporary value
+                    let read_view = self.environment.borrow();
+                    let variable = read_view.get(name).expect("variable does not exist");
+                    *variable
+                }
             }
-        }
+        };
+
+        let result = match expression {
+            Expression::BinaryPlus { lhs, rhs } => {
+                self.evaluate(lhs)? + self.evaluate(rhs)?
+            }
+            Expression::WrappedTerm(term) => {
+                eval_term(term)
+            }
+        };
+
+        Ok(result)
     }
 }

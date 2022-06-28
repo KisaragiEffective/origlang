@@ -15,15 +15,43 @@ pub enum Statement {
     }
 }
 
+/// 「項」を表す。
 #[derive(Clone, Debug)]
-pub enum Expression {
+pub enum Term {
     IntLiteral(i32),
     Variable {
         name: String,
+    },
+}
+
+pub enum Expression {
+    BinaryPlus {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+    },
+    WrappedTerm(Term),
+}
+
+impl Expression {
+    pub fn binary_plus(lhs: Expression, rhs: Expression) -> Self {
+        Self::BinaryPlus {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
+    }
+
+    pub fn term(term: Term) -> Self {
+        term.into()
     }
 }
 
-impl From<i32> for Expression {
+impl From<Term> for Expression {
+    fn from(term: Term) -> Self {
+        Self::WrappedTerm(term)
+    }
+}
+
+impl From<i32> for Term {
     fn from(i: i32) -> Self {
         Self::IntLiteral(i)
     }
