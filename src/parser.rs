@@ -1,6 +1,7 @@
 
 
 use crate::{Term, Lexer, RootAst, Statement};
+use crate::ast::Expression;
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -39,16 +40,16 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_first_expression()?
+                expression: self.parse_expression()?
             }
         };
         Ok(result)
     }
 
-    /// 現在のトークン位置から式をパースしようと試みる。
-    /// 事前条件: 現在の位置が式として有効である必要がある
-    /// 違反した場合はpanic。
-    fn parse_first_expression(&self) -> Result<Term, String> {
+    /// 現在のトークン位置から項をパースしようと試みる。
+    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 違反した場合はErr。
+    fn parse_term(&self) -> Result<Term, String> {
         let token = self.lexer.peek();
         // TODO: +演算子
         match token {
@@ -68,11 +69,24 @@ impl Parser {
         }
     }
 
-    /// 現在のトークン位置から「項」をパースしようと試みる。
+    /// 現在のトークン位置から「式」をパースしようと試みる。
     /// 事前条件: 現在の位置が項として有効である必要がある
     /// 違反した場合はErr
-    fn parse_term(&self) -> Result<Term, String> {
-
+    fn parse_expression(&self) -> Result<Expression, String> {
+        let maybe_lhs = self.parse_term()?;
+        let next_token = self.lexer.peek();
+        match next_token {
+            Token::SymPlus => {
+                // SymPlus
+                self.lexer.next();
+                let lhs = maybe_lhs.into();
+                // 左再帰の問題を避ける。現在は右結合になっている
+                // TODO: +演算子は左結合のほうが自然と感じられるなので左結合にしたい
+                let rhs = self.parse_expression()?;
+                Ok(Expression::binary_plus(lhs, rhs))
+            }
+            _ => Ok(maybe_lhs.into())
+        }
     }
 
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
@@ -104,7 +118,7 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_first_expression()?;
+        let expression = self.parse_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression

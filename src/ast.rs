@@ -7,11 +7,11 @@ pub struct RootAst {
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
-        expression: Term,
+        expression: Expression,
     },
     VariableDeclaration {
         identifier: String,
-        expression: Term,
+        expression: Expression,
     }
 }
 
@@ -26,21 +26,21 @@ pub enum Term {
 
 pub enum Expression {
     BinaryPlus {
-        lhs: Box<Term>,
-        rhs: Box<Term>,
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
     },
     WrappedTerm(Term),
 }
 
 impl Expression {
-    fn binary_plus(lhs: Term, rhs: Term) -> Self {
+    pub fn binary_plus(lhs: Expression, rhs: Expression) -> Self {
         Self::BinaryPlus {
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         }
     }
 
-    fn term(term: Term) -> Self {
+    pub fn term(term: Term) -> Self {
         term.into()
     }
 }

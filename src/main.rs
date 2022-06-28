@@ -17,6 +17,14 @@ fn main() -> Result<(), String> {
     integrated_test("1\n2\n")?;
     integrated_test("var x = 1\nx\n")?;
     integrated_test("var x = 1\nvar y = x\ny\n")?;
+    // plus operator test (binary)
+    integrated_test("1 + 2\n")?;
+    integrated_test("var x = 1\n1 + x\n")?;
+    integrated_test("var x = 1\nvar y = 3\nx + y\n")?;
+
+    // plus operator test (more than twice)
+    integrated_test("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?;
+
     eprintln!("end");
     Ok(())
 }
