@@ -20,6 +20,19 @@ pub enum Expression {
     IntLiteral(i32),
     Variable {
         name: String,
+    },
+    Plus {
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+    }
+}
+
+impl Expression {
+    fn plus(lhs: Self, rhs: Self) -> Self {
+        Self::Plus {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
     }
 }
 
