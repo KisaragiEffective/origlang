@@ -46,6 +46,10 @@ impl Lexer {
                 self.advance();
                 Token::SymPlus
             },
+            '-' => {
+                self.advance();
+                Token::SymMinus
+            },
             c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
             c if ASCII_LOWERS.contains(&c) => {
                 let scan_result = self.scan_lowers().expect("oops");
@@ -165,6 +169,8 @@ pub enum Token {
     SymEq,
     /// `"+"`
     SymPlus,
+    /// `"-"`
+    SymMinus,
     /// reserved for future use.
     Reserved {
         matched: String,

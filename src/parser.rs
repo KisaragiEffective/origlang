@@ -1,7 +1,7 @@
 
 
 use crate::{Term, Lexer, RootAst, Statement};
-use crate::ast::Expression;
+use crate::ast::{BuiltinOperatorKind, Expression};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -73,19 +73,41 @@ impl Parser {
     /// 事前条件: 現在の位置が項として有効である必要がある
     /// 違反した場合はErr
     fn parse_expression(&self) -> Result<Expression, String> {
-        let maybe_lhs = self.parse_term()?;
+        let first_term = self.parse_term()?;
         let next_token = self.lexer.peek();
-        match next_token {
-            Token::SymPlus => {
-                // SymPlus
+        let plus_or_minus = |token: &Token| {
+            token == &Token::SymPlus || token == &Token::SymMinus
+        };
+
+        if plus_or_minus(&next_token) {
+            // SymPlus | SymMinus
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term.into();
+            let rhs = self.parse_term()?;
+            let get_operator_from_token = |token: &Token| {
+                match token {
+                    Token::SymPlus => BuiltinOperatorKind::Plus,
+                    Token::SymMinus => BuiltinOperatorKind::Minus,
+                    e => unreachable!("excess token: {e:?}")
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut operator_token = self.lexer.peek();
+            while operator_token == Token::SymPlus || operator_token == Token::SymMinus {
+                // SymPlus | SymMinus
                 self.lexer.next();
-                let lhs = maybe_lhs.into();
-                // 左再帰の問題を避ける。現在は右結合になっている
-                // TODO: +演算子は左結合のほうが自然と感じられるなので左結合にしたい
-                let rhs = self.parse_expression()?;
-                Ok(Expression::binary_plus(lhs, rhs))
+                let new_rhs = self.parse_term()?;
+                // 左結合になるように詰め替える
+                // これは特に減算のときに欠かせない処理である
+                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                operator_token = self.lexer.peek();
             }
-            _ => Ok(maybe_lhs.into())
+            Ok(acc)
+        } else {
+            // it is unary
+            Ok(first_term.into())
         }
     }
 

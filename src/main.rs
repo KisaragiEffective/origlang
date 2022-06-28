@@ -25,6 +25,15 @@ fn main() -> Result<(), String> {
     // plus operator test (more than twice)
     integrated_test("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?;
 
+    // minus operator test (binary)
+    integrated_test("1 - 2\n")?;
+    integrated_test("var x = 1\n1 - x")?;
+    integrated_test("var x = 1\nvar y = 3\nx - y\n")?;
+
+    // minus operator test (more than twice)
+    // NOTE: should be zero
+    integrated_test("var x = 1\nvar y = 2\nvar z = 3\nz - x - y")?;
+
     eprintln!("end");
     Ok(())
 }

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use crate::{Term, RootAst, Statement};
-use crate::ast::Expression;
+use crate::ast::{BuiltinOperatorKind, Expression};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -49,8 +49,11 @@ impl Runtime {
         };
 
         let result = match expression {
-            Expression::BinaryPlus { lhs, rhs } => {
-                self.evaluate(lhs)? + self.evaluate(rhs)?
+            Expression::Binary { operator, lhs, rhs } => {
+                match operator {
+                    BuiltinOperatorKind::Plus => self.evaluate(lhs)? + self.evaluate(rhs)?,
+                    BuiltinOperatorKind::Minus => self.evaluate(lhs)? - self.evaluate(rhs)?,
+                }
             }
             Expression::WrappedTerm(term) => {
                 eval_term(term)
