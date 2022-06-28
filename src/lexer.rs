@@ -1,6 +1,6 @@
 use std::cell::RefCell;
-use std::ops::Deref;
-use anyhow::{anyhow, Context, Result};
+
+use anyhow::{anyhow, Result};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
 static KEYWORDS: [&str; 5] =
@@ -132,7 +132,7 @@ impl Lexer {
     }
 
     fn advance(&self) {
-        self.advance_by(1)
+        self.advance_by(1);
     }
 
     fn advance_by(&self, step: usize) {

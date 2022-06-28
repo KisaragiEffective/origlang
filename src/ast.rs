@@ -1,4 +1,5 @@
 /// 現時点のプログラムとは、プリントするべき式の列である
+#[allow(clippy::module_name_repetitions)]
 pub struct RootAst {
     pub(crate) statement: Vec<Statement>
 }
@@ -22,8 +23,8 @@ pub enum Expression {
     }
 }
 
-impl Into<Expression> for i32 {
-    fn into(self) -> Expression {
-        Expression::IntLiteral(self)
+impl From<i32> for Expression {
+    fn from(i: i32) -> Self {
+        Self::IntLiteral(i)
     }
 }
