@@ -22,6 +22,13 @@ pub enum Term {
     Variable {
         name: String,
     },
+    Parenthesized(Box<Expression>)
+}
+
+impl Term {
+    pub fn parenthesized(expr: Expression) -> Self {
+        Self::Parenthesized(Box::new(expr))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

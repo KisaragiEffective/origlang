@@ -43,7 +43,10 @@ impl Parser {
                 expression: self.parse_expression()?
             }
         };
-        Ok(result)
+        let result = Ok(result);
+        // 文は絶対に改行で終わる必要がある
+        assert_eq!(self.lexer.next(), Token::NewLine, "statement must be terminated by a newline");
+        result
     }
 
     /// 現在のトークン位置から項をパースしようと試みる。
@@ -64,6 +67,12 @@ impl Parser {
                 self.parse_int_literal().map(|parsed| {
                     Term::IntLiteral(parsed)
                 })
+            }
+            Token::SymLeftPar => {
+                assert_eq!(self.lexer.next(), Token::SymLeftPar);
+                let inner_expression = self.parse_expression()?;
+                assert_eq!(self.lexer.next(), Token::SymRightPar);
+                Ok(Term::parenthesized(inner_expression))
             }
             _ => Err("int literal or identifier is expected".to_string())
         }
