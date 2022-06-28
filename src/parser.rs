@@ -14,12 +14,18 @@ impl Parser {
         }
     }
 
-    // TODO: ドキュメンテーションで事前条件をはっきりさせるべき
-    pub(crate) fn parse(&self) -> Result<RootAst, String> {
+    /// プログラムが文の列とみなしてパースを試みる。
+    /// 事前条件: プログラム全体が任意個の文として分解できる
+    pub fn parse(&self) -> Result<RootAst, String> {
         let mut statements = vec![];
         while self.lexer.peek() != Token::EndOfFile {
-            let res = self.parse_statement();
-            statements.push(res?)
+            let res = self.parse_statement()?;
+            statements.push(res);
+        }
+
+        match self.lexer.next() {
+            Token::EndOfFile | Token::NewLine => {}
+            other => panic!("parse_statement assertion: unconsumed token found: {other:?}")
         }
         Ok(RootAst {
             statement: statements
@@ -28,22 +34,20 @@ impl Parser {
 
     fn parse_statement(&self) -> Result<Statement, String> {
         let head = self.lexer.peek();
-        let result = match head {
-            Token::VarKeyword => {
-                self.parse_variable_declaration()
-            }
-            _other => {
-                self.parse_expression().map(|expression| Statement::Print { expression })
+        let result = if head == Token::VarKeyword {
+            self.parse_variable_declaration()?
+        } else {
+            // assuming expression
+            Statement::Print {
+                expression: self.parse_expression()?
             }
         };
-
-        match self.lexer.next() {
-            Token::EndOfFile | Token::NewLine => {}
-            other => return Err(format!("parse_statement assertion: unexpected token found: {other:?}"))
-        }
-        result
+        Ok(result)
     }
 
+    /// 現在のトークン位置から式をパースしようと試みる。
+    /// 事前条件: 現在の位置が式として有効である必要がある
+    /// 違反した場合はpanic。
     fn parse_expression(&self) -> Result<Expression, String> {
         let token = self.lexer.peek();
         match token {
@@ -54,7 +58,7 @@ impl Parser {
                     name: inner
                 })
             }
-            Token::Digits { sequence } => {
+            Token::Digits { .. } => {
                 self.parse_int_literal().map(|parsed| {
                     Expression::IntLiteral(parsed)
                 })
@@ -63,6 +67,9 @@ impl Parser {
         }
     }
 
+    /// 現在のトークンを消費して整数リテラルの生成を試みる。
+    /// 事前条件: 現在のトークンが整数として有効である必要がある
+    /// 違反した場合はErrを返す。
     fn parse_int_literal(&self) -> Result<i32, String> {
         match self.lexer.next() {
             Token::Digits { sequence } => {
@@ -76,9 +83,7 @@ impl Parser {
     /// この関数は`Lexer`の`Token`を一つ消費するという副作用がある。
     fn assert_token_eq_with_consumed(&self, rhs: Token) {
         let token = self.lexer.next();
-        if token != rhs {
-            panic!("expected: {rhs:?}, got: {token:?}")
-        }
+        assert_eq!(token, rhs, "expected: {rhs:?}, got: {token:?}");
     }
 
     fn parse_variable_declaration(&self) -> Result<Statement, String> {
