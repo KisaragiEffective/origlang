@@ -1,141 +1,100 @@
 use std::cell::RefCell;
 use std::ops::Deref;
-use crate::{Expression, RootAst, Statement};
+use crate::{Expression, Lexer, RootAst, Statement};
+use crate::lexer::Token;
 
 pub struct Parser {
-    current_index: RefCell<usize>,
-    current_source: String,
+    lexer: Lexer,
 }
 
 impl Parser {
     pub fn create(source: &str) -> Self {
         Self {
-            current_source: source.to_string(),
-            current_index: RefCell::new(0),
+            lexer: Lexer::create(source)
         }
     }
 
+    // TODO: ドキュメンテーションで事前条件をはっきりさせるべき
     pub(crate) fn parse(&self) -> Result<RootAst, String> {
         let mut statements = vec![];
-        while self.current_source.len() > *self.current_index.borrow() {
-            let parsed_statement = self.parse_statement()?;
-            statements.push(parsed_statement);
+        while self.lexer.peek() != Token::EndOfFile {
+            let res = self.parse_statement();
+            statements.push(res?)
         }
-
         Ok(RootAst {
             statement: statements
         })
     }
 
     fn parse_statement(&self) -> Result<Statement, String> {
-        let parse_result = match self.current_char() {
-            // TODO: better switch
-            'v' => self.parse_variable_declaration(),
-            _ => self.parse_print()
-        }?;
-
-        self.consume_newline()?;
-        Ok(parse_result)
-    }
-
-    fn consume_newline(&self) -> Result<(), String> {
-        self.consume('\n')
-    }
-
-    fn consume(&self, c: char) -> Result<(), String> {
-        if self.current_char() == c {
-            self.advance_index_by(1);
-            Ok(())
-        } else {
-            Err(format!("Invalid character. expected: `{expected}`, got: `{found}`", expected = c, found = self.current_char()))
-        }
-    }
-
-    fn parse_print(&self) -> Result<Statement, String> {
-        self.parse_expression().map(|parsed| {
-            Statement::Print {
-                expression: parsed
+        let head = self.lexer.peek();
+        let result = match head {
+            Token::VarKeyword => {
+                self.parse_variable_declaration()
             }
-        })
+            _other => {
+                self.parse_expression().map(|expression| Statement::Print { expression })
+            }
+        };
+
+        match self.lexer.next() {
+            Token::EndOfFile | Token::NewLine => {}
+            other => return Err(format!("parse_statement assertion: unexpected token found: {other:?}"))
+        }
+        result
     }
 
     fn parse_expression(&self) -> Result<Expression, String> {
-        if self.numeric_chars().contains(&self.current_char()) {
-            self.parse_int_literal().map(|parsed| {
-                Expression::IntLiteral(parsed)
-            })
-        } else {
-            let ident = self.parse_identifier()?;
-            let expr: Expression = Expression::Variable {
-                name: ident
-            };
-            Ok(expr)
+        let token = self.lexer.peek();
+        match token {
+            Token::Identifier { inner } => {
+                // consume
+                self.lexer.next();
+                Ok(Expression::Variable {
+                    name: inner
+                })
+            }
+            Token::Digits { sequence } => {
+                self.parse_int_literal().map(|parsed| {
+                    Expression::IntLiteral(parsed)
+                })
+            }
+            _ => Err("int literal or identifier is expected".to_string())
         }
     }
 
     fn parse_int_literal(&self) -> Result<i32, String> {
-        let start_index = *self.current_index.borrow().deref();
-        while (self.numeric_chars().contains(&self.current_char())) {
-            // todo rename to advance and advance_by
-            self.advance_index_by(1);
+        match self.lexer.next() {
+            Token::Digits { sequence } => {
+                sequence.as_str().parse::<i32>().map_err(|e| e.to_string())
+            }
+            _ => Err("int literal is expected".to_string())
         }
+    }
 
-        let exclusive_end_index = *self.current_index.borrow().deref();
-        let slice = &self.current_source.as_str()[start_index..exclusive_end_index];
-        println!("debug: {slice}");
-        // TODO: this can be more user-friendly
-        let parsed = slice.parse::<i32>().map_err(|e| e.to_string())?;
-        Ok(parsed)
+    /// 現在の`Lexer`に積まれている`Token`と期待される`Token`を比較し、違っていた場合はpanicする。
+    /// この関数は`Lexer`の`Token`を一つ消費するという副作用がある。
+    fn assert_token_eq_with_consumed(&self, rhs: Token) {
+        let token = self.lexer.next();
+        if token != rhs {
+            panic!("expected: {rhs:?}, got: {token:?}")
+        }
     }
 
     fn parse_variable_declaration(&self) -> Result<Statement, String> {
-        "var ".chars().map(|c| self.consume(c)).collect::<Result<Vec<_>, _>>()?;
-        let ident = self.parse_identifier()?;
-        self.consume(' ')?;
-        self.consume('=')?;
-        self.consume(' ')?;
+        self.assert_token_eq_with_consumed(Token::VarKeyword);
+        let ident_token = self.lexer.next();
+        let name = match ident_token {
+            Token::Identifier { inner } => {
+                inner
+            }
+            _ => return Err("identifier expected".to_string())
+        };
+        self.assert_token_eq_with_consumed(Token::SymEq);
         let expression = self.parse_expression()?;
         Ok(Statement::VariableDeclaration {
-            identifier: ident,
+            identifier: name,
             expression
         })
-    }
-
-    fn parse_identifier(&self) -> Result<String, String> {
-        let start_index = *self.current_index.borrow();
-        // [a-z]+
-        while Self::lower_alphabet_chars().contains(&self.current_char()) {
-            self.advance_index_by(1);
-        }
-        let exclusive_end_index = *self.current_index.borrow();
-        if start_index == exclusive_end_index {
-            Err("empty identifier is not allowed".to_string())
-        } else {
-            let slice = &self.current_source.as_str()[start_index..exclusive_end_index];
-            Ok(slice.to_string())
-        }
-    }
-
-    #[inline]
-    const fn lower_alphabet_chars() -> [char; 26] {
-        ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-    }
-
-    #[inline]
-    const fn upper_alphabet_chars() -> [char; 26] {
-        ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-    }
-
-    fn current_char(&self) -> char {
-        self.current_source.chars().nth(*self.current_index.borrow().deref()).unwrap()
-    }
-
-    #[inline]
-    const fn numeric_chars(&self) -> [char; 10] {
-        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    }
-
-    fn advance_index_by(&self, step: usize) {
-        *self.current_index.borrow_mut() += step;
     }
 }
