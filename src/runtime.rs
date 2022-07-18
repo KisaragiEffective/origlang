@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::{Term, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Expression};
+use crate::{First, RootAst, Statement};
+use crate::ast::{BuiltinOperatorKind, Additive};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -33,11 +33,11 @@ impl Runtime {
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
-        let eval_term = |term: &Term| {
+    fn evaluate(&self, expression: &Additive) -> Result<i32, String> {
+        let eval_term = |term: &First| {
             match term {
-                Term::IntLiteral(inner) => Ok(*inner),
-                Term::Variable {
+                First::IntLiteral(inner) => Ok(*inner),
+                First::Variable {
                     name
                 } => {
                     // temporary value
@@ -45,14 +45,14 @@ impl Runtime {
                     let variable = read_view.get(name).expect("variable does not exist");
                     Ok(*variable)
                 }
-                Term::Parenthesized(inner) => {
+                First::Parenthesized(inner) => {
                     self.evaluate(inner.as_ref())
                 }
             }
         };
 
         match expression {
-            Expression::Binary { operator, lhs, rhs } => {
+            Additive::Binary { operator, lhs, rhs } => {
                 Ok(match operator {
                     BuiltinOperatorKind::Plus => self.evaluate(lhs)? + self.evaluate(rhs)?,
                     BuiltinOperatorKind::Minus => self.evaluate(lhs)? - self.evaluate(rhs)?,
@@ -60,7 +60,7 @@ impl Runtime {
                     BuiltinOperatorKind::Divide => self.evaluate(lhs)? / self.evaluate(rhs)?,
                 })
             }
-            Expression::WrappedTerm(term) => {
+            Additive::WrappedTerm(term) => {
                 eval_term(term)
             }
         }

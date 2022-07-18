@@ -1,7 +1,7 @@
 
 
-use crate::{Term, Lexer, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Expression};
+use crate::{First, Lexer, RootAst, Statement};
+use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -40,7 +40,7 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_expression()?
+                expression: self.parse_additive()?
             }
         };
         let result = Ok(result);
@@ -49,40 +49,79 @@ impl Parser {
         result
     }
 
-    /// 現在のトークン位置から項をパースしようと試みる。
-    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 現在のトークン位置から基本式をパースしようと試みる。
+    /// 事前条件: 現在のトークン位置が基本式として有効である必要がある
     /// 違反した場合はErr。
-    fn parse_term(&self) -> Result<Term, String> {
+    fn parse_first(&self) -> Result<First, String> {
         let token = self.lexer.peek();
-        // TODO: +演算子
         match token {
             Token::Identifier { inner } => {
                 // consume
                 self.lexer.next();
-                Ok(Term::Variable {
+                Ok(First::Variable {
                     name: inner
                 })
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|parsed| {
-                    Term::IntLiteral(parsed)
+                    First::IntLiteral(parsed)
                 })
             }
             Token::SymLeftPar => {
                 assert_eq!(self.lexer.next(), Token::SymLeftPar);
-                let inner_expression = self.parse_expression()?;
+                let inner_expression = self.parse_additive()?;
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
-                Ok(Term::parenthesized(inner_expression))
+                Ok(First::parenthesized(inner_expression))
             }
             _ => Err("int literal or identifier is expected".to_string())
         }
     }
 
-    /// 現在のトークン位置から「式」をパースしようと試みる。
-    /// 事前条件: 現在の位置が項として有効である必要がある
+    /// 現在のトークン位置から乗除算をパースする。
+    fn parse_multiplicative(&self) -> Result<Multiplicative, String> {
+        let first_term = self.parse_first()?;
+        let next_token = self.lexer.peek();
+        let asterisk_or_slash = |token: &Token| {
+            token == &Token::SymAsterisk || token == &Token::SymSlash
+        };
+
+        if asterisk_or_slash(&next_token) {
+            // SymAsterisk | SymSlash
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term.into();
+            let rhs = self.parse_first()?;
+            let get_operator_from_token = |token: &Token| {
+                match token {
+                    Token::SymAsterisk => BuiltinOperatorKind::Multiple,
+                    Token::SymSlash => BuiltinOperatorKind::Divide,
+                    e => unreachable!("excess token: {e:?}")
+                }
+            };
+
+            let mut acc = Multiplicative::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut operator_token = self.lexer.peek();
+            while asterisk_or_slash(&operator_token) {
+                // SymAsterisk | SymSlash
+                self.lexer.next();
+                let new_rhs = self.parse_first()?;
+                // 左結合になるように詰め替える
+                // これは特に除算のときに欠かせない処理である
+                acc = Multiplicative::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            // it is unary
+            Ok(first_term.into())
+        }
+    }
+
+    /// 現在のトークン位置から加減算をパースしようと試みる。
+    /// 事前条件: 現在の位置が加減算として有効である必要がある
     /// 違反した場合はErr
-    fn parse_expression(&self) -> Result<Expression, String> {
-        let first_term = self.parse_term()?;
+    fn parse_additive(&self) -> Result<Additive, String> {
+        let first_term = self.parse_multiplicative()?;
         let next_token = self.lexer.peek();
         let plus_or_minus = |token: &Token| {
             token == &Token::SymPlus || token == &Token::SymMinus
@@ -93,7 +132,7 @@ impl Parser {
             self.lexer.next();
             let operator_token = next_token;
             let lhs = first_term.into();
-            let rhs = self.parse_term()?;
+            let rhs = self.parse_multiplicative()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
                     Token::SymPlus => BuiltinOperatorKind::Plus,
@@ -102,20 +141,20 @@ impl Parser {
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut acc = Additive::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
             let mut operator_token = self.lexer.peek();
             while plus_or_minus(&operator_token) {
                 // SymPlus | SymMinus
                 self.lexer.next();
-                let new_rhs = self.parse_term()?;
+                let new_rhs = self.parse_multiplicative()?;
                 // 左結合になるように詰め替える
                 // これは特に減算のときに欠かせない処理である
-                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                acc = Additive::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
         } else {
-            // it is unary
+            // it is unary or multiplicative
             Ok(first_term.into())
         }
     }
@@ -149,7 +188,7 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_expression()?;
+        let expression = self.parse_additive()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression
