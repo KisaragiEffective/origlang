@@ -1,7 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::{Term, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Expression};
+use std::ops::{Add, Deref};
+use crate::{First, RootAst, Statement};
+use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -32,34 +33,69 @@ impl Runtime {
         }
     }
 
-    #[allow(clippy::unnecessary_wraps)]
-    fn evaluate(&self, expression: &Expression) -> Result<i32, String> {
-        let eval_term = |term: &Term| {
-            match term {
-                Term::IntLiteral(inner) => Ok(*inner),
-                Term::Variable {
-                    name
-                } => {
-                    // temporary value
-                    let read_view = self.environment.borrow();
-                    let variable = read_view.get(name).expect("variable does not exist");
-                    Ok(*variable)
-                }
-                Term::Parenthesized(inner) => {
-                    self.evaluate(inner.as_ref())
-                }
-            }
-        };
+    fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
+        expression.evaluate(self)
+    }
+}
 
-        match expression {
-            Expression::Binary { operator, lhs, rhs } => {
+
+type EvaluateResult = Result<i32, String>;
+trait CanBeEvaluated {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
+}
+
+impl CanBeEvaluated for &Additive {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            Additive::Binary { operator, lhs, rhs } => {
                 Ok(match operator {
-                    BuiltinOperatorKind::Plus => self.evaluate(lhs)? + self.evaluate(rhs)?,
-                    BuiltinOperatorKind::Minus => self.evaluate(lhs)? - self.evaluate(rhs)?,
+                    BuiltinOperatorKind::Plus => lhs.as_ref().evaluate(runtime)? + rhs.as_ref().evaluate(runtime)?,
+                    BuiltinOperatorKind::Minus => lhs.as_ref().evaluate(runtime)? - rhs.as_ref().evaluate(runtime)?,
+                    other => unreachable!("but got {other:?}"),
                 })
             }
-            Expression::WrappedTerm(term) => {
-                eval_term(term)
+            Additive::WrappedMultiplicative(term) => {
+                term.evaluate(runtime)
+            }
+        }
+    }
+}
+
+impl CanBeEvaluated for &Multiplicative {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            Multiplicative::Binary { operator, lhs, rhs } => {
+                Ok(match operator {
+                    BuiltinOperatorKind::Multiple => {
+                        lhs.as_ref().evaluate(runtime)? * rhs.as_ref().evaluate(runtime)?
+                    }
+                    BuiltinOperatorKind::Divide => {
+                        lhs.as_ref().evaluate(runtime)? / rhs.as_ref().evaluate(runtime)?
+                    }
+                    other => unreachable!("but {other:?} detected")
+                })
+            }
+            Multiplicative::WrappedFirst(term) => {
+                term.evaluate(runtime)
+            }
+        }
+    }
+}
+
+impl CanBeEvaluated for &First {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            First::IntLiteral(inner) => Ok(*inner),
+            First::Variable {
+                name
+            } => {
+                // temporary value
+                let read_view = runtime.environment.borrow();
+                let variable = read_view.get(name.as_str()).expect("variable does not exist");
+                Ok(*variable)
+            }
+            First::Parenthesized(inner) => {
+                inner.as_ref().evaluate(runtime)
             }
         }
     }

@@ -7,47 +7,47 @@ pub struct RootAst {
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
-        expression: Expression,
+        expression: Additive,
     },
     VariableDeclaration {
         identifier: String,
-        expression: Expression,
+        expression: Additive,
     }
 }
 
 /// 「項」を表す。
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Term {
+pub enum First {
     IntLiteral(i32),
     Variable {
         name: String,
     },
-    Parenthesized(Box<Expression>)
+    Parenthesized(Box<Additive>)
 }
 
-impl Term {
-    pub fn parenthesized(expr: Expression) -> Self {
+impl First {
+    pub fn parenthesized(expr: Additive) -> Self {
         Self::Parenthesized(Box::new(expr))
     }
 }
 
+impl From<i32> for First {
+    fn from(i: i32) -> Self {
+        Self::IntLiteral(i)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Expression {
+pub enum Additive {
     Binary {
         operator: BuiltinOperatorKind,
         lhs: Box<Self>,
         rhs: Box<Self>,
     },
-    WrappedTerm(Term),
+    WrappedMultiplicative(Multiplicative),
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum BuiltinOperatorKind {
-    Plus,
-    Minus,
-}
-
-impl Expression {
+impl Additive {
     pub fn binary(operator: BuiltinOperatorKind, lhs: Self, rhs: Self) -> Self {
         Self::Binary {
             operator,
@@ -56,19 +56,56 @@ impl Expression {
         }
     }
 
-    pub fn term(term: Term) -> Self {
+    pub fn term(term: First) -> Self {
         term.into()
     }
 }
 
-impl From<Term> for Expression {
-    fn from(term: Term) -> Self {
-        Self::WrappedTerm(term)
+impl From<First> for Additive {
+    fn from(term: First) -> Self {
+        Self::WrappedMultiplicative(Multiplicative::WrappedFirst(term))
     }
 }
 
-impl From<i32> for Term {
-    fn from(i: i32) -> Self {
-        Self::IntLiteral(i)
+impl From<Multiplicative> for Additive {
+    fn from(multiplicative: Multiplicative) -> Self {
+        Self::WrappedMultiplicative(multiplicative)
     }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Multiplicative {
+    Binary {
+        operator: BuiltinOperatorKind,
+        lhs: Box<Self>,
+        rhs: Box<Self>
+    },
+    WrappedFirst(First)
+}
+
+impl Multiplicative {
+    pub fn binary(operator: BuiltinOperatorKind, lhs: Self, rhs: Self) -> Self {
+        Self::Binary {
+            operator,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
+    }
+
+    pub fn term(term: First) -> Self {
+        term.into()
+    }
+}
+
+impl From<First> for Multiplicative {
+    fn from(from: First) -> Self {
+        Self::WrappedFirst(from)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum BuiltinOperatorKind {
+    Plus,
+    Minus,
+    Multiple,
+    Divide,
 }

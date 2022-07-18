@@ -7,7 +7,7 @@ mod runtime;
 mod lexer;
 mod char_list;
 
-use ast::{Term, RootAst, Statement};
+use ast::{First, RootAst, Statement};
 use runtime::Runtime;
 use crate::lexer::Lexer;
 
@@ -42,6 +42,13 @@ fn main() -> Result<(), String> {
     // should be 0
     integrated_test("(3 - 2) - 1\n")?;
 
+    // multiply test
+    // should be 6
+    integrated_test("3 * 2\n")?;
+    // should be 7, should not be 9
+    integrated_test("3 * 2 + 1\n")?;
+    // should be 9
+    integrated_test("3 * (2 + 1)\n")?;
 
     eprintln!("end");
     Ok(())
