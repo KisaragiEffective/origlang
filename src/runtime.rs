@@ -18,6 +18,7 @@ impl Runtime {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn execute(&self) {
         for statement in &self.ast.statement {
             match statement {
@@ -25,18 +26,38 @@ impl Runtime {
                     println!("{value}", value = self.evaluate(expression).unwrap());
                 }
                 Statement::VariableDeclaration { identifier, expression } => {
-                    // NOTE: please do not inline. it causes BorrowError.
-                    let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
-                    self.environment.borrow_mut().insert(identifier.clone(), evaluated);
+                    self.update_variable(identifier.as_str(), expression);
                 }
             }
         }
+    }
+
+    pub(crate) fn yield_all_evaluated_expressions(&self) -> Vec<i32> {
+        let mut buf = vec![];
+        for statement in &self.ast.statement {
+            match statement {
+                Statement::Print { expression } => {
+                    buf.push(self.evaluate(expression).unwrap());
+                }
+                Statement::VariableDeclaration { identifier, expression } => {
+                    self.update_variable(identifier.as_str(), expression);
+                }
+            }
+        }
+        buf
+    }
+
+    fn update_variable(&self, identifier: &str, expression: &Additive) {
+        // NOTE: please do not inline. it causes BorrowError.
+        let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
+        self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
     }
 
     fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
         expression.evaluate(self)
     }
 }
+
 
 
 type EvaluateResult = Result<i32, String>;
