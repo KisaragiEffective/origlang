@@ -47,6 +47,8 @@ fn main() -> Result<(), String> {
     integrated_test("3 * 2\n")?;
     // should be 7, should not be 9
     integrated_test("3 * 2 + 1\n")?;
+    // should be 9
+    integrated_test("3 * (2 + 1)\n")?;
 
     eprintln!("end");
     Ok(())
