@@ -45,6 +45,8 @@ pub enum Expression {
 pub enum BuiltinOperatorKind {
     Plus,
     Minus,
+    Multiple,
+    Divide,
 }
 
 impl Expression {

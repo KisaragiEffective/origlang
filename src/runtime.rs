@@ -56,6 +56,8 @@ impl Runtime {
                 Ok(match operator {
                     BuiltinOperatorKind::Plus => self.evaluate(lhs)? + self.evaluate(rhs)?,
                     BuiltinOperatorKind::Minus => self.evaluate(lhs)? - self.evaluate(rhs)?,
+                    BuiltinOperatorKind::Multiple => self.evaluate(lhs)? * self.evaluate(rhs)?,
+                    BuiltinOperatorKind::Divide => self.evaluate(lhs)? / self.evaluate(rhs)?,
                 })
             }
             Expression::WrappedTerm(term) => {

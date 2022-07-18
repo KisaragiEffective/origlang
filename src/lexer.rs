@@ -50,6 +50,14 @@ impl Lexer {
                 self.advance();
                 Token::SymMinus
             },
+            '*' => {
+                self.advance();
+                Token::SymAsterisk
+            },
+            '/' => {
+                self.advance();
+                Token::SymSlash
+            },
             '(' => {
                 self.advance();
                 Token::SymLeftPar
@@ -185,6 +193,10 @@ pub enum Token {
     SymPlus,
     /// `"-"`
     SymMinus,
+    /// `*`
+    SymAsterisk,
+    /// `/`
+    SymSlash,
     /// `"("`
     SymLeftPar,
     /// `")"`
