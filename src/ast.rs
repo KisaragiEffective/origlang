@@ -40,7 +40,7 @@ impl From<i32> for First {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Additive {
     Binary {
-        operator: BuiltinOperatorKind,
+        operator: AdditiveOperatorKind,
         lhs: Box<Self>,
         rhs: Box<Self>,
     },
@@ -48,7 +48,7 @@ pub enum Additive {
 }
 
 impl Additive {
-    pub fn binary(operator: BuiltinOperatorKind, lhs: Self, rhs: Self) -> Self {
+    pub fn binary(operator: AdditiveOperatorKind, lhs: Self, rhs: Self) -> Self {
         Self::Binary {
             operator,
             lhs: Box::new(lhs),
@@ -72,10 +72,11 @@ impl From<Multiplicative> for Additive {
         Self::WrappedMultiplicative(multiplicative)
     }
 }
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Multiplicative {
     Binary {
-        operator: BuiltinOperatorKind,
+        operator: MultiplicativeOperatorKind,
         lhs: Box<Self>,
         rhs: Box<Self>
     },
@@ -83,7 +84,7 @@ pub enum Multiplicative {
 }
 
 impl Multiplicative {
-    pub fn binary(operator: BuiltinOperatorKind, lhs: Self, rhs: Self) -> Self {
+    pub fn binary(operator: MultiplicativeOperatorKind, lhs: Self, rhs: Self) -> Self {
         Self::Binary {
             operator,
             lhs: Box::new(lhs),
@@ -106,6 +107,36 @@ impl From<First> for Multiplicative {
 pub enum BuiltinOperatorKind {
     Plus,
     Minus,
+    Multiple,
+    Divide,
+}
+
+impl From<AdditiveOperatorKind> for BuiltinOperatorKind {
+    fn from(additive_op: AdditiveOperatorKind) -> Self {
+        match additive_op {
+            AdditiveOperatorKind::Plus => Self::Plus,
+            AdditiveOperatorKind::Minus => Self::Minus,
+        }
+    }
+}
+
+impl From<MultiplicativeOperatorKind> for BuiltinOperatorKind {
+    fn from(multiplicative_op: MultiplicativeOperatorKind) -> Self {
+        match multiplicative_op {
+            MultiplicativeOperatorKind::Multiple => Self::Multiple,
+            MultiplicativeOperatorKind::Divide => Self::Divide,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AdditiveOperatorKind {
+    Plus,
+    Minus,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MultiplicativeOperatorKind {
     Multiple,
     Divide,
 }
