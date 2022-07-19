@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Add, Deref};
-use crate::{First, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
+use crate::ast::{First, RootAst, Statement};
+use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
