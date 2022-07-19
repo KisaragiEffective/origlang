@@ -28,7 +28,7 @@ impl ParseSource {
             ParseSource::RawSource(a) => a.clone(),
             ParseSource::FromFile(path) => {
                 let mut buf = String::new();
-                BufReader::new(File::create(path).unwrap()).read_to_string(&mut buf).unwrap();
+                BufReader::new(File::open(path).unwrap()).read_to_string(&mut buf).unwrap();
                 buf
             }
         }
