@@ -9,8 +9,8 @@ impl Test {
         let source = src;
         let parser = Parser::create(source);
         let root_ast = parser.parse()?;
-        let runtime = Runtime::create(root_ast);
-        Ok(runtime.yield_all_evaluated_expressions())
+        let runtime = Runtime::create();
+        Ok(runtime.yield_all_evaluated_expressions(&root_ast))
     }
 
     #[allow(clippy::unreadable_literal)]

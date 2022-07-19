@@ -13,7 +13,8 @@ impl Task for Interpret {
         let source = environment.source();
         let parser = Parser::create(source.as_str());
         let root_ast = parser.parse()?;
-        let runtime = Runtime::create(root_ast);
-        Ok(runtime.execute())
+        let runtime = Runtime::create();
+        runtime.execute(&root_ast);
+        Ok(())
     }
 }

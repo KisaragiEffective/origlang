@@ -1,6 +1,7 @@
 pub mod test;
 pub mod print_ast;
 pub mod interpret;
+pub mod repl;
 
 pub trait Task {
     type Environment;

@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use crate::cli::task::print_ast::*;
 use crate::cli::task::test::Test;
 use crate::cli::task::interpret::Interpret;
+use crate::cli::task::repl::Repl;
 use crate::cli::task::Task;
 
 #[derive(Parser)]
@@ -15,7 +16,8 @@ impl Args {
     pub fn execute(self) -> Result<(), String> {
         match self.sub_command {
             SubCom::Repl => {
-                Err("currently not implemented".to_string())
+                let task = Repl;
+                task.execute(())
             }
             SubCom::Execute { input_file, input_source } => {
                 let task = Interpret;

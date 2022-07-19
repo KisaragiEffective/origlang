@@ -6,20 +6,18 @@ use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeO
 pub struct Runtime {
     /// すでに評価された値を格納しておく
     environment: RefCell<HashMap<String, i32>>,
-    ast: RootAst,
 }
 
 impl Runtime {
-    pub(crate) fn create(root_ast: RootAst) -> Self {
+    pub(crate) fn create() -> Self {
         Self {
             environment: RefCell::new(HashMap::new()),
-            ast: root_ast,
         }
     }
 
     #[allow(dead_code)]
-    pub(crate) fn execute(&self) {
-        for statement in &self.ast.statement {
+    pub(crate) fn execute(&self, ast: &RootAst) {
+        for statement in &ast.statement {
             match statement {
                 Statement::Print { expression } => {
                     println!("{value}", value = self.evaluate(expression).unwrap());
@@ -31,9 +29,9 @@ impl Runtime {
         }
     }
 
-    pub(crate) fn yield_all_evaluated_expressions(&self) -> Vec<i32> {
+    pub(crate) fn yield_all_evaluated_expressions(&self, ast: &RootAst) -> Vec<i32> {
         let mut buf = vec![];
-        for statement in &self.ast.statement {
+        for statement in &ast.statement {
             match statement {
                 Statement::Print { expression } => {
                     buf.push(self.evaluate(expression).unwrap());
