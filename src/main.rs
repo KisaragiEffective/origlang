@@ -6,6 +6,7 @@ mod ast;
 mod runtime;
 mod lexer;
 mod char_list;
+mod cli;
 
 use ast::{First, RootAst, Statement};
 use runtime::Runtime;
