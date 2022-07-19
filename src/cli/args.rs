@@ -53,15 +53,15 @@ impl Args {
 pub enum SubCom {
     Repl,
     Execute {
-        #[clap(group = "evaluate_source")]
+        #[clap(long, group = "evaluate_source")]
         input_file: Option<PathBuf>,
-        #[clap(group = "evaluate_source")]
+        #[clap(long, group = "evaluate_source")]
         input_source: Option<String>
     },
     Ast {
-        #[clap(group = "evaluate_source")]
+        #[clap(long, group = "evaluate_source")]
         input_file: Option<PathBuf>,
-        #[clap(group = "evaluate_source")]
+        #[clap(long, group = "evaluate_source")]
         input_source: Option<String>
     },
     Test
