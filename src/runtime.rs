@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Add, Deref};
-use crate::{First, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative};
+use crate::ast::{First, RootAst, Statement};
+use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -70,9 +69,8 @@ impl CanBeEvaluated for &Additive {
         match self {
             Additive::Binary { operator, lhs, rhs } => {
                 Ok(match operator {
-                    BuiltinOperatorKind::Plus => lhs.as_ref().evaluate(runtime)? + rhs.as_ref().evaluate(runtime)?,
-                    BuiltinOperatorKind::Minus => lhs.as_ref().evaluate(runtime)? - rhs.as_ref().evaluate(runtime)?,
-                    other => unreachable!("but got {other:?}"),
+                    AdditiveOperatorKind::Plus => lhs.as_ref().evaluate(runtime)? + rhs.as_ref().evaluate(runtime)?,
+                    AdditiveOperatorKind::Minus => lhs.as_ref().evaluate(runtime)? - rhs.as_ref().evaluate(runtime)?,
                 })
             }
             Additive::WrappedMultiplicative(term) => {
@@ -87,13 +85,12 @@ impl CanBeEvaluated for &Multiplicative {
         match self {
             Multiplicative::Binary { operator, lhs, rhs } => {
                 Ok(match operator {
-                    BuiltinOperatorKind::Multiple => {
+                    MultiplicativeOperatorKind::Multiple => {
                         lhs.as_ref().evaluate(runtime)? * rhs.as_ref().evaluate(runtime)?
                     }
-                    BuiltinOperatorKind::Divide => {
+                    MultiplicativeOperatorKind::Divide => {
                         lhs.as_ref().evaluate(runtime)? / rhs.as_ref().evaluate(runtime)?
                     }
-                    other => unreachable!("but {other:?} detected")
                 })
             }
             Multiplicative::WrappedFirst(term) => {

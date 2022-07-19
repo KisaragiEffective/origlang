@@ -1,7 +1,7 @@
 
 
 use crate::{First, Lexer, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative};
+use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -93,9 +93,9 @@ impl Parser {
             let rhs = self.parse_first()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::SymAsterisk => BuiltinOperatorKind::Multiple,
-                    Token::SymSlash => BuiltinOperatorKind::Divide,
-                    e => unreachable!("excess token: {e:?}")
+                    Token::SymAsterisk => MultiplicativeOperatorKind::Multiple,
+                    Token::SymSlash => MultiplicativeOperatorKind::Divide,
+                    e => panic!("excess token: {e:?}")
                 }
             };
 
@@ -135,9 +135,9 @@ impl Parser {
             let rhs = self.parse_multiplicative()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::SymPlus => BuiltinOperatorKind::Plus,
-                    Token::SymMinus => BuiltinOperatorKind::Minus,
-                    e => unreachable!("excess token: {e:?}")
+                    Token::SymPlus => AdditiveOperatorKind::Plus,
+                    Token::SymMinus => AdditiveOperatorKind::Minus,
+                    e => panic!("excess token: {e:?}")
                 }
             };
 
