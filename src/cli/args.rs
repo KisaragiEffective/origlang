@@ -12,7 +12,7 @@ pub struct Args {
 }
 
 impl Args {
-    fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), String> {
         match self.sub_command {
             SubCom::Repl => {
                 Err("currently not implemented".to_string())

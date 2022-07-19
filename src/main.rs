@@ -10,9 +10,11 @@ mod cli;
 
 use ast::{First, RootAst, Statement};
 use runtime::Runtime;
+use crate::cli::args::Args;
 use crate::lexer::Lexer;
 
 fn main() -> Result<(), String> {
-    Ok(())
+    use clap::Parser;
+    let args = Args::parse();
+    args.execute()
 }
-
