@@ -73,7 +73,15 @@ impl Parser {
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
                 Ok(First::parenthesized(inner_expression))
             }
-            _ => Err("int literal or identifier is expected".to_string())
+            Token::KeywordTrue => {
+                self.lexer.next();
+                Ok(First::True)
+            }
+            Token::KeywordFalse => {
+                self.lexer.next();
+                Ok(First::False)
+            }
+            _ => Err("int literal, boolean literal or identifier is expected".to_string())
         }
     }
 

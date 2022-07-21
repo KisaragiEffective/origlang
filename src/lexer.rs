@@ -3,8 +3,8 @@ use std::cell::RefCell;
 use anyhow::{anyhow, Result};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
-static KEYWORDS: [&str; 5] =
-    ["var", "if", "else", "then", "exit"];
+static KEYWORDS: [&str; 7] =
+    ["var", "if", "else", "then", "exit", "true", "false"];
 
 pub struct Lexer {
     current_index: RefCell<usize>,
@@ -71,11 +71,12 @@ impl Lexer {
                 let scan_result = self.scan_lowers().expect("oops");
                 let is_keyword = KEYWORDS.contains(&scan_result.as_str());
                 if is_keyword {
-                    if scan_result == "var" {
-                        Token::VarKeyword
-                    } else {
-                        Token::Reserved {
-                            matched: scan_result
+                    match scan_result.as_str() {
+                        "var" => Token::VarKeyword,
+                        "true" => Token::KeywordTrue,
+                        "false" => Token::KeywordFalse,
+                        other => Token::Reserved {
+                            matched: other.to_string(),
                         }
                     }
                 } else {
@@ -187,6 +188,8 @@ pub enum Token {
     NewLine,
     /// `"var"`
     VarKeyword,
+    KeywordTrue,
+    KeywordFalse,
     /// `"="`
     SymEq,
     /// `"+"`
