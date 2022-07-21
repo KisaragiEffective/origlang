@@ -100,7 +100,23 @@ pub enum RelationExpression {
         lhs: Box<Self>,
         rhs: Box<Self>,
     },
-    Unlifted(Multiplicative),
+    Unlifted(Additive),
+}
+
+impl RelationExpression {
+    pub fn binary(operator: RelationExpressionOperator, lhs: Self, rhs: Self) -> Self {
+        Self::Binary {
+            operator,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
+    }
+}
+
+impl From<Additive> for RelationExpression {
+    fn from(a: Additive) -> Self {
+        Self::Unlifted(a)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -126,6 +142,22 @@ pub enum EqualityExpression {
         rhs: Box<Self>,
     },
     Unlifted(RelationExpression)
+}
+
+impl EqualityExpression {
+    pub fn binary(operator: EqualityExpressionOperator, lhs: Self, rhs: Self) -> Self {
+        Self::Binary {
+            operator,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        }
+    }
+}
+
+impl From<RelationExpression> for EqualityExpression {
+    fn from(re: RelationExpression) -> Self {
+        Self::Unlifted(re)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
