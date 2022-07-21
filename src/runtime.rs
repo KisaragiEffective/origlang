@@ -113,6 +113,9 @@ impl CanBeEvaluated for &First {
             First::Parenthesized(inner) => {
                 inner.as_ref().evaluate(runtime)
             }
+            // FIXME: 簡単な言語なのでここでは簡便さを優先
+            First::True => Ok(1),
+            First::False => Ok(0),
         }
     }
 }
