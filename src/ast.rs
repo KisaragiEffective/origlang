@@ -26,12 +26,12 @@ pub enum First {
     Variable {
         name: String,
     },
-    Parenthesized(Box<Additive>)
+    Lifted(Box<ExpressionBox>)
 }
 
 impl First {
-    pub fn parenthesized(expr: Additive) -> Self {
-        Self::Parenthesized(Box::new(expr))
+    pub fn parenthesized(expr: ExpressionBox) -> Self {
+        Self::Lifted(Box::new(expr))
     }
 }
 
@@ -48,7 +48,7 @@ pub enum Additive {
         lhs: Box<Self>,
         rhs: Box<Self>,
     },
-    WrappedMultiplicative(Multiplicative),
+    Unlifted(Multiplicative),
 }
 
 impl Additive {
@@ -59,21 +59,11 @@ impl Additive {
             rhs: Box::new(rhs),
         }
     }
-
-    pub fn term(term: First) -> Self {
-        term.into()
-    }
-}
-
-impl From<First> for Additive {
-    fn from(term: First) -> Self {
-        Self::WrappedMultiplicative(Multiplicative::WrappedFirst(term))
-    }
 }
 
 impl From<Multiplicative> for Additive {
     fn from(multiplicative: Multiplicative) -> Self {
-        Self::WrappedMultiplicative(multiplicative)
+        Self::Unlifted(multiplicative)
     }
 }
 
@@ -84,7 +74,13 @@ pub enum Multiplicative {
         lhs: Box<Self>,
         rhs: Box<Self>
     },
-    WrappedFirst(First)
+    Unlifted(First),
+}
+
+impl From<First> for Multiplicative {
+    fn from(f: First) -> Self {
+        Self::Unlifted(f)
+    }
 }
 
 impl Multiplicative {
@@ -95,17 +91,88 @@ impl Multiplicative {
             rhs: Box::new(rhs),
         }
     }
+}
 
-    pub fn term(term: First) -> Self {
-        term.into()
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum RelationExpression {
+    Binary {
+        operator: RelationExpressionOperator,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
+    },
+    Unlifted(Multiplicative),
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum RelationExpressionOperator {
+    /// `<=`
+    LessEqual,
+    /// `<`
+    Less,
+    /// `>=`
+    MoreEqual,
+    /// `>`
+    More,
+    /// `<=>`
+    // なんとなく面白そうなので
+    SpaceShip,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum EqualityExpression {
+    Binary {
+        operator: EqualityExpressionOperator,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
+    },
+    Unlifted(RelationExpression)
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum EqualityExpressionOperator {
+    Equal,
+    NotEqual,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExpressionBox {
+    Unary(First),
+    Additive(Additive),
+    Multiplicative(Multiplicative),
+    RelationExpression(RelationExpression),
+    EqualityExpression(EqualityExpression),
+}
+
+impl From<First> for ExpressionBox {
+    fn from(x: First) -> Self {
+        Self::Unary(x)
     }
 }
 
-impl From<First> for Multiplicative {
-    fn from(from: First) -> Self {
-        Self::WrappedFirst(from)
+impl From<Additive> for ExpressionBox {
+    fn from(x: Additive) -> Self {
+        Self::Additive(x)
     }
 }
+
+impl From<Multiplicative> for ExpressionBox {
+    fn from(x: Multiplicative) -> Self {
+        Self::Multiplicative(x)
+    }
+}
+
+impl From<RelationExpression> for ExpressionBox {
+    fn from(x: RelationExpression) -> Self {
+        Self::RelationExpression(x)
+    }
+}
+
+impl From<EqualityExpression> for ExpressionBox {
+    fn from(x: EqualityExpression) -> Self {
+        Self::EqualityExpression(x)
+    }
+}
+
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BuiltinOperatorKind {

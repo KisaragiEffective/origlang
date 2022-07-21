@@ -1,6 +1,7 @@
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::ast::{First, RootAst, Statement};
+use crate::ast::{EqualityExpression, EqualityExpressionOperator, ExpressionBox, First, RelationExpression, RelationExpressionOperator, RootAst, Statement};
 use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
 
 pub struct Runtime {
@@ -71,7 +72,7 @@ impl CanBeEvaluated for &Additive {
                     AdditiveOperatorKind::Minus => lhs.as_ref().evaluate(runtime)? - rhs.as_ref().evaluate(runtime)?,
                 })
             }
-            Additive::WrappedMultiplicative(term) => {
+            Additive::Unlifted(term) => {
                 term.evaluate(runtime)
             }
         }
@@ -91,7 +92,7 @@ impl CanBeEvaluated for &Multiplicative {
                     }
                 })
             }
-            Multiplicative::WrappedFirst(term) => {
+            Multiplicative::Unlifted(term) => {
                 term.evaluate(runtime)
             }
         }
@@ -110,12 +111,84 @@ impl CanBeEvaluated for &First {
                 let variable = read_view.get(name.as_str()).expect("variable does not exist");
                 Ok(*variable)
             }
-            First::Parenthesized(inner) => {
+            First::Lifted(inner) => {
                 inner.as_ref().evaluate(runtime)
             }
             // FIXME: 簡単な言語なのでここでは簡便さを優先
             First::True => Ok(1),
             First::False => Ok(0),
+        }
+    }
+}
+
+#[inline]
+const fn zero_one_bool(b: bool) -> i32 {
+    if b {
+        1
+    } else {
+        0
+    }
+}
+
+impl CanBeEvaluated for &RelationExpression {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            RelationExpression::Binary { operator, lhs, rhs } => {
+                let v = match operator {
+                    RelationExpressionOperator::LessEqual => {
+                        zero_one_bool(lhs.as_ref().evaluate(runtime)? <= rhs.as_ref().evaluate(runtime)?)
+                    }
+                    RelationExpressionOperator::Less => {
+                        zero_one_bool(lhs.as_ref().evaluate(runtime)? < rhs.as_ref().evaluate(runtime)?)
+                    }
+                    RelationExpressionOperator::MoreEqual => {
+                        zero_one_bool(lhs.as_ref().evaluate(runtime)? >= rhs.as_ref().evaluate(runtime)?)
+                    }
+                    RelationExpressionOperator::More => {
+                        zero_one_bool(lhs.as_ref().evaluate(runtime)? > rhs.as_ref().evaluate(runtime)?)
+                    }
+                    RelationExpressionOperator::SpaceShip => {
+                        match lhs.as_ref().evaluate(runtime)?.cmp(&rhs.as_ref().evaluate(runtime)?) {
+                            Ordering::Less => -1,
+                            Ordering::Equal => 0,
+                            Ordering::Greater => 1,
+                        }
+                    }
+                };
+                Ok(v)
+            }
+            RelationExpression::Unlifted(a) => a.evaluate(runtime)
+        }
+    }
+}
+
+impl CanBeEvaluated for &EqualityExpression {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            EqualityExpression::Binary { operator, lhs, rhs } => {
+                let v = match operator {
+                    EqualityExpressionOperator::Equal => {
+                        lhs.as_ref().evaluate(runtime)? == rhs.as_ref().evaluate(runtime)?
+                    }
+                    EqualityExpressionOperator::NotEqual => {
+                        lhs.as_ref().evaluate(runtime)? != rhs.as_ref().evaluate(runtime)?
+                    }
+                };
+
+                Ok(zero_one_bool(v))
+            }
+            EqualityExpression::Unlifted(a) => a.evaluate(runtime)
+        }
+    }
+}
+impl CanBeEvaluated for &ExpressionBox {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            ExpressionBox::Unary(a) => a.evaluate(runtime),
+            ExpressionBox::Additive(a) => a.evaluate(runtime),
+            ExpressionBox::Multiplicative(a) => a.evaluate(runtime),
+            ExpressionBox::RelationExpression(a) => a.evaluate(runtime),
+            ExpressionBox::EqualityExpression(a) => a.evaluate(runtime),
         }
     }
 }

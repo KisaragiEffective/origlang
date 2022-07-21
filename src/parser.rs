@@ -71,7 +71,7 @@ impl Parser {
                 assert_eq!(self.lexer.next(), Token::SymLeftPar);
                 let inner_expression = self.parse_additive()?;
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
-                Ok(First::parenthesized(inner_expression))
+                Ok(First::parenthesized(inner_expression.into()))
             }
             Token::KeywordTrue => {
                 self.lexer.next();
