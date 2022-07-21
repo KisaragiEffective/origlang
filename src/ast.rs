@@ -21,6 +21,8 @@ pub enum Statement {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum First {
     IntLiteral(i32),
+    True,
+    False,
     Variable {
         name: String,
     },
