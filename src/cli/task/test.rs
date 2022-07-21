@@ -46,6 +46,12 @@ impl Test {
         assert_ne!(Self::evaluated_expressions("3 * 2 + 1\n")?, vec![9]);
         assert_eq!(Self::evaluated_expressions("3 * (2 + 1)\n")?, vec![9]);
         assert_ne!(Self::evaluated_expressions("3 * (2 + 1)\n")?, vec![7]);
+
+        // pesudo-boolean literal test
+        assert_eq!(Self::evaluated_expressions("true\n")?, vec![1]);
+        assert_ne!(Self::evaluated_expressions("true\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("false\n")?, vec![0]);
+        assert_ne!(Self::evaluated_expressions("false\n")?, vec![1]);
         Ok(())
     }
 }
