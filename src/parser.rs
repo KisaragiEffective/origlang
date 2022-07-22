@@ -40,7 +40,7 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_additive()?
+                expression: self.parse_equality_expression()?
             }
         };
         let result = Ok(result);
@@ -271,7 +271,7 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_additive()?;
+        let expression = self.parse_equality_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression

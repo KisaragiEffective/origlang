@@ -45,7 +45,7 @@ impl Runtime {
         buf
     }
 
-    fn update_variable(&self, identifier: &str, expression: &Additive) {
+    fn update_variable(&self, identifier: &str, expression: &EqualityExpression) {
         // NOTE: please do not inline. it causes BorrowError.
         let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
         self.environment.borrow_mut().insert(identifier.to_string(), evaluated);

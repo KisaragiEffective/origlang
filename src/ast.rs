@@ -9,11 +9,11 @@ pub struct RootAst {
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
-        expression: Additive,
+        expression: EqualityExpression,
     },
     VariableDeclaration {
         identifier: String,
-        expression: Additive,
+        expression: EqualityExpression,
     }
 }
 
