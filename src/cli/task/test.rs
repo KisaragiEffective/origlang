@@ -52,6 +52,66 @@ impl Test {
         assert_ne!(Self::evaluated_expressions("true\n")?, vec![0]);
         assert_eq!(Self::evaluated_expressions("false\n")?, vec![0]);
         assert_ne!(Self::evaluated_expressions("false\n")?, vec![1]);
+
+        Self::test_comparison_operator()?;
+        Self::test_equality_operator()?;
+        Ok(())
+    }
+
+    fn test_comparison_operator() -> Result<(), String> {
+        // less equal
+        assert_eq!(Self::evaluated_expressions("1 <= 0\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("1 <= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 <= 2\n")?, vec![1]);
+
+        // less equal reflexibility
+        assert_eq!(Self::evaluated_expressions("1 <= 0 == 0 >= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 <= 1 == 1 >= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 <= 2 == 2 >= 1\n")?, vec![1]);
+
+        // less
+        assert_eq!(Self::evaluated_expressions("1 < 0\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("1 < 1\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("1 < 2\n")?, vec![1]);
+
+        // less equal reflexibility
+        assert_eq!(Self::evaluated_expressions("1 < 0 == 0 > 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 < 1 == 1 > 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 < 2 == 2 > 1\n")?, vec![1]);
+
+        // more equal
+        assert_eq!(Self::evaluated_expressions("1 >= 0\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 >= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 >= 2\n")?, vec![0]);
+
+        // more equal reflexibility
+        assert_eq!(Self::evaluated_expressions("1 >= 0 == 0 <= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 >= 1 == 1 <= 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 >= 2 == 2 <= 1\n")?, vec![1]);
+
+        // more
+        assert_eq!(Self::evaluated_expressions("1 > 0\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 > 1\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("1 > 2\n")?, vec![0]);
+
+        // more reflexibility
+        assert_eq!(Self::evaluated_expressions("1 > 0 == 0 < 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 > 1 == 1 < 1\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 > 2 == 2 < 1\n")?, vec![1]);
+
+        // spaceship operator
+        assert_eq!(Self::evaluated_expressions("1 <=> 0\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 1\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 2\n")?, vec![-1]);
+
+        Ok(())
+    }
+
+    fn test_equality_operator() -> Result<(), String> {
+        assert_eq!(Self::evaluated_expressions("42 == 42\n")?, vec![1]);
+        assert_eq!(Self::evaluated_expressions("42 == 21\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("42 != 42\n")?, vec![0]);
+        assert_eq!(Self::evaluated_expressions("42 != 21\n")?, vec![1]);
         Ok(())
     }
 }
