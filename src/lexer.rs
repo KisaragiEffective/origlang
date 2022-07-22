@@ -40,7 +40,12 @@ impl Lexer {
             },
             '=' => {
                 self.advance();
-                Token::SymEq
+                if self.current_char().expect("oops") == '=' {
+                    self.advance();
+                    Token::PartEqEq
+                } else {
+                    Token::SymEq
+                }
             },
             '+' => {
                 self.advance();
@@ -65,6 +70,38 @@ impl Lexer {
             ')' => {
                 self.advance();
                 Token::SymRightPar
+            },
+            '<' => {
+                self.advance();
+                if self.current_char().expect("oops") == '=' {
+                    self.advance();
+                    if self.current_char().expect("oops") == '>' {
+                        self.advance();
+                        Token::PartLessEqMore
+                    } else {
+                        Token::PartLessEq
+                    }
+                } else {
+                    Token::SymLess
+                }
+            },
+            '>' => {
+                self.advance();
+                if self.current_char().expect("oops") == '=' {
+                    self.advance();
+                    Token::PartMoreEq
+                } else {
+                    Token::SymMore
+                }
+            },
+            '!' => {
+                self.advance();
+                if self.current_char().expect("oops") == '=' {
+                    self.advance();
+                    Token::PartBangEq
+                } else {
+                    Token::SymBang
+                }
             },
             c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
             c if ASCII_LOWERS.contains(&c) => {
@@ -204,6 +241,22 @@ pub enum Token {
     SymLeftPar,
     /// `")"`
     SymRightPar,
+    /// `>`
+    SymMore,
+    /// `<`
+    SymLess,
+    /// `!`
+    SymBang,
+    /// `==`
+    PartEqEq,
+    /// `!=`
+    PartBangEq,
+    /// `<=`
+    PartLessEq,
+    /// `>=`
+    PartMoreEq,
+    /// `<=>`
+    PartLessEqMore,
     /// reserved for future use.
     Reserved {
         matched: String,

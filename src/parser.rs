@@ -1,7 +1,7 @@
 
 
 use crate::{First, Lexer, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind};
+use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind, RelationExpression, RelationExpressionOperator, EqualityExpression, EqualityExpressionOperator};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -40,7 +40,7 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_additive()?
+                expression: self.parse_equality_expression()?
             }
         };
         let result = Ok(result);
@@ -71,7 +71,7 @@ impl Parser {
                 assert_eq!(self.lexer.next(), Token::SymLeftPar);
                 let inner_expression = self.parse_additive()?;
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
-                Ok(First::parenthesized(inner_expression))
+                Ok(First::parenthesized(inner_expression.into()))
             }
             Token::KeywordTrue => {
                 self.lexer.next();
@@ -167,6 +167,81 @@ impl Parser {
         }
     }
 
+    /// 現在の位置から比較演算式をパースしようと試みる
+    fn parse_relation_expression(&self) -> Result<RelationExpression, String> {
+        let first_term = self.parse_additive()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartLessEq | Token::PartMoreEq | Token::SymLess | Token::SymMore | Token::PartLessEqMore)
+        };
+
+        if is_relation_operator(&next_token) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term.into();
+            let rhs = self.parse_additive()?;
+            let get_operator_from_token = |token: &Token| {
+                match token {
+                    Token::PartLessEq => RelationExpressionOperator::LessEqual,
+                    Token::PartMoreEq => RelationExpressionOperator::MoreEqual,
+                    Token::SymLess => RelationExpressionOperator::Less,
+                    Token::SymMore => RelationExpressionOperator::More,
+                    Token::PartLessEqMore => RelationExpressionOperator::SpaceShip,
+                    e => panic!("excess token: {e:?}")
+                }
+            };
+
+            let mut acc = RelationExpression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token) {
+                self.lexer.next();
+                let new_rhs = self.parse_additive()?;
+                // 左結合になるように詰め替える
+                acc = RelationExpression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            Ok(first_term.into())
+        }
+    }
+
+    /// 現在の位置から等価性検査式をパースしようと試みる
+    fn parse_equality_expression(&self) -> Result<EqualityExpression, String> {
+        let first_term = self.parse_relation_expression()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartEqEq | Token::PartBangEq)
+        };
+
+        if is_relation_operator(&next_token) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term.into();
+            let rhs = self.parse_relation_expression()?;
+            let get_operator_from_token = |token: &Token| {
+                match token {
+                    Token::PartEqEq => EqualityExpressionOperator::Equal,
+                    Token::PartBangEq => EqualityExpressionOperator::NotEqual,
+                    e => panic!("excess token: {e:?}")
+                }
+            };
+
+            let mut acc = EqualityExpression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token) {
+                self.lexer.next();
+                let new_rhs = self.parse_relation_expression()?;
+                // 左結合になるように詰め替える
+                acc = EqualityExpression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            Ok(first_term.into())
+        }
+    }
+
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
     /// 事前条件: 現在のトークンが整数として有効である必要がある
     /// 違反した場合はErrを返す。
@@ -196,7 +271,7 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_additive()?;
+        let expression = self.parse_equality_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression
