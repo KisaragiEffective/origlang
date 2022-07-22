@@ -76,6 +76,7 @@ impl Lexer {
                 if self.current_char().expect("oops") == '=' {
                     self.advance();
                     if self.current_char().expect("oops") == '>' {
+                        self.advance();
                         Token::PartLessEqMore
                     } else {
                         Token::PartLessEq
