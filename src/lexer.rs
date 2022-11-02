@@ -112,6 +112,9 @@ impl Lexer {
                         "var" => Token::VarKeyword,
                         "true" => Token::KeywordTrue,
                         "false" => Token::KeywordFalse,
+                        "if" => Token::KeywordIf,
+                        "then" => Token::KeywordThen,
+                        "else" => Token::KeywordElse,
                         other => Token::Reserved {
                             matched: other.to_string(),
                         }
@@ -257,6 +260,12 @@ pub enum Token {
     PartMoreEq,
     /// `<=>`
     PartLessEqMore,
+    /// `if`
+    KeywordIf,
+    /// `then`
+    KeywordThen,
+    /// `else`
+    KeywordElse,
     /// reserved for future use.
     Reserved {
         matched: String,

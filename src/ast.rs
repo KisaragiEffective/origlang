@@ -1,3 +1,5 @@
+
+pub type LowestPrecedenceExpression = IfExpression;
 /// 現時点のプログラムとは、プリントするべき式の列である
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
@@ -9,11 +11,11 @@ pub struct RootAst {
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
-        expression: EqualityExpression,
+        expression: LowestPrecedenceExpression,
     },
     VariableDeclaration {
         identifier: String,
-        expression: EqualityExpression,
+        expression: LowestPrecedenceExpression,
     }
 }
 
@@ -164,6 +166,16 @@ impl From<RelationExpression> for EqualityExpression {
 pub enum EqualityExpressionOperator {
     Equal,
     NotEqual,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum IfExpression {
+    If {
+        condition: Box<Self>,
+        then_clause_value: Box<Self>,
+        else_clause_value: Box<Self>,
+    },
+    Lifted(EqualityExpression)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

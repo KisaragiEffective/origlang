@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::ast::{EqualityExpression, EqualityExpressionOperator, ExpressionBox, First, RelationExpression, RelationExpressionOperator, RootAst, Statement};
+use crate::ast::{EqualityExpression, EqualityExpressionOperator, ExpressionBox, First, IfExpression, LowestPrecedenceExpression, RelationExpression, RelationExpressionOperator, RootAst, Statement};
 use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
 
 pub struct Runtime {
@@ -45,7 +45,7 @@ impl Runtime {
         buf
     }
 
-    fn update_variable(&self, identifier: &str, expression: &EqualityExpression) {
+    fn update_variable(&self, identifier: &str, expression: &LowestPrecedenceExpression) {
         // NOTE: please do not inline. it causes BorrowError.
         let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
         self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
@@ -123,11 +123,7 @@ impl CanBeEvaluated for &First {
 
 #[inline]
 const fn zero_one_bool(b: bool) -> i32 {
-    if b {
-        1
-    } else {
-        0
-    }
+    b as i32
 }
 
 impl CanBeEvaluated for &RelationExpression {
@@ -178,6 +174,22 @@ impl CanBeEvaluated for &EqualityExpression {
                 Ok(zero_one_bool(v))
             }
             EqualityExpression::Unlifted(a) => a.evaluate(runtime)
+        }
+    }
+}
+
+impl CanBeEvaluated for &IfExpression {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        match self {
+            IfExpression::If { condition, then_clause_value, else_clause_value } => {
+                let condition = condition.as_ref().evaluate(runtime)?;
+                if condition == 1 { // TODO: this should be `true` in the future
+                    then_clause_value.as_ref().evaluate(runtime)
+                } else {
+                    else_clause_value.as_ref().evaluate(runtime)
+                }
+            }
+            IfExpression::Lifted(x) => x.evaluate(runtime),
         }
     }
 }
