@@ -111,7 +111,7 @@ impl CanBeEvaluated for &First {
                 let variable = read_view.get(name.as_str()).expect("variable does not exist");
                 Ok(*variable)
             }
-            First::Lifted(inner) => {
+            First::Parenthesized(inner) => {
                 inner.as_ref().evaluate(runtime)
             }
             // FIXME: 簡単な言語なのでここでは簡便さを優先

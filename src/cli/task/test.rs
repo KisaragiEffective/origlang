@@ -56,6 +56,7 @@ impl Test {
         Self::test_comparison_operator()?;
         Self::test_equality_operator()?;
         Self::test_if_expression()?;
+        Self::test_parenthesised_expression()?;
         Ok(())
     }
 
@@ -121,6 +122,11 @@ impl Test {
         assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, vec![2]);
         assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, vec![2]);
         assert_ne!(Self::evaluated_expressions("if false then 1 else 2\n")?, vec![1]);
+        Ok(())
+    }
+
+    fn test_parenthesised_expression() -> Result<(), String> {
+        assert_eq!(Self::evaluated_expressions("(1 == 2)\n")?, vec![0]);
         Ok(())
     }
 }
