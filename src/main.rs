@@ -7,6 +7,7 @@ mod runtime;
 mod lexer;
 mod char_list;
 mod cli;
+mod type_check;
 
 use crate::cli::args::Args;
 

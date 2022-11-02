@@ -1,5 +1,7 @@
 //! パース時の優先順位が消去された構造体の定義
 
+use std::fmt::{Display, Formatter};
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
     /// 整数リテラル
@@ -47,4 +49,24 @@ pub enum BinaryOperatorKind {
     ThreeWay,
     Equal,
     NotEqual,
+}
+
+impl Display for BinaryOperatorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Plus => "+",
+            Self::Minus => "-",
+            Self::Multiply => "*",
+            Self::Divide => "/",
+            Self::More => ">",
+            Self::MoreEqual => ">=",
+            Self::Less => "<",
+            Self::LessEqual => "<=",
+            Self::ThreeWay => "<=>",
+            Self::Equal => "==",
+            Self::NotEqual => "!=",
+        };
+
+        f.write_str(s)
+    }
 }
