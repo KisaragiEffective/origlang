@@ -2,6 +2,7 @@ use std::io::{stdout, Write};
 use crate::cli::task::Task;
 use crate::parser::Parser;
 use crate::runtime::Runtime;
+use crate::type_check::TypeChecker;
 
 pub struct Repl;
 
@@ -13,6 +14,7 @@ impl Task for Repl {
         let mut line_count = 1;
         let runtime = Runtime::create();
         println!("Welcome to REPL!");
+        let checker = TypeChecker::new();
         loop {
             print!("REPL:{line_count:03}> ");
             stdout().flush().unwrap();
@@ -27,6 +29,7 @@ impl Task for Repl {
             let parser = Parser::create(line.as_str());
             match parser.parse() {
                 Ok(ast) => {
+                    checker.check(&ast)?;
                     runtime.execute(&ast);
                 }
                 Err(error_message) => {
