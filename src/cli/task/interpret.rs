@@ -1,6 +1,6 @@
 use crate::cli::task::print_ast::ParseSource;
 use crate::cli::task::Task;
-use crate::Runtime;
+use crate::runtime::Runtime;
 
 pub struct Interpret;
 

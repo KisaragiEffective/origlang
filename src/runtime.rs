@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::ast::{EqualityExpression, EqualityExpressionOperator, First, IfExpression, LowestPrecedenceExpression, RelationExpression, RelationExpressionOperator, RootAst, Statement};
-use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
+use crate::ast::{RootAst, Statement};
+use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
@@ -45,7 +45,7 @@ impl Runtime {
         buf
     }
 
-    fn update_variable(&self, identifier: &str, expression: &LowestPrecedenceExpression) {
+    fn update_variable(&self, identifier: &str, expression: &Expression) {
         // NOTE: please do not inline. it causes BorrowError.
         let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
         self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
@@ -63,60 +63,46 @@ trait CanBeEvaluated {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
 }
 
-impl CanBeEvaluated for &Additive {
+impl CanBeEvaluated for &Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
-            Additive::Binary { operator, lhs, rhs } => {
-                Ok(match operator {
-                    AdditiveOperatorKind::Plus => lhs.as_ref().evaluate(runtime)? + rhs.as_ref().evaluate(runtime)?,
-                    AdditiveOperatorKind::Minus => lhs.as_ref().evaluate(runtime)? - rhs.as_ref().evaluate(runtime)?,
-                })
-            }
-            Additive::Unlifted(term) => {
-                term.evaluate(runtime)
-            }
-        }
-    }
-}
-
-impl CanBeEvaluated for &Multiplicative {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            Multiplicative::Binary { operator, lhs, rhs } => {
-                Ok(match operator {
-                    MultiplicativeOperatorKind::Multiple => {
-                        lhs.as_ref().evaluate(runtime)? * rhs.as_ref().evaluate(runtime)?
+            Expression::IntLiteral(i) => Ok(*i),
+            Expression::BooleanLiteral(b) => Ok(zero_one_bool(*b)),
+            Expression::Variable { ident } => {
+                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(|a| *a)
+            },
+            Expression::BinaryOperator { lhs, rhs, operator } => {
+                let lhs = lhs.as_ref().evaluate(runtime)?;
+                let rhs = rhs.as_ref().evaluate(runtime)?;
+                let value = match operator {
+                    BinaryOperatorKind::Plus => lhs + rhs,
+                    BinaryOperatorKind::Minus => lhs - rhs,
+                    BinaryOperatorKind::Multiply => lhs * rhs,
+                    BinaryOperatorKind::Divide => lhs / rhs,
+                    BinaryOperatorKind::More => zero_one_bool(lhs > rhs),
+                    BinaryOperatorKind::MoreEqual => zero_one_bool(lhs >= rhs),
+                    BinaryOperatorKind::Less => zero_one_bool(lhs < rhs),
+                    BinaryOperatorKind::LessEqual => zero_one_bool(lhs <= rhs),
+                    BinaryOperatorKind::ThreeWay => {
+                        match lhs.cmp(&rhs) {
+                            Ordering::Less => -1,
+                            Ordering::Equal => 0,
+                            Ordering::Greater => 1,
+                        }
                     }
-                    MultiplicativeOperatorKind::Divide => {
-                        lhs.as_ref().evaluate(runtime)? / rhs.as_ref().evaluate(runtime)?
-                    }
-                })
-            }
-            Multiplicative::Unlifted(term) => {
-                term.evaluate(runtime)
-            }
-        }
-    }
-}
+                    BinaryOperatorKind::Equal => zero_one_bool(lhs == rhs),
+                    BinaryOperatorKind::NotEqual => zero_one_bool(lhs != rhs),
+                };
 
-impl CanBeEvaluated for &First {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            First::IntLiteral(inner) => Ok(*inner),
-            First::Variable {
-                name
-            } => {
-                // temporary value
-                let read_view = runtime.environment.borrow();
-                let variable = read_view.get(name.as_str()).expect("variable does not exist");
-                Ok(*variable)
+                Ok(value)
             }
-            First::Parenthesized(inner) => {
-                inner.as_ref().evaluate(runtime)
+            Expression::If { condition, then_clause_value, else_clause_value } => {
+                if condition.as_ref().evaluate(runtime)? == 1 { // FIXME this should be `true` in the future
+                    then_clause_value.as_ref().evaluate(runtime)
+                } else {
+                    else_clause_value.as_ref().evaluate(runtime)
+                }
             }
-            // FIXME: 簡単な言語なのでここでは簡便さを優先
-            First::True => Ok(1),
-            First::False => Ok(0),
         }
     }
 }
@@ -124,72 +110,4 @@ impl CanBeEvaluated for &First {
 #[inline]
 const fn zero_one_bool(b: bool) -> i32 {
     b as i32
-}
-
-impl CanBeEvaluated for &RelationExpression {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            RelationExpression::Binary { operator, lhs, rhs } => {
-                let v = match operator {
-                    RelationExpressionOperator::LessEqual => {
-                        zero_one_bool(lhs.as_ref().evaluate(runtime)? <= rhs.as_ref().evaluate(runtime)?)
-                    }
-                    RelationExpressionOperator::Less => {
-                        zero_one_bool(lhs.as_ref().evaluate(runtime)? < rhs.as_ref().evaluate(runtime)?)
-                    }
-                    RelationExpressionOperator::MoreEqual => {
-                        zero_one_bool(lhs.as_ref().evaluate(runtime)? >= rhs.as_ref().evaluate(runtime)?)
-                    }
-                    RelationExpressionOperator::More => {
-                        zero_one_bool(lhs.as_ref().evaluate(runtime)? > rhs.as_ref().evaluate(runtime)?)
-                    }
-                    RelationExpressionOperator::SpaceShip => {
-                        match lhs.as_ref().evaluate(runtime)?.cmp(&rhs.as_ref().evaluate(runtime)?) {
-                            Ordering::Less => -1,
-                            Ordering::Equal => 0,
-                            Ordering::Greater => 1,
-                        }
-                    }
-                };
-                Ok(v)
-            }
-            RelationExpression::Unlifted(a) => a.evaluate(runtime)
-        }
-    }
-}
-
-impl CanBeEvaluated for &EqualityExpression {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            EqualityExpression::Binary { operator, lhs, rhs } => {
-                let v = match operator {
-                    EqualityExpressionOperator::Equal => {
-                        lhs.as_ref().evaluate(runtime)? == rhs.as_ref().evaluate(runtime)?
-                    }
-                    EqualityExpressionOperator::NotEqual => {
-                        lhs.as_ref().evaluate(runtime)? != rhs.as_ref().evaluate(runtime)?
-                    }
-                };
-
-                Ok(zero_one_bool(v))
-            }
-            EqualityExpression::Unlifted(a) => a.evaluate(runtime)
-        }
-    }
-}
-
-impl CanBeEvaluated for &IfExpression {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            IfExpression::If { condition, then_clause_value, else_clause_value } => {
-                let condition = condition.as_ref().evaluate(runtime)?;
-                if condition == 1 { // TODO: this should be `true` in the future
-                    then_clause_value.as_ref().evaluate(runtime)
-                } else {
-                    else_clause_value.as_ref().evaluate(runtime)
-                }
-            }
-            IfExpression::Lifted(x) => x.evaluate(runtime),
-        }
-    }
 }
