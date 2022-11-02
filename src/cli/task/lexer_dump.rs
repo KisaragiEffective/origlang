@@ -1,7 +1,6 @@
-use std::convert::Infallible;
 use crate::cli::task::print_ast::ParseSource;
 use crate::cli::task::Task;
-use crate::Lexer;
+use crate::lexer::Lexer;
 use crate::lexer::Token;
 
 pub struct LexerDump;

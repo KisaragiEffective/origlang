@@ -1,8 +1,6 @@
-
-
-use crate::{First, Lexer, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind, RelationExpression, RelationExpressionOperator, EqualityExpression, EqualityExpressionOperator, IfExpression, LowestPrecedenceExpression};
-use crate::lexer::Token;
+use crate::ast::{RootAst, Statement};
+use crate::lexer::{Lexer, Token};
+use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 
 pub struct Parser {
     lexer: Lexer,
@@ -52,19 +50,19 @@ impl Parser {
     /// 現在のトークン位置から基本式をパースしようと試みる。
     /// 事前条件: 現在のトークン位置が基本式として有効である必要がある
     /// 違反した場合はErr。
-    fn parse_first(&self) -> Result<First, String> {
+    fn parse_first(&self) -> Result<Expression, String> {
         let token = self.lexer.peek();
         match token {
             Token::Identifier { inner } => {
                 // consume
                 self.lexer.next();
-                Ok(First::Variable {
-                    name: inner
+                Ok(Expression::Variable {
+                    ident: inner
                 })
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|parsed| {
-                    First::IntLiteral(parsed)
+                    Expression::IntLiteral(parsed)
                 })
             }
             Token::SymLeftPar => {
@@ -72,15 +70,15 @@ impl Parser {
                 // FIXME: (1 == 2)を受け付けない
                 let inner_expression = self.parse_lowest_precedence_expression()?;
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
-                Ok(First::parenthesized(inner_expression))
+                Ok(inner_expression)
             }
             Token::KeywordTrue => {
                 self.lexer.next();
-                Ok(First::True)
+                Ok(Expression::BooleanLiteral(true))
             }
             Token::KeywordFalse => {
                 self.lexer.next();
-                Ok(First::False)
+                Ok(Expression::BooleanLiteral(false))
             }
             Token::EndOfFile => {
                 Err("END OF FILE!!!".to_string())
@@ -90,7 +88,7 @@ impl Parser {
     }
 
     /// 現在のトークン位置から乗除算をパースする。
-    fn parse_multiplicative(&self) -> Result<Multiplicative, String> {
+    fn parse_multiplicative(&self) -> Result<Expression, String> {
         let first_term = self.parse_first()?;
         let next_token = self.lexer.peek();
         let asterisk_or_slash = |token: &Token| {
@@ -101,17 +99,17 @@ impl Parser {
             // SymAsterisk | SymSlash
             self.lexer.next();
             let operator_token = next_token;
-            let lhs = first_term.into();
+            let lhs = first_term;
             let rhs = self.parse_first()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::SymAsterisk => MultiplicativeOperatorKind::Multiple,
-                    Token::SymSlash => MultiplicativeOperatorKind::Divide,
+                    Token::SymAsterisk => BinaryOperatorKind::Multiply,
+                    Token::SymSlash => BinaryOperatorKind::Divide,
                     e => panic!("excess token: {e:?}")
                 }
             };
 
-            let mut acc = Multiplicative::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while asterisk_or_slash(&operator_token) {
                 // SymAsterisk | SymSlash
@@ -119,7 +117,7 @@ impl Parser {
                 let new_rhs = self.parse_first()?;
                 // 左結合になるように詰め替える
                 // これは特に除算のときに欠かせない処理である
-                acc = Multiplicative::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -132,7 +130,7 @@ impl Parser {
     /// 現在のトークン位置から加減算をパースしようと試みる。
     /// 事前条件: 現在の位置が加減算として有効である必要がある
     /// 違反した場合はErr
-    fn parse_additive(&self) -> Result<Additive, String> {
+    fn parse_additive(&self) -> Result<Expression, String> {
         let first_term = self.parse_multiplicative()?;
         let next_token = self.lexer.peek();
         let plus_or_minus = |token: &Token| {
@@ -143,17 +141,17 @@ impl Parser {
             // SymPlus | SymMinus
             self.lexer.next();
             let operator_token = next_token;
-            let lhs = first_term.into();
+            let lhs = first_term;
             let rhs = self.parse_multiplicative()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::SymPlus => AdditiveOperatorKind::Plus,
-                    Token::SymMinus => AdditiveOperatorKind::Minus,
+                    Token::SymPlus => BinaryOperatorKind::Plus,
+                    Token::SymMinus => BinaryOperatorKind::Minus,
                     e => panic!("excess token: {e:?}")
                 }
             };
 
-            let mut acc = Additive::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while plus_or_minus(&operator_token) {
                 // SymPlus | SymMinus
@@ -161,7 +159,7 @@ impl Parser {
                 let new_rhs = self.parse_multiplicative()?;
                 // 左結合になるように詰め替える
                 // これは特に減算のときに欠かせない処理である
-                acc = Additive::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -172,7 +170,7 @@ impl Parser {
     }
 
     /// 現在の位置から比較演算式をパースしようと試みる
-    fn parse_relation_expression(&self) -> Result<RelationExpression, String> {
+    fn parse_relation_expression(&self) -> Result<Expression, String> {
         let first_term = self.parse_additive()?;
         let next_token = self.lexer.peek();
         let is_relation_operator = |token: &Token| {
@@ -182,26 +180,26 @@ impl Parser {
         if is_relation_operator(&next_token) {
             self.lexer.next();
             let operator_token = next_token;
-            let lhs = first_term.into();
+            let lhs = first_term;
             let rhs = self.parse_additive()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::PartLessEq => RelationExpressionOperator::LessEqual,
-                    Token::PartMoreEq => RelationExpressionOperator::MoreEqual,
-                    Token::SymLess => RelationExpressionOperator::Less,
-                    Token::SymMore => RelationExpressionOperator::More,
-                    Token::PartLessEqMore => RelationExpressionOperator::SpaceShip,
+                    Token::PartLessEq => BinaryOperatorKind::LessEqual,
+                    Token::PartMoreEq => BinaryOperatorKind::MoreEqual,
+                    Token::SymLess => BinaryOperatorKind::Less,
+                    Token::SymMore => BinaryOperatorKind::More,
+                    Token::PartLessEqMore => BinaryOperatorKind::ThreeWay,
                     e => panic!("excess token: {e:?}")
                 }
             };
 
-            let mut acc = RelationExpression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token) {
                 self.lexer.next();
                 let new_rhs = self.parse_additive()?;
                 // 左結合になるように詰め替える
-                acc = RelationExpression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -211,7 +209,7 @@ impl Parser {
     }
 
     /// 現在の位置から等価性検査式をパースしようと試みる
-    fn parse_equality_expression(&self) -> Result<EqualityExpression, String> {
+    fn parse_equality_expression(&self) -> Result<Expression, String> {
         let first_term = self.parse_relation_expression()?;
         let next_token = self.lexer.peek();
         let is_relation_operator = |token: &Token| {
@@ -221,23 +219,23 @@ impl Parser {
         if is_relation_operator(&next_token) {
             self.lexer.next();
             let operator_token = next_token;
-            let lhs = first_term.into();
+            let lhs = first_term;
             let rhs = self.parse_relation_expression()?;
             let get_operator_from_token = |token: &Token| {
                 match token {
-                    Token::PartEqEq => EqualityExpressionOperator::Equal,
-                    Token::PartBangEq => EqualityExpressionOperator::NotEqual,
+                    Token::PartEqEq => BinaryOperatorKind::Equal,
+                    Token::PartBangEq => BinaryOperatorKind::NotEqual,
                     e => panic!("excess token: {e:?}")
                 }
             };
 
-            let mut acc = EqualityExpression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token), lhs, rhs.into());
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token) {
                 self.lexer.next();
                 let new_rhs = self.parse_relation_expression()?;
                 // 左結合になるように詰め替える
-                acc = EqualityExpression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token), acc, new_rhs.into());
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -282,11 +280,11 @@ impl Parser {
         })
     }
 
-    fn parse_lowest_precedence_expression(&self) -> Result<LowestPrecedenceExpression, String> {
+    fn parse_lowest_precedence_expression(&self) -> Result<Expression, String> {
         self.parse_if_expression()
     }
 
-    fn parse_if_expression(&self) -> Result<IfExpression, String> {
+    fn parse_if_expression(&self) -> Result<Expression, String> {
         if self.lexer.peek() == Token::KeywordIf {
             self.lexer.next();
             let condition = self.parse_if_expression()?;
@@ -296,7 +294,7 @@ impl Parser {
                 if self.lexer.peek() == Token::KeywordElse {
                     self.lexer.next();
                     let else_clause_value = self.parse_if_expression()?;
-                    Ok(IfExpression::If {
+                    Ok(Expression::If {
                         condition: Box::new(condition),
                         then_clause_value: Box::new(then_clause_value),
                         else_clause_value: Box::new(else_clause_value),
@@ -308,7 +306,7 @@ impl Parser {
                 Err("if expression requires then clause and else clause".to_string())
             }
         } else {
-            Ok(IfExpression::Lifted(self.parse_equality_expression()?))
+            self.parse_equality_expression()
         }
     }
 }
