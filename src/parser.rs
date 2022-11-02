@@ -1,7 +1,7 @@
 
 
 use crate::{First, Lexer, RootAst, Statement};
-use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind, RelationExpression, RelationExpressionOperator, EqualityExpression, EqualityExpressionOperator};
+use crate::ast::{BuiltinOperatorKind, Additive, Multiplicative, MultiplicativeOperatorKind, AdditiveOperatorKind, RelationExpression, RelationExpressionOperator, EqualityExpression, EqualityExpressionOperator, IfExpression, LowestPrecedenceExpression};
 use crate::lexer::Token;
 
 pub struct Parser {
@@ -40,7 +40,7 @@ impl Parser {
         } else {
             // assuming expression
             Statement::Print {
-                expression: self.parse_equality_expression()?
+                expression: self.parse_lowest_precedence_expression()?
             }
         };
         let result = Ok(result);
@@ -271,10 +271,39 @@ impl Parser {
             _ => return Err("identifier expected".to_string())
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
-        let expression = self.parse_equality_expression()?;
+        let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
             expression
         })
+    }
+
+    fn parse_lowest_precedence_expression(&self) -> Result<LowestPrecedenceExpression, String> {
+        self.parse_if_expression()
+    }
+
+    fn parse_if_expression(&self) -> Result<IfExpression, String> {
+        if self.lexer.peek() == Token::KeywordIf {
+            self.lexer.next();
+            let condition = self.parse_if_expression()?;
+            if self.lexer.peek() == Token::KeywordThen {
+                self.lexer.next();
+                let then_clause_value = self.parse_if_expression()?;
+                if self.lexer.peek() == Token::KeywordElse {
+                    let else_clause_value = self.parse_if_expression()?;
+                    Ok(IfExpression::If {
+                        condition: Box::new(condition),
+                        then_clause_value: Box::new(then_clause_value),
+                        else_clause_value: Box::new(else_clause_value),
+                    })
+                } else {
+                    Err("if expression requires else clause".to_string())
+                }
+            } else {
+                Err("if expression requires then clause and else clause".to_string())
+            }
+        } else {
+            Ok(IfExpression::Lifted(self.parse_equality_expression()?))
+        }
     }
 }
