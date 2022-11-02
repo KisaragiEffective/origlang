@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use crate::cli::task::print_ast::*;
 use crate::cli::task::test::Test;
 use crate::cli::task::interpret::Interpret;
+use crate::cli::task::lexer_dump::LexerDump;
 use crate::cli::task::repl::Repl;
 use crate::cli::task::Task;
 
@@ -47,6 +48,18 @@ impl Args {
                 let task = Test;
                 task.execute(())
             }
+            SubCom::LexerDump { input_file, input_source } => {
+                let task = LexerDump;
+                let source = if let Some(input_file) = input_file {
+                    ParseSource::FromFile(input_file)
+                } else if let Some(input_source) = input_source {
+                    ParseSource::RawSource(input_source)
+                } else {
+                    unreachable!("oops")
+                };
+
+                task.execute(source)
+            }
         }
     }
 }
@@ -64,7 +77,13 @@ pub enum SubCom {
         #[clap(long, group = "evaluate_source")]
         input_file: Option<PathBuf>,
         #[clap(long, group = "evaluate_source")]
-        input_source: Option<String>
+        input_source: Option<String>,
+    },
+    LexerDump {
+        #[clap(long, group = "evaluate_source")]
+        input_file: Option<PathBuf>,
+        #[clap(long, group = "evaluate_source")]
+        input_source: Option<String>,
     },
     Test
 }
