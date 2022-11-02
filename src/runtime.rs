@@ -183,7 +183,7 @@ impl CanBeEvaluated for &IfExpression {
         match self {
             IfExpression::If { condition, then_clause_value, else_clause_value } => {
                 let condition = condition.as_ref().evaluate(runtime)?;
-                if condition == 0 { // TODO: this should be `true` in the future
+                if condition == 1 { // TODO: this should be `true` in the future
                     then_clause_value.as_ref().evaluate(runtime)
                 } else {
                     else_clause_value.as_ref().evaluate(runtime)

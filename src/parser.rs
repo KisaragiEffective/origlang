@@ -81,7 +81,10 @@ impl Parser {
                 self.lexer.next();
                 Ok(First::False)
             }
-            _ => Err("int literal, boolean literal or identifier is expected".to_string())
+            Token::EndOfFile => {
+                Err("END OF FILE!!!".to_string())
+            }
+            e => Err(format!("int literal, boolean literal or identifier is expected, but got {e:?}"))
         }
     }
 
@@ -290,6 +293,7 @@ impl Parser {
                 self.lexer.next();
                 let then_clause_value = self.parse_if_expression()?;
                 if self.lexer.peek() == Token::KeywordElse {
+                    self.lexer.next();
                     let else_clause_value = self.parse_if_expression()?;
                     Ok(IfExpression::If {
                         condition: Box::new(condition),
