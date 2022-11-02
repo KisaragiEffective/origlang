@@ -1,6 +1,7 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use anyhow::{anyhow, Result};
+use crate::ast::{SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
 static KEYWORDS: [&str; 7] =
@@ -9,31 +10,48 @@ static KEYWORDS: [&str; 7] =
 pub struct Lexer {
     current_index: RefCell<usize>,
     current_source: String,
+    current_line: Cell<usize>,
+    current_column: Cell<usize>,
+}
+
+trait AssociateWithPos {
+    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
+}
+
+impl<T> AssociateWithPos for T {
+    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized {
+        WithPosition {
+            position: lexer.current_pos(),
+            data: self
+        }
+    }
 }
 
 impl Lexer {
     pub fn create(source: &str) -> Self {
         Self {
             current_source: source.to_string(),
-            current_index: RefCell::new(0)
+            current_index: RefCell::new(0),
+            current_line: Cell::new(1),
+            current_column: Cell::new(1),
         }
     }
 
     fn drain_space(&self) {
         while !self.reached_end() && self.current_char().expect("oops") == ' ' {
-            *self.current_index.borrow_mut() += 1;
+            self.consume_char().unwrap();
         }
     }
 
-    pub fn next(&self) -> Token {
+    pub fn next(&self) -> WithPosition<Token> {
         self.drain_space();
         
         if self.reached_end() {
-            return Token::EndOfFile
+            return Token::EndOfFile.with_pos(self)
         }
 
         let c = self.current_char().expect("oops");
-        match c {
+        let t = match c {
             '\n' => {
                 self.advance();
                 Token::NewLine
@@ -127,6 +145,21 @@ impl Lexer {
                 index: *self.current_index.borrow(),
                 char: other,
             }
+        };
+        t.with_pos(self)
+    }
+
+    fn with_position<T>(&self, data: T) -> WithPosition<T> {
+        WithPosition {
+            position: self.current_pos(),
+            data,
+        }
+    }
+
+    fn current_pos(&self) -> SourcePos {
+        SourcePos {
+            line: self.current_line.get().try_into().expect("INTERNAL ERROR - PLEASE REPORT THIS BUG"),
+            column: self.current_column.get().try_into().expect("INTERNAL ERROR - PLEASE REPORT THIS BUG"),
         }
     }
 
@@ -172,7 +205,7 @@ impl Lexer {
         Ok(buf)
     }
     
-    pub fn peek(&self) -> Token {
+    pub fn peek(&self) -> WithPosition<Token> {
         let current_index = *self.current_index.borrow();
         let token = self.next();
         *self.current_index.borrow_mut() = current_index;
@@ -194,7 +227,7 @@ impl Lexer {
 
     fn consume_char(&self) -> Result<char> {
         let c = self.current_char()?;
-        *self.current_index.borrow_mut() += 1;
+        self.advance();
         Ok(c)
     }
 
@@ -203,11 +236,19 @@ impl Lexer {
     }
 
     fn advance(&self) {
-        self.advance_by(1);
+        if self.current_char().unwrap() == '\n' {
+            self.current_line.set(self.current_line.get() + 1);
+            self.current_column.set(1);
+        } else {
+            self.current_column.set(self.current_column.get() + 1);
+        }
+        *self.current_index.borrow_mut() += 1;
     }
 
     fn advance_by(&self, step: usize) {
-        *self.current_index.borrow_mut() += step;
+        for _ in 1..=step {
+            self.advance();
+        }
     }
 }
 

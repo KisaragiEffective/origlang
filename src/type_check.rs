@@ -1,8 +1,12 @@
+pub mod error;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::ast::{RootAst, Statement};
+use crate::parser::SimpleErrorWithPos;
+use crate::type_check::error::TypeCheckError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Type {
@@ -28,7 +32,7 @@ pub trait TypeCheckTarget {
 
 impl TypeCheckTarget for &Expression {
     type Ok = Type;
-    type Err = String;
+    type Err = TypeCheckError;
 
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
         match self {
@@ -101,14 +105,22 @@ impl TypeCheckTarget for &Expression {
                         if lhs_type == rhs_type {
                             Ok(Type::Boolean)
                         } else {
-                            Err(format!("Cannot compare (==) between different types. lhs: {lhs_type}, rhs: {rhs_type}"))
+                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                                operator: BinaryOperatorKind::Equal,
+                                got_lhs: lhs_type,
+                                got_rhs: rhs_type
+                            })
                         }
                     }
                     BinaryOperatorKind::NotEqual => {
                         if lhs_type == rhs_type {
                             Ok(Type::Boolean)
                         } else {
-                            Err(format!("Cannot compare (!=) between different types. lhs: {lhs_type}, rhs: {rhs_type}"))
+                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                                operator: BinaryOperatorKind::NotEqual,
+                                got_lhs: lhs_type,
+                                got_rhs: rhs_type
+                            })
                         }
                     }
                 };
@@ -124,10 +136,17 @@ impl TypeCheckTarget for &Expression {
                     if then_type == else_type {
                         Ok(then_type)
                     } else {
-                        Err(format!("Cannot unify two different types in if-expression. `then`: {then_type}, `else`: {else_type}"))
+                        Err(TypeCheckError::UnableToUnityIfExpression {
+                            then_clause_type: then_type,
+                            else_clause_type: else_type
+                        })
                     }
                 } else {
-                    Err(format!("The condition of if-expression must be Bool, but got {cond_type}"))
+                    Err(TypeCheckError::GenericTypeMismatch {
+                        context: "The condition of if-expression".to_string(),
+                        expected_type: Type::Boolean,
+                        actual_type: cond_type,
+                    })
                 }
             }
         }
@@ -136,7 +155,7 @@ impl TypeCheckTarget for &Expression {
 
 impl TypeCheckTarget for &Statement {
     type Ok = ();
-    type Err = String;
+    type Err = TypeCheckError;
 
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
         match self {
@@ -152,7 +171,7 @@ impl TypeCheckTarget for &Statement {
 
 impl TypeCheckTarget for &RootAst {
     type Ok = ();
-    type Err = String;
+    type Err = TypeCheckError;
 
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
         for x in &self.statement {
@@ -167,8 +186,14 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    fn invalid_combination_for_binary_operator(accepted_lhs: Type, operator: BinaryOperatorKind, accepted_rhs: Type, got_lhs: Type, got_rhs: Type) -> String {
-        format!("Only ({accepted_lhs}) {operator} ({accepted_rhs}) is defined, but got {got_lhs} {operator} {got_rhs}")
+    fn invalid_combination_for_binary_operator(accepted_lhs: Type, operator: BinaryOperatorKind, accepted_rhs: Type, got_lhs: Type, got_rhs: Type) -> TypeCheckError {
+        TypeCheckError::InvalidCombinationForBinaryOperator {
+            accepted_lhs,
+            operator,
+            accepted_rhs,
+            got_lhs,
+            got_rhs
+        }
     }
 
     pub fn new() -> Self {
@@ -193,8 +218,8 @@ impl TypeCheckContext {
         }
     }
 
-    fn lookup_variable_type(&self, ident: &String) -> Result<Type, String> {
-        self.map.get(ident).copied().ok_or(format!("{ident} is undefined"))
+    fn lookup_variable_type(&self, ident: &String) -> Result<Type, TypeCheckError> {
+        self.map.get(ident).copied().ok_or(TypeCheckError::UndefinedIdentifier(ident.clone()))
     }
 
     fn add_variable_type(&mut self, ident: String, tp: Type) {

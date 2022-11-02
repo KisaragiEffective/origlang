@@ -3,12 +3,13 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use crate::cli::task::Task;
 use crate::parser::Parser;
+use crate::parser::SimpleErrorWithPos;
 
 pub struct PrintAst;
 
 impl Task for PrintAst {
     type Environment = ParseSource;
-    type Error = String;
+    type Error = SimpleErrorWithPos;
 
     fn execute(&self, environment: Self::Environment) -> Result<(), Self::Error> {
         let root_ast = Parser::create(environment.source().as_str()).parse()?;

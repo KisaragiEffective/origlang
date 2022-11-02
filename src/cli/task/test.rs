@@ -1,10 +1,13 @@
 use crate::cli::task::Task;
+use crate::parser::SimpleErrorWithPos;
 use crate::runtime::Runtime;
+
+type Err = SimpleErrorWithPos;
 
 pub struct Test;
 
 impl Test {
-    fn evaluated_expressions(src: &str) -> Result<Vec<i32>, String> {
+    fn evaluated_expressions(src: &str) -> Result<Vec<i32>, Err> {
         use crate::parser::Parser;
         let source = src;
         let parser = Parser::create(source);
@@ -14,7 +17,7 @@ impl Test {
     }
 
     #[allow(clippy::unreadable_literal)]
-    fn expression_equality_test() -> Result<(), String> {
+    fn expression_equality_test() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("123456\n")?, vec![123456]);
         assert_eq!(Self::evaluated_expressions("1\n2\n")?, vec![1, 2]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nx\n")?, vec![1]);
@@ -60,7 +63,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_comparison_operator() -> Result<(), String> {
+    fn test_comparison_operator() -> Result<(), Err> {
         // less equal
         assert_eq!(Self::evaluated_expressions("1 <= 0\n")?, vec![0]);
         assert_eq!(Self::evaluated_expressions("1 <= 1\n")?, vec![1]);
@@ -109,7 +112,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_equality_operator() -> Result<(), String> {
+    fn test_equality_operator() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("42 == 42\n")?, vec![1]);
         assert_eq!(Self::evaluated_expressions("42 == 21\n")?, vec![0]);
         assert_eq!(Self::evaluated_expressions("42 != 42\n")?, vec![0]);
@@ -117,7 +120,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_if_expression() -> Result<(), String> {
+    fn test_if_expression() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("if true then 1 else 2\n")?, vec![1]);
         assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, vec![2]);
         assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, vec![2]);
@@ -125,7 +128,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_parenthesised_expression() -> Result<(), String> {
+    fn test_parenthesised_expression() -> Result<(), SimpleErrorWithPos> {
         assert_eq!(Self::evaluated_expressions("(1 == 2)\n")?, vec![0]);
         Ok(())
     }
@@ -133,7 +136,7 @@ impl Test {
 
 impl Task for Test {
     type Environment = ();
-    type Error = String;
+    type Error = SimpleErrorWithPos;
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         eprintln!("start");
