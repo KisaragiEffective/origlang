@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::ast::{EqualityExpression, EqualityExpressionOperator, ExpressionBox, First, IfExpression, LowestPrecedenceExpression, RelationExpression, RelationExpressionOperator, RootAst, Statement};
+use crate::ast::{EqualityExpression, EqualityExpressionOperator, First, IfExpression, LowestPrecedenceExpression, RelationExpression, RelationExpressionOperator, RootAst, Statement};
 use crate::ast::{Additive, Multiplicative, AdditiveOperatorKind, MultiplicativeOperatorKind};
 
 pub struct Runtime {
@@ -190,17 +190,6 @@ impl CanBeEvaluated for &IfExpression {
                 }
             }
             IfExpression::Lifted(x) => x.evaluate(runtime),
-        }
-    }
-}
-impl CanBeEvaluated for &ExpressionBox {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        match self {
-            ExpressionBox::Unary(a) => a.evaluate(runtime),
-            ExpressionBox::Additive(a) => a.evaluate(runtime),
-            ExpressionBox::Multiplicative(a) => a.evaluate(runtime),
-            ExpressionBox::RelationExpression(a) => a.evaluate(runtime),
-            ExpressionBox::EqualityExpression(a) => a.evaluate(runtime),
         }
     }
 }

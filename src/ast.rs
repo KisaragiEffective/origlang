@@ -178,46 +178,6 @@ pub enum IfExpression {
     Lifted(EqualityExpression)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ExpressionBox {
-    Unary(First),
-    Additive(Additive),
-    Multiplicative(Multiplicative),
-    RelationExpression(RelationExpression),
-    EqualityExpression(EqualityExpression),
-}
-
-impl From<First> for ExpressionBox {
-    fn from(x: First) -> Self {
-        Self::Unary(x)
-    }
-}
-
-impl From<Additive> for ExpressionBox {
-    fn from(x: Additive) -> Self {
-        Self::Additive(x)
-    }
-}
-
-impl From<Multiplicative> for ExpressionBox {
-    fn from(x: Multiplicative) -> Self {
-        Self::Multiplicative(x)
-    }
-}
-
-impl From<RelationExpression> for ExpressionBox {
-    fn from(x: RelationExpression) -> Self {
-        Self::RelationExpression(x)
-    }
-}
-
-impl From<EqualityExpression> for ExpressionBox {
-    fn from(x: EqualityExpression) -> Self {
-        Self::EqualityExpression(x)
-    }
-}
-
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BuiltinOperatorKind {
     Plus,
