@@ -69,6 +69,7 @@ impl Parser {
             }
             Token::SymLeftPar => {
                 assert_eq!(self.lexer.next(), Token::SymLeftPar);
+                // FIXME: (1 == 2)を受け付けない
                 let inner_expression = self.parse_additive()?;
                 assert_eq!(self.lexer.next(), Token::SymRightPar);
                 Ok(First::parenthesized(inner_expression.into()))
