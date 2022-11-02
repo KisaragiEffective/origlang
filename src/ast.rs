@@ -28,12 +28,12 @@ pub enum First {
     Variable {
         name: String,
     },
-    Lifted(Box<ExpressionBox>)
+    Parenthesized(Box<LowestPrecedenceExpression>)
 }
 
 impl First {
-    pub fn parenthesized(expr: ExpressionBox) -> Self {
-        Self::Lifted(Box::new(expr))
+    pub fn parenthesized(expr: LowestPrecedenceExpression) -> Self {
+        Self::Parenthesized(Box::new(expr))
     }
 }
 
