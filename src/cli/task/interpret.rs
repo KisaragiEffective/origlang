@@ -1,5 +1,6 @@
 use crate::cli::task::print_ast::ParseSource;
 use crate::cli::task::Task;
+use crate::error::AllError;
 use crate::runtime::Runtime;
 use crate::type_check::TypeChecker;
 
@@ -7,7 +8,7 @@ pub struct Interpret;
 
 impl Task for Interpret {
     type Environment = ParseSource;
-    type Error = String;
+    type Error = AllError;
 
     fn execute(&self, environment: Self::Environment) -> Result<(), Self::Error> {
         use crate::parser::Parser;

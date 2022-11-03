@@ -6,6 +6,8 @@ use crate::cli::task::interpret::Interpret;
 use crate::cli::task::lexer_dump::LexerDump;
 use crate::cli::task::repl::Repl;
 use crate::cli::task::Task;
+use crate::error::AllError;
+use crate::parser::SimpleErrorWithPos;
 
 #[derive(Parser)]
 pub struct Args {
@@ -14,11 +16,12 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn execute(self) -> Result<(), String> {
+    pub fn execute(self) -> Result<(), AllError> {
         match self.sub_command {
             SubCom::Repl => {
                 let task = Repl;
-                task.execute(())
+                task.execute(())?;
+                Ok(())
             }
             SubCom::Execute { input_file, input_source } => {
                 let task = Interpret;
@@ -30,7 +33,8 @@ impl Args {
                     unreachable!("oops")
                 };
 
-                task.execute(source)
+                task.execute(source)?;
+                Ok(())
             }
             SubCom::Ast { input_file, input_source } => {
                 let task = PrintAst;
@@ -42,11 +46,13 @@ impl Args {
                     unreachable!("oops")
                 };
 
-                task.execute(source)
+                task.execute(source)?;
+                Ok(())
             }
             SubCom::Test => {
                 let task = Test;
-                task.execute(())
+                task.execute(())?;
+                Ok(())
             }
             SubCom::LexerDump { input_file, input_source } => {
                 let task = LexerDump;
@@ -58,7 +64,8 @@ impl Args {
                     unreachable!("oops")
                 };
 
-                task.execute(source)
+                task.execute(source)?;
+                Ok(())
             }
         }
     }

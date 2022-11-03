@@ -1,14 +1,15 @@
 use std::io::{stdout, Write};
 use crate::cli::task::Task;
-use crate::parser::Parser;
+use crate::parser::{Parser, SimpleErrorWithPos};
 use crate::runtime::Runtime;
+use crate::type_check::error::TypeCheckError;
 use crate::type_check::TypeChecker;
 
 pub struct Repl;
 
 impl Task for Repl {
     type Environment = ();
-    type Error = String;
+    type Error = TypeCheckError;
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         let mut line_count = 1;
