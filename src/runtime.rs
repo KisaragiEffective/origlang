@@ -1,12 +1,40 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use derive_more::{Display, From};
 use crate::ast::{RootAst, Statement};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
+use crate::type_check::Type;
+
+#[derive(PartialEq, Clone, Debug, Display, From)]
+pub enum TypeBox {
+    #[display(fmt = "{_0}")]
+    #[from]
+    Integer(i32),
+    #[display(fmt = "{_0}")]
+    #[from]
+    Boolean(bool),
+}
+
+impl TypeBox {
+    fn get_type(&self) -> Type {
+        match self {
+            TypeBox::Integer(_) => Type::Integer,
+            TypeBox::Boolean(_) => Type::Boolean,
+        }
+    }
+
+    fn as_int(&self) -> Result<i32, String> {
+        match self {
+            TypeBox::Integer(i) => Ok(*i),
+            _ => Err("It is not i32".to_string())
+        }
+    }
+}
 
 pub struct Runtime {
     /// すでに評価された値を格納しておく
-    environment: RefCell<HashMap<String, i32>>,
+    environment: RefCell<HashMap<String, TypeBox>>,
 }
 
 impl Runtime {
@@ -30,7 +58,7 @@ impl Runtime {
         }
     }
 
-    pub(crate) fn yield_all_evaluated_expressions(&self, ast: &RootAst) -> Vec<i32> {
+    pub(crate) fn yield_all_evaluated_expressions(&self, ast: &RootAst) -> Vec<TypeBox> {
         let mut buf = vec![];
         for statement in &ast.statement {
             match statement {
@@ -58,7 +86,7 @@ impl Runtime {
 
 
 
-type EvaluateResult = Result<i32, String>;
+type EvaluateResult = Result<TypeBox, String>;
 trait CanBeEvaluated {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
 }
@@ -66,48 +94,48 @@ trait CanBeEvaluated {
 impl CanBeEvaluated for &Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
-            Expression::IntLiteral(i) => Ok(*i),
-            Expression::BooleanLiteral(b) => Ok(zero_one_bool(*b)),
+            Expression::IntLiteral(i) => Ok((*i).into()),
+            Expression::BooleanLiteral(b) => Ok((*b).into()),
             Expression::Variable { ident } => {
-                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(|a| *a)
+                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(|a| a.clone())
             },
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
                 let rhs = rhs.as_ref().evaluate(runtime)?;
                 let value = match operator {
-                    BinaryOperatorKind::Plus => lhs + rhs,
-                    BinaryOperatorKind::Minus => lhs - rhs,
-                    BinaryOperatorKind::Multiply => lhs * rhs,
-                    BinaryOperatorKind::Divide => lhs / rhs,
-                    BinaryOperatorKind::More => zero_one_bool(lhs > rhs),
-                    BinaryOperatorKind::MoreEqual => zero_one_bool(lhs >= rhs),
-                    BinaryOperatorKind::Less => zero_one_bool(lhs < rhs),
-                    BinaryOperatorKind::LessEqual => zero_one_bool(lhs <= rhs),
+                    BinaryOperatorKind::Plus => (lhs.as_int()? + rhs.as_int()?).into(),
+                    BinaryOperatorKind::Minus => (lhs.as_int()? - rhs.as_int()?).into(),
+                    BinaryOperatorKind::Multiply => (lhs.as_int()? * rhs.as_int()?).into(),
+                    BinaryOperatorKind::Divide => (lhs.as_int()? / rhs.as_int()?).into(),
+                    BinaryOperatorKind::More => (lhs.as_int()? > rhs.as_int()?).into(),
+                    BinaryOperatorKind::MoreEqual => (lhs.as_int()? >= rhs.as_int()?).into(),
+                    BinaryOperatorKind::Less => (lhs.as_int()? < rhs.as_int()?).into(),
+                    BinaryOperatorKind::LessEqual => (lhs.as_int()? <= rhs.as_int()?).into(),
                     BinaryOperatorKind::ThreeWay => {
-                        match lhs.cmp(&rhs) {
+                        match lhs.as_int()?.cmp(&rhs.as_int()?) {
                             Ordering::Less => -1,
                             Ordering::Equal => 0,
                             Ordering::Greater => 1,
                         }
-                    }
-                    BinaryOperatorKind::Equal => zero_one_bool(lhs == rhs),
-                    BinaryOperatorKind::NotEqual => zero_one_bool(lhs != rhs),
+                    }.into(),
+                    BinaryOperatorKind::Equal => (lhs == rhs).into(),
+                    BinaryOperatorKind::NotEqual => (lhs != rhs).into(),
                 };
 
                 Ok(value)
             }
             Expression::If { condition, then_clause_value, else_clause_value } => {
-                if condition.as_ref().evaluate(runtime)? == 1 { // FIXME this should be `true` in the future
-                    then_clause_value.as_ref().evaluate(runtime)
+                let ret = condition.as_ref().evaluate(runtime)?;
+                if let TypeBox::Boolean(b) = ret {
+                    if b {
+                        then_clause_value.as_ref().evaluate(runtime)
+                    } else {
+                        else_clause_value.as_ref().evaluate(runtime)
+                    }
                 } else {
-                    else_clause_value.as_ref().evaluate(runtime)
+                    Err(format!("if cond must be a boolean"))
                 }
             }
         }
     }
-}
-
-#[inline]
-const fn zero_one_bool(b: bool) -> i32 {
-    b as i32
 }
