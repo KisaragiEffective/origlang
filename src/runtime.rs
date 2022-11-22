@@ -14,6 +14,9 @@ pub enum TypeBox {
     #[display(fmt = "{_0}")]
     #[from]
     Boolean(bool),
+    #[display(fmt = "{_0}")]
+    #[from]
+    String(String),
 }
 
 impl TypeBox {
@@ -21,6 +24,7 @@ impl TypeBox {
         match self {
             TypeBox::Integer(_) => Type::Integer,
             TypeBox::Boolean(_) => Type::Boolean,
+            TypeBox::String(_) => Type::String,
         }
     }
 
@@ -96,6 +100,7 @@ impl CanBeEvaluated for &Expression {
         match self {
             Expression::IntLiteral(i) => Ok((*i).into()),
             Expression::BooleanLiteral(b) => Ok((*b).into()),
+            Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::Variable { ident } => {
                 runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(|a| a.clone())
             },

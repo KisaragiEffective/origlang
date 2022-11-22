@@ -12,6 +12,7 @@ use crate::type_check::error::TypeCheckError;
 pub enum Type {
     Integer,
     Boolean,
+    String,
 }
 
 impl Display for Type {
@@ -19,6 +20,7 @@ impl Display for Type {
         match self {
             Self::Integer => f.write_str("Int"),
             Self::Boolean => f.write_str("Bool"),
+            Self::String => f.write_str("String"),
         }
     }
 }
@@ -38,6 +40,7 @@ impl TypeCheckTarget for &Expression {
         match self {
             Expression::IntLiteral(_) => Ok(Type::Integer),
             Expression::BooleanLiteral(_) => Ok(Type::Boolean),
+            Expression::StringLiteral(_) => Ok(Type::String),
             Expression::Variable { ident } => {
                 checker.ctx.borrow().lookup_variable_type(ident)
             },

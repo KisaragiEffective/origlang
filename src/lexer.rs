@@ -7,6 +7,7 @@ use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 static KEYWORDS: [&str; 7] =
     ["var", "if", "else", "then", "exit", "true", "false"];
 
+// FIXME: 行番号、列番号がおかしい
 pub struct Lexer {
     current_index: RefCell<usize>,
     current_source: String,
@@ -43,6 +44,7 @@ impl Lexer {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn next(&self) -> WithPosition<Token> {
         self.drain_space();
         
@@ -120,6 +122,9 @@ impl Lexer {
                 } else {
                     Token::SymBang
                 }
+            },
+            '"' => {
+                self.scan_string_literal().expect("unable to parse string literal")
             },
             c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
             c if ASCII_LOWERS.contains(&c) => {
@@ -203,6 +208,26 @@ impl Lexer {
         }
 
         Ok(buf)
+    }
+
+    fn scan_string_literal(&self) -> Result<Token> {
+        let mut buf = String::new();
+        assert_eq!(self.consume_char()?, '"');
+        loop {
+            if self.reached_end() {
+                break
+            }
+
+            let c = self.current_char()?;
+            if c == '"' {
+                // 終わりのダブルクォーテーションは捨てる
+                self.consume_char()?;
+                break
+            }
+            let c = self.consume_char()?;
+            buf.push(c);
+        }
+        Ok(Token::StringLiteral(buf))
     }
     
     pub fn peek(&self) -> WithPosition<Token> {
@@ -307,6 +332,9 @@ pub enum Token {
     KeywordThen,
     /// `else`
     KeywordElse,
+    /// `"`
+    SymDoubleQuote,
+    StringLiteral(String),
     /// reserved for future use.
     Reserved {
         matched: String,

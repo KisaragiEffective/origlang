@@ -110,8 +110,12 @@ impl Parser {
                     position: token.position,
                 })
             }
+            Token::StringLiteral(s) => {
+                self.lexer.next();
+                Ok(Expression::StringLiteral(s))
+            }
             e => Err(SimpleErrorWithPos {
-                error_message: format!("int literal, boolean literal or identifier is expected, but got {e:?}"),
+                error_message: format!("int literal, boolean literal, string literal or identifier is expected, but got {e:?}"),
                 position: token.position,
             })
         }

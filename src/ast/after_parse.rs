@@ -8,6 +8,8 @@ pub enum Expression {
     IntLiteral(i32),
     /// 真偽値リテラル
     BooleanLiteral(bool),
+    /// 文字列リテラル
+    StringLiteral(String),
     /// 変数
     Variable {
         ident: String
