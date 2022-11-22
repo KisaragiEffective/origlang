@@ -1,6 +1,7 @@
 use std::io::{stdout, Write};
 use crate::cli::task::Task;
-use crate::parser::{Parser, SimpleErrorWithPos};
+use crate::platform::CTRL_D_NL;
+use crate::parser::Parser;
 use crate::runtime::Runtime;
 use crate::type_check::error::TypeCheckError;
 use crate::type_check::TypeChecker;
@@ -25,7 +26,8 @@ impl Task for Repl {
                 buf
             };
             dbg!(&line);
-            if line == "\x04\n" {
+            // FIXME: this is buggy in Windows, causing infinite loop
+            if line == CTRL_D_NL {
                 break
             }
             let parser = Parser::create(line.as_str());

@@ -9,6 +9,7 @@ mod char_list;
 mod cli;
 mod type_check;
 pub(crate) mod error;
+mod platform;
 
 fn main() -> Result<(), crate::error::AllError> {
     use crate::cli::args::Args;
