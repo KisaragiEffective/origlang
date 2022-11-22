@@ -88,6 +88,7 @@ impl Test {
         Self::test_equality_operator()?;
         Self::test_if_expression()?;
         Self::test_parenthesised_expression()?;
+        Self::test_string_literal()?;
         Ok(())
     }
 
@@ -158,6 +159,11 @@ impl Test {
 
     fn test_parenthesised_expression() -> Result<(), SimpleErrorWithPos> {
         assert_eq!(Self::evaluated_expressions("(1 == 2)\n")?, type_boxes![false => Boolean]);
+        Ok(())
+    }
+
+    fn test_string_literal() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions("\"123\"\n")?, type_boxes!("123".to_string() => String));
         Ok(())
     }
 }

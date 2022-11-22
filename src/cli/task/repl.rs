@@ -24,6 +24,7 @@ impl Task for Repl {
                 std::io::stdin().read_line(&mut buf).expect("??");
                 buf
             };
+            dbg!(&line);
             if line == "\x04\n" {
                 break
             }
