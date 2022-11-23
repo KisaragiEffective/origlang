@@ -31,7 +31,7 @@ impl<T> AssociateWithPos for T {
 impl Lexer {
     pub fn create(source: &str) -> Self {
         let src = if cfg!(windows) {
-            source.replace("\r\n", "")
+            source.replace("\r\n", "\n")
         } else {
             source.to_string()
         };
