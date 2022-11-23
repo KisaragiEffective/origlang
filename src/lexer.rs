@@ -30,8 +30,14 @@ impl<T> AssociateWithPos for T {
 
 impl Lexer {
     pub fn create(source: &str) -> Self {
+        let src = if cfg!(windows) {
+            source.replace("\r\n", "")
+        } else {
+            source.to_string()
+        };
+
         Self {
-            current_source: source.to_string(),
+            current_source: src,
             current_index: RefCell::new(0),
             current_line: Cell::new(1),
             current_column: Cell::new(1),
