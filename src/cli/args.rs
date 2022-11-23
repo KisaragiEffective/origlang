@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use clap::{Parser, Subcommand};
-use crate::cli::task::print_ast::*;
+use crate::cli::task::print_ast::{ParseSource, PrintAst};
 use crate::cli::task::test::Test;
 use crate::cli::task::interpret::Interpret;
 use crate::cli::task::lexer_dump::LexerDump;
 use crate::cli::task::repl::Repl;
 use crate::cli::task::Task;
 use crate::error::AllError;
-use crate::parser::SimpleErrorWithPos;
+
 
 #[derive(Parser)]
 pub struct Args {
@@ -25,26 +25,22 @@ impl Args {
             }
             SubCom::Execute { input_file, input_source } => {
                 let task = Interpret;
-                let source = if let Some(input_file) = input_file {
-                    ParseSource::FromFile(input_file)
-                } else if let Some(input_source) = input_source {
+                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
                     ParseSource::RawSource(input_source)
                 } else {
                     unreachable!("oops")
-                };
+                }, ParseSource::FromFile);
 
                 task.execute(source)?;
                 Ok(())
             }
             SubCom::Ast { input_file, input_source } => {
                 let task = PrintAst;
-                let source = if let Some(input_file) = input_file {
-                    ParseSource::FromFile(input_file)
-                } else if let Some(input_source) = input_source {
+                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
                     ParseSource::RawSource(input_source)
                 } else {
                     unreachable!("oops")
-                };
+                }, ParseSource::FromFile);
 
                 task.execute(source)?;
                 Ok(())
@@ -56,13 +52,11 @@ impl Args {
             }
             SubCom::LexerDump { input_file, input_source } => {
                 let task = LexerDump;
-                let source = if let Some(input_file) = input_file {
-                    ParseSource::FromFile(input_file)
-                } else if let Some(input_source) = input_source {
+                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
                     ParseSource::RawSource(input_source)
                 } else {
                     unreachable!("oops")
-                };
+                }, ParseSource::FromFile);
 
                 task.execute(source)?;
                 Ok(())

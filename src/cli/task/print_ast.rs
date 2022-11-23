@@ -26,8 +26,8 @@ pub enum ParseSource {
 impl ParseSource {
     pub fn source(&self) -> String {
         match self {
-            ParseSource::RawSource(a) => a.clone(),
-            ParseSource::FromFile(path) => {
+            Self::RawSource(a) => a.clone(),
+            Self::FromFile(path) => {
                 let mut buf = String::new();
                 BufReader::new(File::open(path).unwrap()).read_to_string(&mut buf).unwrap();
                 buf

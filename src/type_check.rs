@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::ast::{RootAst, Statement};
-use crate::parser::SimpleErrorWithPos;
+
 use crate::type_check::error::TypeCheckError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -36,6 +36,7 @@ impl TypeCheckTarget for &Expression {
     type Ok = Type;
     type Err = TypeCheckError;
 
+    #[allow(clippy::too_many_lines)]
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
         match self {
             Expression::IntLiteral(_) => Ok(Type::Integer),
@@ -49,7 +50,9 @@ impl TypeCheckTarget for &Expression {
                 let lhs_type = checker.check(lhs.as_ref())?;
                 let rhs_type = checker.check(rhs.as_ref())?;
 
-                let tp = match operator {
+                
+
+                match operator {
                     BinaryOperatorKind::Plus => {
                         match (lhs_type, rhs_type) {
                             (Type::Integer, Type::Integer) => Ok(Type::Integer),
@@ -126,9 +129,7 @@ impl TypeCheckTarget for &Expression {
                             })
                         }
                     }
-                };
-
-                tp
+                }
             }
             Expression::If { condition, then_clause_value, else_clause_value } => {
                 let cond_type = checker.check(condition.as_ref())?;
@@ -189,7 +190,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    fn invalid_combination_for_binary_operator(accepted_lhs: Type, operator: BinaryOperatorKind, accepted_rhs: Type, got_lhs: Type, got_rhs: Type) -> TypeCheckError {
+    const fn invalid_combination_for_binary_operator(accepted_lhs: Type, operator: BinaryOperatorKind, accepted_rhs: Type, got_lhs: Type, got_rhs: Type) -> TypeCheckError {
         TypeCheckError::InvalidCombinationForBinaryOperator {
             accepted_lhs,
             operator,
@@ -222,7 +223,7 @@ impl TypeCheckContext {
     }
 
     fn lookup_variable_type(&self, ident: &String) -> Result<Type, TypeCheckError> {
-        self.map.get(ident).copied().ok_or(TypeCheckError::UndefinedIdentifier(ident.clone()))
+        self.map.get(ident).copied().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
     }
 
     fn add_variable_type(&mut self, ident: String, tp: Type) {

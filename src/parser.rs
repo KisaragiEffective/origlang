@@ -154,13 +154,13 @@ impl Parser {
                 let new_rhs = self.parse_first()?;
                 // 左結合になるように詰め替える
                 // これは特に除算のときに欠かせない処理である
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
         } else {
             // it is unary
-            Ok(first_term.into())
+            Ok(first_term)
         }
     }
 
@@ -199,13 +199,13 @@ impl Parser {
                 let new_rhs = self.parse_multiplicative()?;
                 // 左結合になるように詰め替える
                 // これは特に減算のときに欠かせない処理である
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
         } else {
             // it is unary or multiplicative
-            Ok(first_term.into())
+            Ok(first_term)
         }
     }
 
@@ -236,18 +236,18 @@ impl Parser {
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token.data) {
                 self.lexer.next();
                 let new_rhs = self.parse_additive()?;
                 // 左結合になるように詰め替える
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
         } else {
-            Ok(first_term.into())
+            Ok(first_term)
         }
     }
 
@@ -275,18 +275,18 @@ impl Parser {
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs.into());
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token.data) {
                 self.lexer.next();
                 let new_rhs = self.parse_relation_expression()?;
                 // 左結合になるように詰め替える
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs.into());
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
         } else {
-            Ok(first_term.into())
+            Ok(first_term)
         }
     }
 
@@ -359,13 +359,13 @@ impl Parser {
                     })
                 } else {
                     Err(SimpleErrorWithPos {
-                        error_message: format!("if expression requires else clause"),
+                        error_message: "if expression requires else clause".to_string(),
                         position,
                     })
                 }
             } else {
                 Err(SimpleErrorWithPos {
-                    error_message: format!("if expression requires then clause and else clause"),
+                    error_message: "if expression requires then clause and else clause".to_string(),
                     position,
                 })
             }
