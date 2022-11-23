@@ -1,4 +1,5 @@
 mod windows;
+mod non_windows;
 
 #[cfg(windows)]
 pub use windows::*;
