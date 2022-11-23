@@ -6,7 +6,7 @@ use crate::ast::{RootAst, Statement};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::type_check::Type;
 
-#[derive(PartialEq, Clone, Debug, Display, From)]
+#[derive(PartialEq, Eq, Clone, Debug, Display, From)]
 pub enum TypeBox {
     #[display(fmt = "{_0}")]
     #[from]
@@ -20,17 +20,17 @@ pub enum TypeBox {
 }
 
 impl TypeBox {
-    fn get_type(&self) -> Type {
+    const fn get_type(&self) -> Type {
         match self {
-            TypeBox::Integer(_) => Type::Integer,
-            TypeBox::Boolean(_) => Type::Boolean,
-            TypeBox::String(_) => Type::String,
+            Self::Integer(_) => Type::Integer,
+            Self::Boolean(_) => Type::Boolean,
+            Self::String(_) => Type::String,
         }
     }
 
     fn as_int(&self) -> Result<i32, String> {
         match self {
-            TypeBox::Integer(i) => Ok(*i),
+            Self::Integer(i) => Ok(*i),
             _ => Err("It is not i32".to_string())
         }
     }
@@ -102,7 +102,7 @@ impl CanBeEvaluated for &Expression {
             Expression::BooleanLiteral(b) => Ok((*b).into()),
             Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::Variable { ident } => {
-                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(|a| a.clone())
+                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(Clone::clone)
             },
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
@@ -138,7 +138,7 @@ impl CanBeEvaluated for &Expression {
                         else_clause_value.as_ref().evaluate(runtime)
                     }
                 } else {
-                    Err(format!("if cond must be a boolean"))
+                    Err("if cond must be a boolean".to_string())
                 }
             }
         }
