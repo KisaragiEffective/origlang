@@ -107,27 +107,51 @@ impl CanBeEvaluated for &Expression {
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
                 let rhs = rhs.as_ref().evaluate(runtime)?;
-                let value = match operator {
-                    BinaryOperatorKind::Plus => (lhs.as_int()? + rhs.as_int()?).into(),
-                    BinaryOperatorKind::Minus => (lhs.as_int()? - rhs.as_int()?).into(),
-                    BinaryOperatorKind::Multiply => (lhs.as_int()? * rhs.as_int()?).into(),
-                    BinaryOperatorKind::Divide => (lhs.as_int()? / rhs.as_int()?).into(),
-                    BinaryOperatorKind::More => (lhs.as_int()? > rhs.as_int()?).into(),
-                    BinaryOperatorKind::MoreEqual => (lhs.as_int()? >= rhs.as_int()?).into(),
-                    BinaryOperatorKind::Less => (lhs.as_int()? < rhs.as_int()?).into(),
-                    BinaryOperatorKind::LessEqual => (lhs.as_int()? <= rhs.as_int()?).into(),
-                    BinaryOperatorKind::ThreeWay => {
-                        match lhs.as_int()?.cmp(&rhs.as_int()?) {
-                            Ordering::Less => -1,
-                            Ordering::Equal => 0,
-                            Ordering::Greater => 1,
-                        }
-                    }.into(),
-                    BinaryOperatorKind::Equal => (lhs == rhs).into(),
-                    BinaryOperatorKind::NotEqual => (lhs != rhs).into(),
-                };
+                if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
+                    return if lhs.get_type() == rhs.get_type() {
+                        let ret = match operator {
+                            BinaryOperatorKind::Equal => lhs == rhs,
+                            BinaryOperatorKind::NotEqual => lhs != rhs,
+                            _ => unreachable!(),
+                        };
+                        Ok(ret.into())
+                    } else {
+                        Err("Cannot compare between different types.".to_string())
+                    }
+                }
 
-                Ok(value)
+                return match (lhs, rhs) {
+                    (TypeBox::Integer(lhs), TypeBox::Integer(rhs)) => {
+                        let ret = match operator {
+                            BinaryOperatorKind::Plus => (lhs + rhs).into(),
+                            BinaryOperatorKind::Minus => (lhs - rhs).into(),
+                            BinaryOperatorKind::Multiply => (lhs * rhs).into(),
+                            BinaryOperatorKind::Divide => (lhs / rhs).into(),
+                            BinaryOperatorKind::More => (lhs > rhs).into(),
+                            BinaryOperatorKind::MoreEqual => (lhs >= rhs).into(),
+                            BinaryOperatorKind::Less => (lhs < rhs).into(),
+                            BinaryOperatorKind::LessEqual => (lhs <= rhs).into(),
+                            BinaryOperatorKind::ThreeWay => {
+                                match lhs.cmp(&rhs) {
+                                    Ordering::Less => -1,
+                                    Ordering::Equal => 0,
+                                    Ordering::Greater => 1,
+                                }
+                            }.into(),
+                            BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!()
+                        };
+
+                        Ok(ret)
+                    },
+                    (TypeBox::String(lhs), TypeBox::String(rhs)) => {
+                        let mut ret = lhs;
+                        // give hint to compiler
+                        ret.reserve_exact(rhs.len());
+                        ret += rhs.as_str();
+                        Ok(ret.into())
+                    }
+                    _ => Err("None of them are applicable".to_string())
+                };
             }
             Expression::If { condition, then_clause_value, else_clause_value } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
