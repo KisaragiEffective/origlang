@@ -56,6 +56,7 @@ impl TypeCheckTarget for &Expression {
                     BinaryOperatorKind::Plus => {
                         match (lhs_type, rhs_type) {
                             (Type::Integer, Type::Integer) => Ok(Type::Integer),
+                            (Type::String, Type::String) => Ok(Type::String),
                             (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
                         }
                     }
