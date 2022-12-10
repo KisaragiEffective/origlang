@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CI_RUST_CACHE_VERSION: v0
 
 jobs:
   build:
@@ -21,6 +22,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.2.0
+      with:
+        prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles("/Cargo.lock") }}
     - name: Build
       run: cargo build --verbose
     - name: Run tests
