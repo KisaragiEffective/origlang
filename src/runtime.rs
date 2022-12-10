@@ -17,6 +17,9 @@ pub enum TypeBox {
     #[display(fmt = "{_0}")]
     #[from]
     String(String),
+    #[display(fmt = "()")]
+    #[from]
+    Unit(())
 }
 
 impl TypeBox {
@@ -25,6 +28,7 @@ impl TypeBox {
             Self::Integer(_) => Type::Integer,
             Self::Boolean(_) => Type::Boolean,
             Self::String(_) => Type::String,
+            Self::Unit(_) => Type::Unit,
         }
     }
 
@@ -101,6 +105,7 @@ impl CanBeEvaluated for &Expression {
             Expression::IntLiteral(i) => Ok((*i).into()),
             Expression::BooleanLiteral(b) => Ok((*b).into()),
             Expression::StringLiteral(s) => Ok(s.clone().into()),
+            Expression::UnitLiteral => Ok(().into()),
             Expression::Variable { ident } => {
                 runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(Clone::clone)
             },

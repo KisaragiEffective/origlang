@@ -90,6 +90,7 @@ impl Test {
         Self::test_parenthesised_expression()?;
         Self::test_string_literal()?;
         Self::test_string_concat()?;
+        Self::test_unit_literal()?;
         Ok(())
     }
 
@@ -170,6 +171,11 @@ impl Test {
 
     fn test_string_concat() -> Result<(), SimpleErrorWithPos> {
         assert_eq!(Self::evaluated_expressions("\"123\" + \"456\"\n")?, type_boxes!("123456".to_string() => String));
+        Ok(())
+    }
+
+    fn test_unit_literal() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions("()\n")?, type_boxes![() => Unit]);
         Ok(())
     }
 }
