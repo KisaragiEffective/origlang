@@ -92,9 +92,14 @@ impl Parser {
             Token::SymLeftPar => {
                 assert_eq!(self.lexer.next().data, Token::SymLeftPar);
                 // FIXME: (1 == 2)を受け付けない
-                let inner_expression = self.parse_lowest_precedence_expression()?;
-                assert_eq!(self.lexer.next().data, Token::SymRightPar);
-                Ok(inner_expression)
+                if self.lexer.peek().data == Token::SymRightPar {
+                    self.lexer.next();
+                    Ok(Expression::UnitLiteral)
+                } else {
+                    let inner_expression = self.parse_lowest_precedence_expression()?;
+                    assert_eq!(self.lexer.next().data, Token::SymRightPar);
+                    Ok(inner_expression)
+                }
             }
             Token::KeywordTrue => {
                 self.lexer.next();

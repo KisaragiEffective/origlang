@@ -10,6 +10,8 @@ pub enum Expression {
     BooleanLiteral(bool),
     /// 文字列リテラル
     StringLiteral(String),
+    /// ユニットリテラル
+    UnitLiteral,
     /// 変数
     Variable {
         ident: String

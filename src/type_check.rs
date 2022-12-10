@@ -13,6 +13,7 @@ pub enum Type {
     Integer,
     Boolean,
     String,
+    Unit,
 }
 
 impl Display for Type {
@@ -21,6 +22,7 @@ impl Display for Type {
             Self::Integer => f.write_str("Int"),
             Self::Boolean => f.write_str("Bool"),
             Self::String => f.write_str("String"),
+            Self::Unit => f.write_str("Unit"),
         }
     }
 }
@@ -42,6 +44,7 @@ impl TypeCheckTarget for &Expression {
             Expression::IntLiteral(_) => Ok(Type::Integer),
             Expression::BooleanLiteral(_) => Ok(Type::Boolean),
             Expression::StringLiteral(_) => Ok(Type::String),
+            Expression::UnitLiteral => Ok(Type::Unit),
             Expression::Variable { ident } => {
                 checker.ctx.borrow().lookup_variable_type(ident)
             },
