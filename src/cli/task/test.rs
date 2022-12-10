@@ -169,7 +169,7 @@ impl Test {
     }
 
     fn test_string_concat() -> Result<(), SimpleErrorWithPos> {
-        assert_eq!(Self::evaluated_expressions("\"123\" + \"456\"")?, type_boxes!("123456".to_string() => String));
+        assert_eq!(Self::evaluated_expressions("\"123\" + \"456\"\n")?, type_boxes!("123456".to_string() => String));
         Ok(())
     }
 }
