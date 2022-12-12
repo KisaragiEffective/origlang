@@ -1,4 +1,6 @@
 use std::cell::{Cell, RefCell};
+use std::mem::MaybeUninit;
+use std::num::NonZeroUsize;
 
 use anyhow::{anyhow, Result};
 use crate::ast::{SourcePos, WithPosition};
@@ -235,12 +237,29 @@ impl Lexer {
         }
         Ok(Token::StringLiteral(buf))
     }
-    
+
+    pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
+        // we want to drop read-only ref immediately, to avoid runtime error.
+        #[allow(clippy::branches_sharing_code)]
+        if advance_step == 0 {
+            let current_index = *self.current_index.borrow();
+            let token = self.next();
+            *self.current_index.borrow_mut() = current_index;
+            token
+        } else {
+            let current_index = *self.current_index.borrow();
+            let mut token: Option<WithPosition<Token>> = None;
+            for _ in 1..=advance_step {
+                token = Some(self.next());
+            }
+            *self.current_index.borrow_mut() = current_index;
+            // SAFETY: we already initialize it.
+            unsafe { token.unwrap_unchecked() }
+        }
+    }
+
     pub fn peek(&self) -> WithPosition<Token> {
-        let current_index = *self.current_index.borrow();
-        let token = self.next();
-        *self.current_index.borrow_mut() = current_index;
-        token
+        self.peek_n(0)
     }
 
     fn current_char(&self) -> Result<char> {
