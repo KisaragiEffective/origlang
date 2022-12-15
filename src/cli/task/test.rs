@@ -91,6 +91,9 @@ impl Test {
         Self::test_string_literal()?;
         Self::test_string_concat()?;
         Self::test_unit_literal()?;
+        Self::test_coerced_int_literal()?;
+        Self::test_infix_op_does_not_cause_panic_by_arthemic_overflow()?;
+
         Ok(())
     }
 
@@ -178,6 +181,26 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("()\n")?, type_boxes![() => Unit]);
         Ok(())
     }
+
+    fn test_coerced_int_literal() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions("0i8")?, type_boxes![1 => Int8]);
+        assert_eq!(Self::evaluated_expressions("0i16")?, type_boxes![1 => Int16]);
+        assert_eq!(Self::evaluated_expressions("0i32")?, type_boxes![1 => Int32]);
+        assert_eq!(Self::evaluated_expressions("0i64")?, type_boxes![1 => Int64]);
+
+        Ok(())
+    }
+
+    fn test_infix_op_does_not_cause_panic_by_arthemic_overflow() -> Result<(), SimpleErrorWithPos> {
+        // NOTE: this test covers other coerced int types as well, as long as the `f!` macro handles their match and computation.
+        assert_eq!(Self::evaluated_expressions("16i8 * 16i8")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("128i8 + 128i8")?, type_boxes![1 => Int16]);
+        assert_eq!(Self::evaluated_expressions("0i8 - 255i8")?, type_boxes![1 => Int32]);
+        assert_eq!(Self::evaluated_expressions("16384i8 / 256i8")?, type_boxes![0 => Int64]);
+
+        Ok(())
+    }
+
 }
 
 impl Task for Test {
