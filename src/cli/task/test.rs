@@ -1,3 +1,5 @@
+#![forbid(dead_code)]
+
 use crate::cli::task::Task;
 use crate::parser::SimpleErrorWithPos;
 use crate::runtime::{Runtime, TypeBox};
@@ -93,6 +95,7 @@ impl Test {
         Self::test_unit_literal()?;
         Self::test_coerced_int_literal()?;
         Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
+        Self::test_out_of_range_literal()?;
 
         Ok(())
     }
@@ -205,10 +208,8 @@ impl Test {
         macro_rules! gen {
             ($t:ty) => {{
                 // TODO: anyhowから抜け出した際にはちゃんとした検査を行うようにする
-                const MAX: i64 = (<$t>::MAX as i64) + 1;
-                assert!(Self::evaluated_expressions(concat!("", stringify!(MAX), stringify!($t))).is_err());
-                const MIN: i64 = (<$t>::MIN as i64) - 1;
-                assert!(Self::evaluated_expressions(concat!("", stringify!(MIN), stringify!($t))).is_err());
+                assert!(Self::evaluated_expressions(concat!("", stringify!((<$t>::MAX as i64) + 1), stringify!($t))).is_err());
+                assert!(Self::evaluated_expressions(concat!("", stringify!((<$t>::MIN as i64) - 1), stringify!($t))).is_err());
             }};
         }
         gen!(i8);
