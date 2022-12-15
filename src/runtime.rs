@@ -175,7 +175,7 @@ macro_rules! f {
                     Ordering::Equal => 0,
                     Ordering::Greater => 1,
                 }
-            }.into(),
+            }.conv::<$intermediate>().into(),
             BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!()
         };
 
