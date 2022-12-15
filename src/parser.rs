@@ -8,7 +8,8 @@ use thiserror::{Error as ThisError};
 use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
 
-#[derive( ThisError, Debug, Display)]
+// TODO: これはWithPosition<ParserError>にできるかもしれないが一旦保留
+#[derive(ThisError, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{error_message} ({position})")]
 pub struct SimpleErrorWithPos {
     pub error_message: ParserError,
@@ -17,7 +18,7 @@ pub struct SimpleErrorWithPos {
 
 impl SimpleErrorWithPos {}
 
-#[derive(ThisError, Debug)]
+#[derive(ThisError, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
 pub enum ParserError {
     #[error("lexer error: {_0}")]
