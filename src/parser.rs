@@ -1,18 +1,74 @@
+use std::num::ParseIntError;
 use crate::ast::{RootAst, SourcePos, Statement, WithPosition};
-use crate::lexer::{Lexer, Token};
+use crate::lexer::{Lexer, LexerError, Token};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use thiserror::{Error as ThisError};
+use crate::parser::ParserError::EndOfFileError;
+use crate::parser::TokenKind::IntLiteral;
 
 #[derive( ThisError, Debug, Display)]
 #[display(fmt = "{error_message} ({position})")]
 pub struct SimpleErrorWithPos {
-    pub error_message: String,
+    pub error_message: ParserError,
     pub position: SourcePos,
 }
 
 impl SimpleErrorWithPos {}
+
+#[derive(ThisError, Debug)]
+#[allow(clippy::module_name_repetitions)]
+pub enum ParserError {
+    #[error("lexer error: {_0}")]
+    LexerError(#[from] LexerError),
+    #[error("unconsumed token found: {token:?}")]
+    UnconsumedToken {
+        token: Token
+    },
+    #[error("statement must be terminated by a newline")]
+    StatementTerminationError,
+    #[error("EOF Error")]
+    EndOfFileError,
+    #[error("Expected {pat}, but got {unmatch:?}")]
+    UnexpectedToken {
+        pat: TokenKind,
+        unmatch: Token,
+    },
+    #[error("input sequence cannot be parsed as a int literal: {error}")]
+    UnParsableIntLiteral {
+        error: ParseIntError
+    },
+    #[error("int literal type of {tp} must be in range ({min}..={max}), but its value is {value}")]
+    OverflowedLiteral {
+        tp: Box<str>,
+        min: i64,
+        max: i64,
+        value: i64,
+    },
+    #[error("if expression requires `else` clause")]
+    IfExpressionWithoutElseClause,
+    #[error("if expression requires `then` clause and `else` clause")]
+    IfExpressionWithoutThenClauseAndElseClause,
+}
+
+#[derive(Display, Debug, Eq, PartialEq, Copy, Clone)]
+pub enum TokenKind {
+    #[display(fmt = "int literal, boolean literal, string literal, or identifier")]
+    First,
+    #[display(fmt = "`/` or `*`")]
+    MultiplicativeOps,
+    #[display(fmt = "`+` or `-`")]
+    AdditiveOps,
+    #[display(fmt = "`<=`, `>=`, `<`, `>` or `<=>`")]
+    ComparisonOps,
+    #[display(fmt = "`==` or `!=`")]
+    EqualityOps,
+    #[display(fmt = "int literal")]
+    IntLiteral,
+    #[display(fmt = "identifier")]
+    Identifier,
+}
 
 pub struct Parser {
     lexer: Lexer,
@@ -42,7 +98,7 @@ impl Parser {
                 }),
                 other => Err(SimpleErrorWithPos {
                     position: t.position,
-                    error_message: format!("parse_statement assertion: unconsumed token found: {other:?}")
+                    error_message: ParserError::UnconsumedToken { token: other }
                 })
             }
         }
@@ -64,7 +120,7 @@ impl Parser {
             if next.data != Token::NewLine {
                 return Err(SimpleErrorWithPos {
                     position: next.position,
-                    error_message: "Statement must be terminated by a newline".to_string(),
+                    error_message: ParserError::StatementTerminationError,
                 })
             }
         }
@@ -111,7 +167,7 @@ impl Parser {
             }
             Token::EndOfFile => {
                 Err(SimpleErrorWithPos {
-                    error_message: "END OF FILE!!!!!!".to_string(),
+                    error_message: EndOfFileError,
                     position: token.position,
                 })
             }
@@ -120,7 +176,10 @@ impl Parser {
                 Ok(Expression::StringLiteral(s))
             }
             e => Err(SimpleErrorWithPos {
-                error_message: format!("int literal, boolean literal, string literal or identifier is expected, but got {e:?}"),
+                error_message: ParserError::UnexpectedToken {
+                    pat: TokenKind::First,
+                    unmatch: e,
+                },
                 position: token.position,
             })
         }
@@ -145,7 +204,10 @@ impl Parser {
                     Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
                     Token::SymSlash => Ok(BinaryOperatorKind::Divide),
                     e => Err(SimpleErrorWithPos {
-                        error_message: format!("SyntaxError: `*` or `/` is expected, but got {e:?}"),
+                        error_message: ParserError::UnexpectedToken {
+                            pat: TokenKind::MultiplicativeOps,
+                            unmatch: e.clone(),
+                        },
                         position: token.position
                     })
                 }
@@ -191,7 +253,10 @@ impl Parser {
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
                     e => Err(SimpleErrorWithPos {
                         position: token.position,
-                        error_message: format!("+ or - was expected, but got {e:?}")
+                        error_message: ParserError::UnexpectedToken {
+                            pat: TokenKind::AdditiveOps,
+                            unmatch: e.clone(),
+                        }
                     })
                 }
             };
@@ -236,7 +301,10 @@ impl Parser {
                     Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
                     e => Err(SimpleErrorWithPos {
                         position: token.position,
-                        error_message: format!("excess token: {e:?}"),
+                        error_message: ParserError::UnexpectedToken {
+                            pat: TokenKind::ComparisonOps,
+                            unmatch: e.clone(),
+                        },
                     })
                 }
             };
@@ -274,7 +342,10 @@ impl Parser {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
                     e => Err(SimpleErrorWithPos {
-                        error_message: format!("excess token: {e:?}"),
+                        error_message: ParserError::UnexpectedToken {
+                            pat: TokenKind::EqualityOps,
+                            unmatch: e.clone(),
+                        },
                         position: token.position,
                     })
                 }
@@ -305,7 +376,9 @@ impl Parser {
                 let x = sequence.as_str().parse::<i64>();
                 if let Err(e) = x {
                     return Err(SimpleErrorWithPos {
-                        error_message: format!("input sequence cannot be parsed as {{integer}}: {e}"),
+                        error_message: ParserError::UnParsableIntLiteral {
+                            error: e
+                        },
                         position: n.position,
                     })
                 }
@@ -316,12 +389,12 @@ impl Parser {
                         ($t:ty, $lang_type:literal, $v:expr) => {{
                             if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
                                 return Err(SimpleErrorWithPos {
-                                    error_message: format!(
-                                        concat!($lang_type, " literal must be range in {min}..={max}, but its value is {x}"),
-                                        min = <$t>::MIN,
-                                        max = <$t>::MAX,
-                                        x = $v
-                                    ),
+                                    error_message: ParserError::OverflowedLiteral {
+                                        tp: $lang_type.to_string().into_boxed_str(),
+                                        min: (<$t>::MIN) as i64,
+                                        max: (<$t>::MAX) as i64,
+                                        value: $v
+                                    },
                                     position: n.position
                                 })
                             }
@@ -338,7 +411,10 @@ impl Parser {
                 Ok((x, suffix))
             }
             _ => Err(SimpleErrorWithPos {
-                error_message: format!("int literal is expected, but got {token:?}", token = n.data),
+                error_message: ParserError::UnexpectedToken {
+                    pat: IntLiteral,
+                    unmatch: n.data
+                },
                 position: n.position,
             })
         }
@@ -360,7 +436,10 @@ impl Parser {
             }
             e => return Err(SimpleErrorWithPos {
                 position: ident_token.position,
-                error_message: format!("identifier was expected, got {e:?}")
+                error_message: ParserError::UnexpectedToken {
+                    pat: TokenKind::Identifier,
+                    unmatch: e,
+                }
             })
         };
         self.assert_token_eq_with_consumed(Token::SymEq);
@@ -394,13 +473,13 @@ impl Parser {
                     })
                 } else {
                     Err(SimpleErrorWithPos {
-                        error_message: "if expression requires else clause".to_string(),
+                        error_message: ParserError::IfExpressionWithoutElseClause,
                         position,
                     })
                 }
             } else {
                 Err(SimpleErrorWithPos {
-                    error_message: "if expression requires then clause and else clause".to_string(),
+                    error_message: ParserError::IfExpressionWithoutThenClauseAndElseClause,
                     position,
                 })
             }
