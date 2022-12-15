@@ -12,7 +12,7 @@ use crate::parser::TokenKind::IntLiteral;
 #[derive(ThisError, Debug, Display, Eq, PartialEq)]
 #[display(fmt = "{error_message} ({position})")]
 pub struct SimpleErrorWithPos {
-    pub error_message: ParserError,
+    pub kind: ParserError,
     pub position: SourcePos,
 }
 
@@ -99,7 +99,7 @@ impl Parser {
                 }),
                 other => Err(SimpleErrorWithPos {
                     position: t.position,
-                    error_message: ParserError::UnconsumedToken { token: other }
+                    kind: ParserError::UnconsumedToken { token: other }
                 })
             }
         }
@@ -121,7 +121,7 @@ impl Parser {
             if next.data != Token::NewLine {
                 return Err(SimpleErrorWithPos {
                     position: next.position,
-                    error_message: ParserError::StatementTerminationError,
+                    kind: ParserError::StatementTerminationError,
                 })
             }
         }
@@ -168,7 +168,7 @@ impl Parser {
             }
             Token::EndOfFile => {
                 Err(SimpleErrorWithPos {
-                    error_message: EndOfFileError,
+                    kind: EndOfFileError,
                     position: token.position,
                 })
             }
@@ -177,7 +177,7 @@ impl Parser {
                 Ok(Expression::StringLiteral(s))
             }
             e => Err(SimpleErrorWithPos {
-                error_message: ParserError::UnexpectedToken {
+                kind: ParserError::UnexpectedToken {
                     pat: TokenKind::First,
                     unmatch: e,
                 },
@@ -205,7 +205,7 @@ impl Parser {
                     Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
                     Token::SymSlash => Ok(BinaryOperatorKind::Divide),
                     e => Err(SimpleErrorWithPos {
-                        error_message: ParserError::UnexpectedToken {
+                        kind: ParserError::UnexpectedToken {
                             pat: TokenKind::MultiplicativeOps,
                             unmatch: e.clone(),
                         },
@@ -254,7 +254,7 @@ impl Parser {
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
                     e => Err(SimpleErrorWithPos {
                         position: token.position,
-                        error_message: ParserError::UnexpectedToken {
+                        kind: ParserError::UnexpectedToken {
                             pat: TokenKind::AdditiveOps,
                             unmatch: e.clone(),
                         }
@@ -302,7 +302,7 @@ impl Parser {
                     Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
                     e => Err(SimpleErrorWithPos {
                         position: token.position,
-                        error_message: ParserError::UnexpectedToken {
+                        kind: ParserError::UnexpectedToken {
                             pat: TokenKind::ComparisonOps,
                             unmatch: e.clone(),
                         },
@@ -343,7 +343,7 @@ impl Parser {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
                     e => Err(SimpleErrorWithPos {
-                        error_message: ParserError::UnexpectedToken {
+                        kind: ParserError::UnexpectedToken {
                             pat: TokenKind::EqualityOps,
                             unmatch: e.clone(),
                         },
@@ -377,7 +377,7 @@ impl Parser {
                 let x = sequence.as_str().parse::<i64>();
                 if let Err(e) = x {
                     return Err(SimpleErrorWithPos {
-                        error_message: ParserError::UnParsableIntLiteral {
+                        kind: ParserError::UnParsableIntLiteral {
                             error: e
                         },
                         position: n.position,
@@ -412,7 +412,7 @@ impl Parser {
                 Ok((x, suffix))
             }
             _ => Err(SimpleErrorWithPos {
-                error_message: ParserError::UnexpectedToken {
+                kind: ParserError::UnexpectedToken {
                     pat: IntLiteral,
                     unmatch: n.data
                 },
@@ -437,7 +437,7 @@ impl Parser {
             }
             e => return Err(SimpleErrorWithPos {
                 position: ident_token.position,
-                error_message: ParserError::UnexpectedToken {
+                kind: ParserError::UnexpectedToken {
                     pat: TokenKind::Identifier,
                     unmatch: e,
                 }
@@ -474,13 +474,13 @@ impl Parser {
                     })
                 } else {
                     Err(SimpleErrorWithPos {
-                        error_message: ParserError::IfExpressionWithoutElseClause,
+                        kind: ParserError::IfExpressionWithoutElseClause,
                         position,
                     })
                 }
             } else {
                 Err(SimpleErrorWithPos {
-                    error_message: ParserError::IfExpressionWithoutThenClauseAndElseClause,
+                    kind: ParserError::IfExpressionWithoutThenClauseAndElseClause,
                     position,
                 })
             }

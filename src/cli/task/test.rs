@@ -214,7 +214,7 @@ impl Test {
                 const V: i64 = MAX + 1;
                 let src = format!("{V}{x}", x = stringify!($t));
                 let e = Self::evaluated_expressions(src.as_str()).expect_err("this operation should fail");
-                assert_eq!(e.error_message, ParserError::OverflowedLiteral {
+                assert_eq!(e.kind, ParserError::OverflowedLiteral {
                     tp: stringify!($t).to_string().into_boxed_str(),
                     min: <$t>::MIN as i64,
                     max: MAX,
