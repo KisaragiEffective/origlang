@@ -311,6 +311,30 @@ impl Parser {
                 }
 
                 let x = x.unwrap();
+                if let Some(y) = suffix.as_ref() {
+                    macro_rules! lit_value {
+                        ($t:ty, $lang_type:literal, $v:expr) => {{
+                            if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
+                                return Err(SimpleErrorWithPos {
+                                    error_message: format!(
+                                        concat!($lang_type, " literal must be range in {min}..={max}, but its value is {x}"),
+                                        min = <$t>::MIN,
+                                        max = <$t>::MAX,
+                                        x = $v
+                                    ),
+                                    position: n.position
+                                })
+                            }
+                        }};
+                    }
+                    match y.as_ref() {
+                        "i8"  => lit_value!(i8, "i8", x),
+                        "i16" => lit_value!(i16, "i16", x),
+                        "i32" => lit_value!(i32, "i32", x),
+                        "i64" => {}
+                        _ => unreachable!()
+                    }
+                }
                 Ok((x, suffix))
             }
             _ => Err(SimpleErrorWithPos {

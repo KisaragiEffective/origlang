@@ -194,9 +194,26 @@ impl Test {
     fn test_infix_op_does_not_cause_panic_by_arithmetic_overflow() -> Result<(), SimpleErrorWithPos> {
         // NOTE: this test covers other coerced int types as well, as long as the `f!` macro handles their match and computation.
         assert_eq!(Self::evaluated_expressions("16i8 * 16i8\n")?, type_boxes![0 => Int8]);
-        assert_eq!(Self::evaluated_expressions("128i8 + 128i8\n")?, type_boxes![0 => Int8]);
-        assert_eq!(Self::evaluated_expressions("0i8 - 255i8\n")?, type_boxes![1 => Int8]);
-        assert_eq!(Self::evaluated_expressions("16384i8 / 1i8\n")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("127i8 + 127i8 + 2i8\n")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("0i8 - (127i8 + 127i8 + 1i8)\n")?, type_boxes![1 => Int8]);
+        assert_eq!(Self::evaluated_expressions("(127i8 + 127i8 + 2i8) / 1i8\n")?, type_boxes![0 => Int8]);
+
+        Ok(())
+    }
+
+    fn test_out_of_range_literal() -> Result<(), SimpleErrorWithPos> {
+        macro_rules! gen {
+            ($t:ty) => {{
+                // TODO: anyhowから抜け出した際にはちゃんとした検査を行うようにする
+                const MAX: i64 = (<$t>::MAX as i64) + 1;
+                assert!(Self::evaluated_expressions(concat!("", stringify!(MAX), stringify!($t))).is_err());
+                const MIN: i64 = (<$t>::MIN as i64) - 1;
+                assert!(Self::evaluated_expressions(concat!("", stringify!(MIN), stringify!($t))).is_err());
+            }};
+        }
+        gen!(i8);
+        gen!(i16);
+        gen!(i32);
 
         Ok(())
     }
