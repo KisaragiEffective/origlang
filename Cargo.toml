@@ -9,4 +9,5 @@ edition = "2021"
 anyhow = "1.0.66"
 clap = { version = "4.0.29", features = ["derive"] }
 derive_more = "0.99.17"
+tap = "1.0.1"
 thiserror = "1.0.37"

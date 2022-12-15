@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::mem::MaybeUninit;
 use std::num::NonZeroUsize;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use crate::ast::{SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
@@ -193,8 +193,45 @@ impl Lexer {
             buf.push(c);
         }
 
+        let builtin_suffix = if self.current_char()? == 'i' {
+            self.consume_char()?;
+            if self.current_char()? == '8' {
+                self.consume_char()?;
+                Some("i8".to_string().into_boxed_str())
+            } else if self.current_char()? == '1' {
+                self.consume_char()?;
+                if self.current_char()? == '6' {
+                    self.consume_char()?;
+                    Some("i16".to_string().into_boxed_str())
+                } else {
+                    bail!("Invalid suffix")
+                }
+            } else if self.current_char()? == '3' {
+                self.consume_char()?;
+                if self.current_char()? == '2' {
+                    self.consume_char()?;
+                    Some("i32".to_string().into_boxed_str())
+                } else {
+                    bail!("Invalid suffix")
+                }
+            } else if self.current_char()? == '6' {
+                self.consume_char()?;
+                if self.current_char()? == '4' {
+                    self.consume_char()?;
+                    Some("i64".to_string().into_boxed_str())
+                } else {
+                    bail!("Invalid suffix")
+                }
+            } else {
+                bail!("Invalid suffix")
+            }
+        } else {
+            None
+        };
+
         Ok(Token::Digits {
-            sequence: buf
+            sequence: buf,
+            suffix: builtin_suffix,
         })
     }
 
@@ -309,6 +346,7 @@ pub enum Token {
     },
     Digits {
         sequence: String,
+        suffix: Option<Box<str>>
     },
     UnexpectedChar {
         index: usize,

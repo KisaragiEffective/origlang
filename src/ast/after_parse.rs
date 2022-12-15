@@ -5,7 +5,10 @@ use std::fmt::{Display, Formatter};
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
     /// 整数リテラル
-    IntLiteral(i32),
+    IntLiteral {
+        value: i64,
+        suffix: Option<Box<str>>,
+    },
     /// 真偽値リテラル
     BooleanLiteral(bool),
     /// 文字列リテラル

@@ -85,8 +85,8 @@ impl Parser {
                 })
             }
             Token::Digits { .. } => {
-                self.parse_int_literal().map(|parsed| {
-                    Expression::IntLiteral(parsed)
+                self.parse_int_literal().map(|(parsed, suffix)| {
+                    Expression::IntLiteral { value: parsed, suffix }
                 })
             }
             Token::SymLeftPar => {
@@ -298,14 +298,44 @@ impl Parser {
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
     /// 事前条件: 現在のトークンが整数として有効である必要がある
     /// 違反した場合はErrを返す。
-    fn parse_int_literal(&self) -> Result<i32, SimpleErrorWithPos> {
+    fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
         let n = self.lexer.next();
         match n.data {
-            Token::Digits { sequence } => {
-                sequence.as_str().parse::<i32>().map_err(|e| SimpleErrorWithPos {
-                    error_message: format!("input sequence cannot be parsed as Int: {e}"),
-                    position: n.position,
-                })
+            Token::Digits { sequence, suffix } => {
+                let x = sequence.as_str().parse::<i64>();
+                if let Err(e) = x {
+                    return Err(SimpleErrorWithPos {
+                        error_message: format!("input sequence cannot be parsed as {{integer}}: {e}"),
+                        position: n.position,
+                    })
+                }
+
+                let x = x.unwrap();
+                if let Some(y) = suffix.as_ref() {
+                    macro_rules! lit_value {
+                        ($t:ty, $lang_type:literal, $v:expr) => {{
+                            if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
+                                return Err(SimpleErrorWithPos {
+                                    error_message: format!(
+                                        concat!($lang_type, " literal must be range in {min}..={max}, but its value is {x}"),
+                                        min = <$t>::MIN,
+                                        max = <$t>::MAX,
+                                        x = $v
+                                    ),
+                                    position: n.position
+                                })
+                            }
+                        }};
+                    }
+                    match y.as_ref() {
+                        "i8"  => lit_value!(i8, "i8", x),
+                        "i16" => lit_value!(i16, "i16", x),
+                        "i32" => lit_value!(i32, "i32", x),
+                        "i64" => {}
+                        _ => unreachable!()
+                    }
+                }
+                Ok((x, suffix))
             }
             _ => Err(SimpleErrorWithPos {
                 error_message: format!("int literal is expected, but got {token:?}", token = n.data),

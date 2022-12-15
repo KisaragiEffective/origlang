@@ -46,37 +46,37 @@ impl Test {
 
     #[allow(clippy::unreadable_literal)]
     fn expression_equality_test() -> Result<(), Err> {
-        assert_eq!(Self::evaluated_expressions("123456\n")?, type_boxes![123456 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1\n2\n")?, type_boxes![1 => Integer, 2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nx\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = x\ny\n")?, type_boxes![1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("123456\n")?, type_boxes![123456 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1\n2\n")?, type_boxes![1 => NonCoercedInteger, 2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nx\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = x\ny\n")?, type_boxes![1 => NonCoercedInteger]);
         // plus operator test (binary)
-        assert_eq!(Self::evaluated_expressions("1 + 2\n")?, type_boxes![3 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\n1 + x\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx + y\n")?, type_boxes![4 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 + 2\n")?, type_boxes![3 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\n1 + x\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx + y\n")?, type_boxes![4 => NonCoercedInteger]);
 
         // plus operator test (more than twice)
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?, type_boxes![6 => Integer]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?, type_boxes![6 => NonCoercedInteger]);
 
         // minus operator test (binary)
-        assert_eq!(Self::evaluated_expressions("1 - 2\n")?, type_boxes![-1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\n1 - x\n")?, type_boxes![0 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx - y\n")?, type_boxes![-2 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 - 2\n")?, type_boxes![-1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\n1 - x\n")?, type_boxes![0 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx - y\n")?, type_boxes![-2 => NonCoercedInteger]);
 
         // minus operator test (more than twice)
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nz - x - y\n")?, type_boxes![0 => Integer]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nz - x - y\n")?, type_boxes![0 => NonCoercedInteger]);
 
         // paren test
-        assert_eq!(Self::evaluated_expressions("(1)\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 - (2 - 1)\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("(3 - 2) - 1\n")?, type_boxes![0 => Integer]);
+        assert_eq!(Self::evaluated_expressions("(1)\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 - (2 - 1)\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("(3 - 2) - 1\n")?, type_boxes![0 => NonCoercedInteger]);
 
         // multiply test
-        assert_eq!(Self::evaluated_expressions("3 * 2\n")?, type_boxes![6 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![7 => Integer]);
-        assert_ne!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![9 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![9 => Integer]);
-        assert_ne!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![7 => Integer]);
+        assert_eq!(Self::evaluated_expressions("3 * 2\n")?, type_boxes![6 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![7 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![9 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![9 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![7 => NonCoercedInteger]);
 
         // boolean literal test
         assert_eq!(Self::evaluated_expressions("true\n")?, type_boxes![true => Boolean]);
@@ -91,6 +91,9 @@ impl Test {
         Self::test_string_literal()?;
         Self::test_string_concat()?;
         Self::test_unit_literal()?;
+        Self::test_coerced_int_literal()?;
+        Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
+
         Ok(())
     }
 
@@ -136,9 +139,9 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("1 > 2 == 2 < 1\n")?, type_boxes![true => Boolean]);
 
         // spaceship operator
-        assert_eq!(Self::evaluated_expressions("1 <=> 0\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1 <=> 1\n")?, type_boxes![0 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1 <=> 2\n")?, type_boxes![-1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 0\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 1\n")?, type_boxes![0 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 2\n")?, type_boxes![-1 => NonCoercedInteger]);
 
         Ok(())
     }
@@ -152,10 +155,10 @@ impl Test {
     }
 
     fn test_if_expression() -> Result<(), Err> {
-        assert_eq!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![1 => Integer]);
-        assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![2 => Integer]);
-        assert_ne!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![1 => NonCoercedInteger]);
         Ok(())
     }
 
@@ -178,6 +181,43 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("()\n")?, type_boxes![() => Unit]);
         Ok(())
     }
+
+    fn test_coerced_int_literal() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions("0i8\n")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("0i16\n")?, type_boxes![0 => Int16]);
+        assert_eq!(Self::evaluated_expressions("0i32\n")?, type_boxes![0 => Int32]);
+        assert_eq!(Self::evaluated_expressions("0i64\n")?, type_boxes![0 => Int64]);
+
+        Ok(())
+    }
+
+    fn test_infix_op_does_not_cause_panic_by_arithmetic_overflow() -> Result<(), SimpleErrorWithPos> {
+        // NOTE: this test covers other coerced int types as well, as long as the `f!` macro handles their match and computation.
+        assert_eq!(Self::evaluated_expressions("16i8 * 16i8\n")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("127i8 + 127i8 + 2i8\n")?, type_boxes![0 => Int8]);
+        assert_eq!(Self::evaluated_expressions("0i8 - (127i8 + 127i8 + 1i8)\n")?, type_boxes![1 => Int8]);
+        assert_eq!(Self::evaluated_expressions("(127i8 + 127i8 + 2i8) / 1i8\n")?, type_boxes![0 => Int8]);
+
+        Ok(())
+    }
+
+    fn test_out_of_range_literal() -> Result<(), SimpleErrorWithPos> {
+        macro_rules! gen {
+            ($t:ty) => {{
+                // TODO: anyhowから抜け出した際にはちゃんとした検査を行うようにする
+                const MAX: i64 = (<$t>::MAX as i64) + 1;
+                assert!(Self::evaluated_expressions(concat!("", stringify!(MAX), stringify!($t))).is_err());
+                const MIN: i64 = (<$t>::MIN as i64) - 1;
+                assert!(Self::evaluated_expressions(concat!("", stringify!(MIN), stringify!($t))).is_err());
+            }};
+        }
+        gen!(i8);
+        gen!(i16);
+        gen!(i32);
+
+        Ok(())
+    }
+
 }
 
 impl Task for Test {
