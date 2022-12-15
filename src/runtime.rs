@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use derive_more::{Display, From};
 use tap::Conv;
+use thiserror::Error;
 use crate::ast::{RootAst, Statement};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::type_check::Type;
@@ -22,6 +23,14 @@ pub struct NonCoerced(i64);
 impl From<NonCoerced> for TypeBox {
     fn from(value: NonCoerced) -> Self {
         Self::NonCoercedInteger(value.0)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum TypeBoxUnwrapError {
+    #[error("This box does not contain value of {requested}")]
+    DifferentType {
+        requested: Box<str>
     }
 }
 
@@ -65,10 +74,12 @@ impl TypeBox {
         }
     }
 
-    fn as_int(&self) -> Result<i64, String> {
+    fn as_int(&self) -> Result<i64, TypeBoxUnwrapError> {
         match self {
             Self::NonCoercedInteger(i) => Ok(*i),
-            _ => Err("It is not i64".to_string())
+            _ => Err(TypeBoxUnwrapError::DifferentType {
+                requested: "i64".to_string().into_boxed_str(),
+            })
         }
     }
 }
@@ -125,9 +136,16 @@ impl Runtime {
     }
 }
 
+#[derive(Error, Debug, Eq, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+pub enum RuntimeError {
+    #[error("variable {identifier} is not defined in current scope")]
+    UndefinedVariable {
+        identifier: Box<str>,
+    },
+}
 
-
-type EvaluateResult = Result<TypeBox, String>;
+type EvaluateResult = Result<TypeBox, RuntimeError>;
 trait CanBeEvaluated {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
 }
@@ -183,6 +201,15 @@ macro_rules! f {
     }};
 }
 
+macro_rules! indicate_type_checker_bug {
+    (context = $ctx:expr) => {
+        unreachable!(
+            "INTERNAL ERROR: this branch must not be reached, because this branch is executed after type-check'd. Please report this bug. Bug context: {x}",
+            x = $ctx
+        )
+    };
+}
+
 impl CanBeEvaluated for &Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
@@ -201,7 +228,9 @@ impl CanBeEvaluated for &Expression {
             Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::UnitLiteral => Ok(().into()),
             Expression::Variable { ident } => {
-                runtime.environment.borrow().get(ident).ok_or(format!("variable {ident} is not defined")).map(Clone::clone)
+                runtime.environment.borrow().get(ident)
+                    .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone().into_boxed_str() })
+                    .map(Clone::clone)
             },
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
@@ -215,7 +244,7 @@ impl CanBeEvaluated for &Expression {
                         };
                         Ok(ret.into())
                     } else {
-                        Err("Cannot compare between different types.".to_string())
+                        indicate_type_checker_bug!(context = "type checker must deny equality check between different types")
                     }
                 }
 
@@ -242,7 +271,7 @@ impl CanBeEvaluated for &Expression {
                         ret += rhs.as_str();
                         Ok(ret.into())
                     }
-                    _ => Err("None of them are applicable".to_string())
+                    _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
                 };
             }
             Expression::If { condition, then_clause_value, else_clause_value } => {
@@ -254,7 +283,7 @@ impl CanBeEvaluated for &Expression {
                         else_clause_value.as_ref().evaluate(runtime)
                     }
                 } else {
-                    Err("if cond must be a boolean".to_string())
+                    indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
             }
         }

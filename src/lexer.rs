@@ -1,13 +1,25 @@
 use std::cell::{Cell, RefCell};
 use std::mem::MaybeUninit;
 use std::num::NonZeroUsize;
+use thiserror::Error;
 
-use anyhow::{anyhow, bail, Result};
 use crate::ast::{SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
 static KEYWORDS: [&str; 7] =
     ["var", "if", "else", "then", "exit", "true", "false"];
+
+#[derive(Error, Debug, Eq, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+pub enum LexerError {
+    #[error("Invalid suffix for integer literal. Supported suffixes are [`i8`, `i16`, `i32`, `i64`]")]
+    InvalidSuffix,
+    #[error("Internal compiler error: lexer index overflow: {current} > {max}")]
+    OutOfRange {
+        current: usize,
+        max: usize,
+    }
+}
 
 // FIXME: 行番号、列番号がおかしい
 pub struct Lexer {
@@ -176,7 +188,7 @@ impl Lexer {
         }
     }
 
-    fn scan_digits(&self) -> Result<Token> {
+    fn scan_digits(&self) -> Result<Token, LexerError> {
         let mut buf = String::new();
         loop {
             if self.reached_end() {
@@ -204,7 +216,7 @@ impl Lexer {
                     self.consume_char()?;
                     Some("i16".to_string().into_boxed_str())
                 } else {
-                    bail!("Invalid suffix")
+                    return Err(LexerError::InvalidSuffix);
                 }
             } else if self.current_char()? == '3' {
                 self.consume_char()?;
@@ -212,7 +224,7 @@ impl Lexer {
                     self.consume_char()?;
                     Some("i32".to_string().into_boxed_str())
                 } else {
-                    bail!("Invalid suffix")
+                    return Err(LexerError::InvalidSuffix);
                 }
             } else if self.current_char()? == '6' {
                 self.consume_char()?;
@@ -220,10 +232,10 @@ impl Lexer {
                     self.consume_char()?;
                     Some("i64".to_string().into_boxed_str())
                 } else {
-                    bail!("Invalid suffix")
+                    return Err(LexerError::InvalidSuffix);
                 }
             } else {
-                bail!("Invalid suffix")
+                return Err(LexerError::InvalidSuffix);
             }
         } else {
             None
@@ -235,7 +247,7 @@ impl Lexer {
         })
     }
 
-    fn scan_lowers(&self) -> Result<String> {
+    fn scan_lowers(&self) -> Result<String, LexerError> {
         let mut buf = String::new();
         loop {
             if self.reached_end() {
@@ -255,7 +267,7 @@ impl Lexer {
         Ok(buf)
     }
 
-    fn scan_string_literal(&self) -> Result<Token> {
+    fn scan_string_literal(&self) -> Result<Token, LexerError> {
         let mut buf = String::new();
         assert_eq!(self.consume_char()?, '"');
         loop {
@@ -299,20 +311,20 @@ impl Lexer {
         self.peek_n(0)
     }
 
-    fn current_char(&self) -> Result<char> {
+    fn current_char(&self) -> Result<char, LexerError> {
         self.current_source
             .as_str()
             .chars()
             .nth(*self.current_index.borrow())
             .ok_or_else(||
-                anyhow!("index: out of range (idx={request}, max={max})",
-                    request = *self.current_index.borrow(),
-                    max = self.current_source.len()
-                )
+                LexerError::OutOfRange {
+                    current: *self.current_index.borrow(),
+                    max: self.current_source.len(),
+                }
             )
     }
 
-    fn consume_char(&self) -> Result<char> {
+    fn consume_char(&self) -> Result<char, LexerError> {
         let c = self.current_char()?;
         self.advance();
         Ok(c)

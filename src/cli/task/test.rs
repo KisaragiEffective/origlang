@@ -1,7 +1,8 @@
 #![forbid(dead_code)]
+#![allow(clippy::unnecessary_wraps)]
 
 use crate::cli::task::Task;
-use crate::parser::SimpleErrorWithPos;
+use crate::parser::{ParserError, SimpleErrorWithPos};
 use crate::runtime::{Runtime, TypeBox};
 
 type Err = SimpleErrorWithPos;
@@ -95,7 +96,7 @@ impl Test {
         Self::test_unit_literal()?;
         Self::test_coerced_int_literal()?;
         Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
-        Self::test_out_of_range_literal()?;
+        Self::test_overflowed_literal()?;
 
         Ok(())
     }
@@ -204,14 +205,24 @@ impl Test {
         Ok(())
     }
 
-    fn test_out_of_range_literal() -> Result<(), SimpleErrorWithPos> {
+    fn test_overflowed_literal() -> Result<(), SimpleErrorWithPos> {
+        // TODO: test underflow literal
         macro_rules! gen {
             ($t:ty) => {{
-                // TODO: anyhowから抜け出した際にはちゃんとした検査を行うようにする
-                assert!(Self::evaluated_expressions(concat!("", stringify!((<$t>::MAX as i64) + 1), stringify!($t))).is_err());
-                assert!(Self::evaluated_expressions(concat!("", stringify!((<$t>::MIN as i64) - 1), stringify!($t))).is_err());
+                // evaluate
+                const MAX: i64 = <$t>::MAX as i64;
+                const V: i64 = MAX + 1;
+                let src = format!("{V}{x}", x = stringify!($t));
+                let e = Self::evaluated_expressions(src.as_str()).expect_err("this operation should fail");
+                assert_eq!(e.kind, ParserError::OverflowedLiteral {
+                    tp: stringify!($t).to_string().into_boxed_str(),
+                    min: <$t>::MIN as i64,
+                    max: MAX,
+                    value: V,
+                });
             }};
         }
+
         gen!(i8);
         gen!(i16);
         gen!(i32);
