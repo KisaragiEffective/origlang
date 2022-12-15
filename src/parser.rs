@@ -10,7 +10,7 @@ use crate::parser::TokenKind::IntLiteral;
 
 // TODO: これはWithPosition<ParserError>にできるかもしれないが一旦保留
 #[derive(ThisError, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{error_message} ({position})")]
+#[display(fmt = "{kind} ({position})")]
 pub struct SimpleErrorWithPos {
     pub kind: ParserError,
     pub position: SourcePos,
@@ -390,7 +390,7 @@ impl Parser {
                         ($t:ty, $lang_type:literal, $v:expr) => {{
                             if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
                                 return Err(SimpleErrorWithPos {
-                                    error_message: ParserError::OverflowedLiteral {
+                                    kind: ParserError::OverflowedLiteral {
                                         tp: $lang_type.to_string().into_boxed_str(),
                                         min: (<$t>::MIN) as i64,
                                         max: (<$t>::MAX) as i64,
