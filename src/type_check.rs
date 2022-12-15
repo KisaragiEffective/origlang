@@ -10,19 +10,33 @@ use crate::type_check::error::TypeCheckError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Type {
-    Integer,
+    GenericInteger,
     Boolean,
     String,
     Unit,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+}
+
+impl Type {
+    const fn is_int_family(&self) -> bool {
+        matches!(self, Self::GenericInteger | Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
+    }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Integer => f.write_str("Int"),
+            Self::GenericInteger => f.write_str("Int"),
             Self::Boolean => f.write_str("Bool"),
             Self::String => f.write_str("String"),
             Self::Unit => f.write_str("Unit"),
+            Self::Int8 => f.write_str("Int8"),
+            Self::Int16 => f.write_str("Int16"),
+            Self::Int32 => f.write_str("Int32"),
+            Self::Int64 => f.write_str("Int64"),
         }
     }
 }
@@ -41,7 +55,16 @@ impl TypeCheckTarget for &Expression {
     #[allow(clippy::too_many_lines)]
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
         match self {
-            Expression::IntLiteral(_) => Ok(Type::Integer),
+            Expression::IntLiteral { suffix, .. } => suffix.as_ref().map_or_else(
+                || Ok(Type::GenericInteger),
+                |s| match s.as_ref() {
+                    "i8"  => Ok(Type::Int8),
+                    "i16" => Ok(Type::Int16),
+                    "i32" => Ok(Type::Int32),
+                    "i64" => Ok(Type::Int64),
+                    _ => unreachable!()
+                }
+            ),
             Expression::BooleanLiteral(_) => Ok(Type::Boolean),
             Expression::StringLiteral(_) => Ok(Type::String),
             Expression::UnitLiteral => Ok(Type::Unit),
@@ -58,57 +81,66 @@ impl TypeCheckTarget for &Expression {
                 match operator {
                     BinaryOperatorKind::Plus => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Integer),
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
                             (Type::String, Type::String) => Ok(Type::String),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (x, y) if x == y => Ok(x),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::Minus => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Integer),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
+                            (x, y) if x == y => Ok(x),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::Multiply => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Integer),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
+                            (x, y) if x == y => Ok(x),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::Divide => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Integer),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
+                            (x, y) if x == y => Ok(x),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::More => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
+                            (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::MoreEqual => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
+                            (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::Less => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
+                            (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::LessEqual => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
+                            (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::ThreeWay => {
                         match (lhs_type, rhs_type) {
-                            (Type::Integer, Type::Integer) => Ok(Type::Integer),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::Integer, *operator, Type::Integer, lhs_type, rhs_type))
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
+                            (x, y) if x == y && x.is_int_family() => Ok(x),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
                         }
                     }
                     BinaryOperatorKind::Equal => {

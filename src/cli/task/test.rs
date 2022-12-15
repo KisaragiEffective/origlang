@@ -46,37 +46,37 @@ impl Test {
 
     #[allow(clippy::unreadable_literal)]
     fn expression_equality_test() -> Result<(), Err> {
-        assert_eq!(Self::evaluated_expressions("123456\n")?, type_boxes![123456 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1\n2\n")?, type_boxes![1 => Integer, 2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nx\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = x\ny\n")?, type_boxes![1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("123456\n")?, type_boxes![123456 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1\n2\n")?, type_boxes![1 => NonCoercedInteger, 2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nx\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = x\ny\n")?, type_boxes![1 => NonCoercedInteger]);
         // plus operator test (binary)
-        assert_eq!(Self::evaluated_expressions("1 + 2\n")?, type_boxes![3 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\n1 + x\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx + y\n")?, type_boxes![4 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 + 2\n")?, type_boxes![3 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\n1 + x\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx + y\n")?, type_boxes![4 => NonCoercedInteger]);
 
         // plus operator test (more than twice)
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?, type_boxes![6 => Integer]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nx + y + z\n")?, type_boxes![6 => NonCoercedInteger]);
 
         // minus operator test (binary)
-        assert_eq!(Self::evaluated_expressions("1 - 2\n")?, type_boxes![-1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\n1 - x\n")?, type_boxes![0 => Integer]);
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx - y\n")?, type_boxes![-2 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 - 2\n")?, type_boxes![-1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\n1 - x\n")?, type_boxes![0 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nx - y\n")?, type_boxes![-2 => NonCoercedInteger]);
 
         // minus operator test (more than twice)
-        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nz - x - y\n")?, type_boxes![0 => Integer]);
+        assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nz - x - y\n")?, type_boxes![0 => NonCoercedInteger]);
 
         // paren test
-        assert_eq!(Self::evaluated_expressions("(1)\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 - (2 - 1)\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("(3 - 2) - 1\n")?, type_boxes![0 => Integer]);
+        assert_eq!(Self::evaluated_expressions("(1)\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 - (2 - 1)\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("(3 - 2) - 1\n")?, type_boxes![0 => NonCoercedInteger]);
 
         // multiply test
-        assert_eq!(Self::evaluated_expressions("3 * 2\n")?, type_boxes![6 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![7 => Integer]);
-        assert_ne!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![9 => Integer]);
-        assert_eq!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![9 => Integer]);
-        assert_ne!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![7 => Integer]);
+        assert_eq!(Self::evaluated_expressions("3 * 2\n")?, type_boxes![6 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![7 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("3 * 2 + 1\n")?, type_boxes![9 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![9 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("3 * (2 + 1)\n")?, type_boxes![7 => NonCoercedInteger]);
 
         // boolean literal test
         assert_eq!(Self::evaluated_expressions("true\n")?, type_boxes![true => Boolean]);
@@ -136,9 +136,9 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("1 > 2 == 2 < 1\n")?, type_boxes![true => Boolean]);
 
         // spaceship operator
-        assert_eq!(Self::evaluated_expressions("1 <=> 0\n")?, type_boxes![1 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1 <=> 1\n")?, type_boxes![0 => Integer]);
-        assert_eq!(Self::evaluated_expressions("1 <=> 2\n")?, type_boxes![-1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 0\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 1\n")?, type_boxes![0 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("1 <=> 2\n")?, type_boxes![-1 => NonCoercedInteger]);
 
         Ok(())
     }
@@ -152,10 +152,10 @@ impl Test {
     }
 
     fn test_if_expression() -> Result<(), Err> {
-        assert_eq!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![1 => Integer]);
-        assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![2 => Integer]);
-        assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![2 => Integer]);
-        assert_ne!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![1 => Integer]);
+        assert_eq!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![1 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("if true then 1 else 2\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![2 => NonCoercedInteger]);
+        assert_ne!(Self::evaluated_expressions("if false then 1 else 2\n")?, type_boxes![1 => NonCoercedInteger]);
         Ok(())
     }
 
