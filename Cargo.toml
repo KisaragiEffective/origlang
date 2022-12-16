@@ -8,5 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.0.29", features = ["derive"] }
 derive_more = "0.99.17"
+env_logger = "0.10.0"
+log = "0.4.17"
 tap = "1.0.1"
 thiserror = "1.0.37"

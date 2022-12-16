@@ -1,6 +1,5 @@
-use std::cell::{Cell, RefCell};
-use std::mem::MaybeUninit;
-use std::num::NonZeroUsize;
+use std::cell::Cell;
+use log::{debug, trace};
 use thiserror::Error;
 
 use crate::ast::{SourcePos, WithPosition};
@@ -22,8 +21,9 @@ pub enum LexerError {
 }
 
 // FIXME: 行番号、列番号がおかしい
+#[derive(Debug)]
 pub struct Lexer {
-    current_index: RefCell<usize>,
+    current_index: Cell<usize>,
     current_source: String,
     current_line: Cell<usize>,
     current_column: Cell<usize>,
@@ -52,7 +52,7 @@ impl Lexer {
 
         Self {
             current_source: src,
-            current_index: RefCell::new(0),
+            current_index: Cell::new(0),
             current_line: Cell::new(1),
             current_column: Cell::new(1),
         }
@@ -64,121 +64,172 @@ impl Lexer {
         }
     }
 
-    #[allow(clippy::too_many_lines)]
+    fn try_char(&self, t: char) -> Result<Option<char>, LexerError> {
+        trace!("lexer:try:{t}");
+        if !self.reached_end() && self.current_char()? == t {
+            self.consume_char()?;
+            Ok(Some(t))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn try_char_peek(&self, t: char) -> Result<Option<char>, LexerError> {
+        trace!("lexer:try:{t}");
+        if !self.reached_end() && self.current_char()? == t {
+            Ok(Some(t))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn try_any(&self, t: &[char]) -> Result<Option<char>, LexerError> {
+        for c in t {
+            if let Some(x) = self.try_char_peek(*c)? {
+                return Ok(Some(x))
+            }
+        }
+
+        Ok(None)
+    }
+
+    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
+    fn next_inner(&self) -> Result<Token, LexerError> {
+        macro_rules! fold {
+            ($e:expr, $t:expr, $f:expr) => {
+                if $e.is_some() {
+                    $t
+                } else {
+                    $f
+                }
+            };
+        }
+        let v =
+            if self.reached_end() {
+                Some(Token::EndOfFile)
+            } else {
+                None
+            }
+            .or_else(|| self.try_char('\n').expect("huh?").map(|_| Token::NewLine))
+            .or_else(||
+                fold!(
+                    self.try_char('=').expect("huh?"),
+                    {
+                        let double_eq = self.try_char('=').expect("huh?");
+                        if double_eq.is_some() {
+                            Some(Token::PartEqEq)
+                        } else {
+                            Some(Token::SymEq)
+                        }
+                    },
+                    None
+                )
+            )
+            .or_else(|| self.try_char('+').expect("huh?").map(|_| Token::SymPlus))
+            .or_else(|| self.try_char('-').expect("huh?").map(|_| Token::SymMinus))
+            .or_else(|| self.try_char('*').expect("huh?").map(|_| Token::SymAsterisk))
+            .or_else(|| self.try_char('/').expect("huh?").map(|_| Token::SymSlash))
+            .or_else(|| self.try_char('(').expect("huh?").map(|_| Token::SymLeftPar))
+            .or_else(|| self.try_char(')').expect("huh?").map(|_| Token::SymRightPar))
+            .or_else(|| 
+                fold!(
+                    self.try_char('<').expect("huh?").map(|_| Token::SymPlus),
+                    fold!(
+                        self.try_char('=').expect("huh?"),
+                        fold!(
+                            self.try_char('>').expect("huh?"),
+                            Some(Token::PartLessEqMore),
+                            Some(Token::PartLessEq)
+                        ),
+                        Some(Token::SymLess)
+                    ),
+                    None
+                )
+            )
+            .or_else(|| 
+                fold!(
+                    self.try_char('>').expect("huh?"),
+                    fold!(
+                        self.try_char('=').expect("huh?"),
+                        Some(Token::PartMoreEq),
+                        Some(Token::SymMore)
+                    ),
+                    None
+                )
+            )
+            .or_else(|| 
+                fold!(
+                    self.try_char('!').expect("huh?"),
+                    fold!(
+                        self.try_char('=').expect("huh?"),
+                        Some(Token::PartBangEq),
+                        Some(Token::SymBang)
+                    ),
+                    None
+                )
+            )
+            .or_else(|| 
+                fold!(
+                    self.try_char('"').expect("huh?"),
+                    Some(self.scan_string_literal().expect("unable to parse string literal")),
+                    None
+                )
+            )
+            .or_else(|| 
+                fold!(
+                    self.try_any(&ASCII_NUMERIC_CHARS).expect("huh?"),
+                    Some(self.scan_digits().expect("huh?")),
+                    None
+                )
+            )
+            .or_else(|| {
+                fold!(
+                    self.try_any(&ASCII_LOWERS).expect("huh?"),
+                    {
+                        let v = {
+                            let scan_result = self.scan_lowers().expect("oops");
+                            let is_keyword = KEYWORDS.contains(&scan_result.as_str());
+                            if is_keyword {
+                                match scan_result.as_str() {
+                                    "var" => Token::VarKeyword,
+                                    "true" => Token::KeywordTrue,
+                                    "false" => Token::KeywordFalse,
+                                    "if" => Token::KeywordIf,
+                                    "then" => Token::KeywordThen,
+                                    "else" => Token::KeywordElse,
+                                    other => Token::Reserved {
+                                        matched: other.to_string(),
+                                    }
+                                }
+                            } else {
+                                Token::Identifier { inner: scan_result }
+                            }
+                        };
+
+                        Some(v)
+                    },
+                    None
+                )
+            })
+            // dont eager evaluate
+            .unwrap_or_else(|| Token::UnexpectedChar {
+                index: self.current_index.get(),
+                char: self.current_char().expect("unexpected_char"),
+            });
+        Ok(v)
+    }
+
     pub fn next(&self) -> WithPosition<Token> {
+        debug!("lexer:next");
         self.drain_space();
         
         if self.reached_end() {
             return Token::EndOfFile.with_pos(self)
         }
 
-        let c = self.current_char().expect("oops");
-        let t = match c {
-            '\n' => {
-                self.advance();
-                Token::NewLine
-            },
-            '=' => {
-                self.advance();
-                if self.current_char().expect("oops") == '=' {
-                    self.advance();
-                    Token::PartEqEq
-                } else {
-                    Token::SymEq
-                }
-            },
-            '+' => {
-                self.advance();
-                Token::SymPlus
-            },
-            '-' => {
-                self.advance();
-                Token::SymMinus
-            },
-            '*' => {
-                self.advance();
-                Token::SymAsterisk
-            },
-            '/' => {
-                self.advance();
-                Token::SymSlash
-            },
-            '(' => {
-                self.advance();
-                Token::SymLeftPar
-            },
-            ')' => {
-                self.advance();
-                Token::SymRightPar
-            },
-            '<' => {
-                self.advance();
-                if self.current_char().expect("oops") == '=' {
-                    self.advance();
-                    if self.current_char().expect("oops") == '>' {
-                        self.advance();
-                        Token::PartLessEqMore
-                    } else {
-                        Token::PartLessEq
-                    }
-                } else {
-                    Token::SymLess
-                }
-            },
-            '>' => {
-                self.advance();
-                if self.current_char().expect("oops") == '=' {
-                    self.advance();
-                    Token::PartMoreEq
-                } else {
-                    Token::SymMore
-                }
-            },
-            '!' => {
-                self.advance();
-                if self.current_char().expect("oops") == '=' {
-                    self.advance();
-                    Token::PartBangEq
-                } else {
-                    Token::SymBang
-                }
-            },
-            '"' => {
-                self.scan_string_literal().expect("unable to parse string literal")
-            },
-            c if ASCII_NUMERIC_CHARS.contains(&c) => self.scan_digits().expect("oops"),
-            c if ASCII_LOWERS.contains(&c) => {
-                let scan_result = self.scan_lowers().expect("oops");
-                let is_keyword = KEYWORDS.contains(&scan_result.as_str());
-                if is_keyword {
-                    match scan_result.as_str() {
-                        "var" => Token::VarKeyword,
-                        "true" => Token::KeywordTrue,
-                        "false" => Token::KeywordFalse,
-                        "if" => Token::KeywordIf,
-                        "then" => Token::KeywordThen,
-                        "else" => Token::KeywordElse,
-                        other => Token::Reserved {
-                            matched: other.to_string(),
-                        }
-                    }
-                } else {
-                    Token::Identifier { inner: scan_result }
-                }
-            },
-            other => Token::UnexpectedChar {
-                index: *self.current_index.borrow(),
-                char: other,
-            }
-        };
-        t.with_pos(self)
-    }
-
-    fn with_position<T>(&self, data: T) -> WithPosition<T> {
-        WithPosition {
-            position: self.current_pos(),
-            data,
-        }
+        self.next_inner()
+            .expect("Lexer phase error")
+            .with_pos(self)
     }
 
     fn current_pos(&self) -> SourcePos {
@@ -188,16 +239,19 @@ impl Lexer {
         }
     }
 
-    fn scan_digits(&self) -> Result<Token, LexerError> {
+    fn scan_by_predicate(&self, scan_while: impl Fn(char) -> bool, drop_on_exit: bool) -> Result<String, LexerError> {
         let mut buf = String::new();
         loop {
             if self.reached_end() {
                 break
             }
 
-            // DON'T CONSUME!!
             let c = self.current_char()?;
-            if !ASCII_NUMERIC_CHARS.contains(&c) {
+            if !scan_while(c) {
+                if drop_on_exit {
+                    self.consume_char()?;
+                }
+
                 break
             }
             let c = self.consume_char()?;
@@ -205,7 +259,11 @@ impl Lexer {
             buf.push(c);
         }
 
-        let builtin_suffix = if self.current_char()? == 'i' {
+        Ok(buf)
+    }
+
+    fn scan_digit_suffix_opt(&self) -> Result<Option<Box<str>>, LexerError> {
+        let v = if self.current_char()? == 'i' {
             self.consume_char()?;
             if self.current_char()? == '8' {
                 self.consume_char()?;
@@ -241,6 +299,14 @@ impl Lexer {
             None
         };
 
+        Ok(v)
+    }
+
+    fn scan_digits(&self) -> Result<Token, LexerError> {
+        debug!("lexer:digit");
+        let buf = self.scan_by_predicate(|c| ASCII_NUMERIC_CHARS.contains(&c), false)?;
+        let builtin_suffix = self.scan_digit_suffix_opt()?;
+
         Ok(Token::Digits {
             sequence: buf,
             suffix: builtin_suffix,
@@ -248,28 +314,14 @@ impl Lexer {
     }
 
     fn scan_lowers(&self) -> Result<String, LexerError> {
-        let mut buf = String::new();
-        loop {
-            if self.reached_end() {
-                break
-            }
-
-            // DON'T CONSUME!!
-            let c = self.current_char()?;
-            if !ASCII_LOWERS.contains(&c) {
-                break
-            }
-            let c = self.consume_char()?;
-
-            buf.push(c);
-        }
-
+        debug!("lexer:lower");
+        let buf = self.scan_by_predicate(|c| ASCII_LOWERS.contains(&c), false)?;
         Ok(buf)
     }
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
+        debug!("lexer:lit:string");
         let mut buf = String::new();
-        assert_eq!(self.consume_char()?, '"');
         loop {
             if self.reached_end() {
                 break
@@ -287,38 +339,59 @@ impl Lexer {
         Ok(Token::StringLiteral(buf))
     }
 
+    fn set_current_index(&self, new_index: usize) {
+        trace!("set index to: {new_index}");
+        self.current_index.set(new_index);
+        let future_line = self.current_source.chars().take(new_index).filter(|c| *c == '\n').count() + 1;
+        let future_line_start_index: usize = self
+            .current_source
+            .chars()
+            .enumerate()
+            .filter(|(_, c)| *c == '\n')
+            .filter(|(i, _)| *i < new_index)
+            .map(|(i, _)| i)
+            .max()
+            .unwrap_or(0);
+
+        let future_line_column = self.current_index.get() - future_line_start_index;
+        self.current_line.set(future_line);
+        self.current_column.set(future_line_column);
+    }
+
+    /// Get n-step away token without consume it.
     pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
-        // we want to drop read-only ref immediately, to avoid runtime error.
-        #[allow(clippy::branches_sharing_code)]
+        debug!("peek_n");
+        let to_rollback = self.current_index.get();
         if advance_step == 0 {
-            let current_index = *self.current_index.borrow();
             let token = self.next();
-            *self.current_index.borrow_mut() = current_index;
+            self.set_current_index(to_rollback);
+            trace!("rollbacked");
             token
         } else {
-            let current_index = *self.current_index.borrow();
             let mut token: Option<WithPosition<Token>> = None;
             for _ in 1..=advance_step {
                 token = Some(self.next());
             }
-            *self.current_index.borrow_mut() = current_index;
+            self.set_current_index(to_rollback);
+            trace!("rollbacked");
             // SAFETY: we already initialize it.
             unsafe { token.unwrap_unchecked() }
         }
     }
 
+    /// Get current token without consume it.
     pub fn peek(&self) -> WithPosition<Token> {
-        self.peek_n(0)
+        self.peek_n(1)
     }
 
     fn current_char(&self) -> Result<char, LexerError> {
         self.current_source
             .as_str()
             .chars()
-            .nth(*self.current_index.borrow())
+            .nth(self.current_index.get())
             .ok_or_else(||
                 LexerError::OutOfRange {
-                    current: *self.current_index.borrow(),
+                    current: self.current_index.get(),
                     max: self.current_source.len(),
                 }
             )
@@ -326,28 +399,17 @@ impl Lexer {
 
     fn consume_char(&self) -> Result<char, LexerError> {
         let c = self.current_char()?;
+        trace!("consume: `{c}` (\\U{{{k:06X}}})", k = c as u32);
         self.advance();
         Ok(c)
     }
 
     fn reached_end(&self) -> bool {
-        *self.current_index.borrow() >= self.current_source.len()
+        self.current_index.get() >= self.current_source.len()
     }
 
     fn advance(&self) {
-        if self.current_char().unwrap() == '\n' {
-            self.current_line.set(self.current_line.get() + 1);
-            self.current_column.set(1);
-        } else {
-            self.current_column.set(self.current_column.get() + 1);
-        }
-        *self.current_index.borrow_mut() += 1;
-    }
-
-    fn advance_by(&self, step: usize) {
-        for _ in 1..=step {
-            self.advance();
-        }
+        self.set_current_index(self.current_index.get() + 1);
     }
 }
 
