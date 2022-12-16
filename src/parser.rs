@@ -4,6 +4,7 @@ use crate::lexer::{Lexer, LexerError, Token};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
+use log::debug;
 use thiserror::{Error as ThisError};
 use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
@@ -132,6 +133,7 @@ impl Parser {
     /// 事前条件: 現在のトークン位置が基本式として有効である必要がある
     /// 違反した場合はErr。
     fn parse_first(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:first");
         let token = self.lexer.peek();
         match token.data {
             Token::Identifier { inner } => {
@@ -188,6 +190,7 @@ impl Parser {
 
     /// 現在のトークン位置から乗除算をパースする。
     fn parse_multiplicative(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:mul");
         let first_term = self.parse_first()?;
         let next_token = self.lexer.peek();
         let asterisk_or_slash = |token: &Token| {
@@ -236,6 +239,7 @@ impl Parser {
     /// 事前条件: 現在の位置が加減算として有効である必要がある
     /// 違反した場合はErr
     fn parse_additive(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:add");
         let first_term = self.parse_multiplicative()?;
         let next_token = self.lexer.peek();
         let plus_or_minus = |token: &Token| {
@@ -282,6 +286,7 @@ impl Parser {
 
     /// 現在の位置から比較演算式をパースしようと試みる
     fn parse_relation_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:rel");
         let first_term = self.parse_additive()?;
         let next_token = self.lexer.peek();
         let is_relation_operator = |token: &Token| {
@@ -327,6 +332,7 @@ impl Parser {
 
     /// 現在の位置から等価性検査式をパースしようと試みる
     fn parse_equality_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:eq");
         let first_term = self.parse_relation_expression()?;
         let next_token = self.lexer.peek();
         let is_relation_operator = |token: &Token| {
@@ -371,6 +377,7 @@ impl Parser {
     /// 事前条件: 現在のトークンが整数として有効である必要がある
     /// 違反した場合はErrを返す。
     fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
+        debug!("expr:lit:int");
         let n = self.lexer.next();
         match n.data {
             Token::Digits { sequence, suffix } => {
@@ -429,6 +436,7 @@ impl Parser {
     }
 
     fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
+        debug!("decl:var");
         self.assert_token_eq_with_consumed(Token::VarKeyword);
         let ident_token = self.lexer.next();
         let name = match ident_token.data {
@@ -456,6 +464,7 @@ impl Parser {
     }
 
     fn parse_if_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:if");
         if self.lexer.peek().data == Token::KeywordIf {
             self.lexer.next();
             let condition = self.parse_if_expression()?;

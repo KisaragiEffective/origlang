@@ -1,6 +1,7 @@
 #![forbid(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
+use log::debug;
 use crate::cli::task::Task;
 use crate::parser::{ParserError, SimpleErrorWithPos};
 use crate::runtime::{Runtime, TypeBox};
@@ -40,6 +41,7 @@ macro_rules! type_boxes {
 impl Test {
     fn evaluated_expressions(src: &str) -> Result<Vec<TypeBox>, Err> {
         use crate::parser::Parser;
+        debug!("src:\n{}", src);
         let source = src;
         let parser = Parser::create(source);
         let root_ast = parser.parse()?;
