@@ -5,8 +5,8 @@ use thiserror::Error;
 use crate::ast::{SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
-static KEYWORDS: [&str; 7] =
-    ["var", "if", "else", "then", "exit", "true", "false"];
+static KEYWORDS: [&str; 8] =
+    ["var", "if", "else", "then", "exit", "true", "false", "print"];
 
 #[derive(Error, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
@@ -59,7 +59,7 @@ impl Lexer {
     }
 
     fn drain_space(&self) {
-        while !self.reached_end() && self.current_char().expect("oops") == ' ' {
+        while !self.reached_end() && self.current_char().expect("drain_space") == ' ' {
             self.consume_char().unwrap();
         }
     }
@@ -197,6 +197,7 @@ impl Lexer {
                                     "if" => Token::KeywordIf,
                                     "then" => Token::KeywordThen,
                                     "else" => Token::KeywordElse,
+                                    "print" => Token::KeywordPrint,
                                     other => Token::Reserved {
                                         matched: other.to_string(),
                                     }
@@ -360,7 +361,7 @@ impl Lexer {
 
     /// Get n-step away token without consume it.
     pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
-        debug!("peek_n");
+        debug!("peek_n:{advance_step}");
         let to_rollback = self.current_index.get();
         if advance_step == 0 {
             let token = self.next();
@@ -433,6 +434,8 @@ pub enum Token {
     VarKeyword,
     KeywordTrue,
     KeywordFalse,
+    /// `print $expr`
+    KeywordPrint,
     /// `"="`
     SymEq,
     /// `"+"`

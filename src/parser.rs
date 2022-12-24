@@ -111,6 +111,8 @@ impl Parser {
         let result = if head == Token::VarKeyword {
             self.parse_variable_declaration()?
         } else {
+            assert_eq!(head, Token::KeywordPrint);
+            self.lexer.next();
             // assuming expression
             Statement::Print {
                 expression: self.parse_lowest_precedence_expression()?
@@ -460,6 +462,7 @@ impl Parser {
     }
 
     fn parse_lowest_precedence_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:lowest");
         self.parse_if_expression()
     }
 
