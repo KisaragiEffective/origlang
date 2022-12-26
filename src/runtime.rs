@@ -61,7 +61,7 @@ pub enum TypeBox {
 }
 
 impl TypeBox {
-    const fn get_type(&self) -> Type {
+    pub const fn get_type(&self) -> Type {
         match self {
             Self::NonCoercedInteger(_) => Type::GenericInteger,
             Self::Boolean(_) => Type::Boolean,

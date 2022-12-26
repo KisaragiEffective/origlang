@@ -432,21 +432,20 @@ impl Parser {
     fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
         debug!("expr:lit:int");
         let n = self.lexer.next();
-        match n.data {
-            Token::Digits { sequence, suffix } => {
-                let x = sequence.as_str().parse::<i64>();
-                if let Err(e) = x {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnParsableIntLiteral {
-                            error: e
-                        },
-                        position: n.position,
-                    })
-                }
+        if let Token::Digits { sequence, suffix } = n.data {
+            let x = sequence.as_str().parse::<i64>();
+            if let Err(e) = x {
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::UnParsableIntLiteral {
+                        error: e
+                    },
+                    position: n.position,
+                })
+            }
 
-                let x = x.unwrap();
-                if let Some(y) = suffix.as_ref() {
-                    macro_rules! lit_value {
+            let x = x.unwrap();
+            if let Some(y) = suffix.as_ref() {
+                macro_rules! lit_value {
                         ($t:ty, $lang_type:literal, $v:expr) => {{
                             if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
                                 return Err(SimpleErrorWithPos {
@@ -461,17 +460,17 @@ impl Parser {
                             }
                         }};
                     }
-                    match y.as_ref() {
-                        "i8"  => lit_value!(i8, "i8", x),
-                        "i16" => lit_value!(i16, "i16", x),
-                        "i32" => lit_value!(i32, "i32", x),
-                        "i64" => {}
-                        _ => unreachable!()
-                    }
+                match y.as_ref() {
+                    "i8"  => lit_value!(i8, "i8", x),
+                    "i16" => lit_value!(i16, "i16", x),
+                    "i32" => lit_value!(i32, "i32", x),
+                    "i64" => {}
+                    _ => unreachable!()
                 }
-                Ok((x, suffix))
             }
-            _ => Err(SimpleErrorWithPos {
+            Ok((x, suffix))
+        } else {
+            Err(SimpleErrorWithPos {
                 kind: ParserError::UnexpectedToken {
                     pat: IntLiteral,
                     unmatch: n.data
@@ -492,15 +491,14 @@ impl Parser {
         debug!("decl:var");
         self.assert_token_eq_with_consumed(Token::VarKeyword);
         let ident_token = self.lexer.next();
-        let name = match ident_token.data {
-            Token::Identifier { inner } => {
-                inner
-            }
-            e => return Err(SimpleErrorWithPos {
+        let name = if let Token::Identifier { inner } = ident_token.data {
+            inner
+        } else {
+            return Err(SimpleErrorWithPos {
                 position: ident_token.position,
                 kind: ParserError::UnexpectedToken {
                     pat: TokenKind::Identifier,
-                    unmatch: e,
+                    unmatch: ident_token.data,
                 }
             })
         };

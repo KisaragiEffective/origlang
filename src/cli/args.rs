@@ -25,22 +25,14 @@ impl Args {
             }
             SubCom::Execute { input_file, input_source } => {
                 let task = Interpret;
-                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
-                    ParseSource::RawSource(input_source)
-                } else {
-                    unreachable!("oops")
-                }, ParseSource::FromFile);
+                let source = input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile);
 
                 task.execute(source)?;
                 Ok(())
             }
             SubCom::Ast { input_file, input_source } => {
                 let task = PrintAst;
-                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
-                    ParseSource::RawSource(input_source)
-                } else {
-                    unreachable!("oops")
-                }, ParseSource::FromFile);
+                let source = input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile);
 
                 task.execute(source)?;
                 Ok(())
