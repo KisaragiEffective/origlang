@@ -1,4 +1,7 @@
+#[cfg(windows)]
 mod windows;
+
+#[cfg(not(windows))]
 mod non_windows;
 
 #[cfg(windows)]
