@@ -2,42 +2,35 @@ pub mod error;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use derive_more::Display;
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::ast::{RootAst, Statement};
 
 use crate::type_check::error::TypeCheckError;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Display)]
 pub enum Type {
+    #[display(fmt = "{{integer}}")]
     GenericInteger,
+    #[display(fmt = "Bool")]
     Boolean,
+    #[display(fmt = "String")]
     String,
+    #[display(fmt = "Unit")]
     Unit,
+    #[display(fmt = "Int8")]
     Int8,
+    #[display(fmt = "Int16")]
     Int16,
+    #[display(fmt = "Int32")]
     Int32,
+    #[display(fmt = "Int64")]
     Int64,
 }
 
 impl Type {
     const fn is_int_family(&self) -> bool {
         matches!(self, Self::GenericInteger | Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
-    }
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::GenericInteger => f.write_str("Int"),
-            Self::Boolean => f.write_str("Bool"),
-            Self::String => f.write_str("String"),
-            Self::Unit => f.write_str("Unit"),
-            Self::Int8 => f.write_str("Int8"),
-            Self::Int16 => f.write_str("Int16"),
-            Self::Int32 => f.write_str("Int32"),
-            Self::Int64 => f.write_str("Int64"),
-        }
     }
 }
 

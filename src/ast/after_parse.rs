@@ -1,6 +1,6 @@
 //! パース時の優先順位が消去された構造体の定義
 
-use std::fmt::{Display, Formatter};
+use derive_more::Display;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
@@ -43,37 +43,28 @@ impl Expression {
     }
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
 pub enum BinaryOperatorKind {
+    #[display(fmt = "+")]
     Plus,
+    #[display(fmt = "-")]
     Minus,
+    #[display(fmt = "*")]
     Multiply,
+    #[display(fmt = "/")]
     Divide,
+    #[display(fmt = ">")]
     More,
+    #[display(fmt = ">=")]
     MoreEqual,
+    #[display(fmt = "<")]
     Less,
+    #[display(fmt = "<=")]
     LessEqual,
+    #[display(fmt = "<=>")]
     ThreeWay,
+    #[display(fmt = "==")]
     Equal,
+    #[display(fmt = "!=")]
     NotEqual,
-}
-
-impl Display for BinaryOperatorKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Plus => "+",
-            Self::Minus => "-",
-            Self::Multiply => "*",
-            Self::Divide => "/",
-            Self::More => ">",
-            Self::MoreEqual => ">=",
-            Self::Less => "<",
-            Self::LessEqual => "<=",
-            Self::ThreeWay => "<=>",
-            Self::Equal => "==",
-            Self::NotEqual => "!=",
-        };
-
-        f.write_str(s)
-    }
 }

@@ -63,16 +63,7 @@ impl Task for Repl {
                                                 TypeBox::String(ref s) => format!(r#""{s}""#),
                                                 TypeBox::Unit(_) => "()".to_string()
                                             },
-                                            t = match value {
-                                                TypeBox::NonCoercedInteger(_) => "{integer}",
-                                                TypeBox::Int8(_) => "i8",
-                                                TypeBox::Int16(_) => "i16",
-                                                TypeBox::Int32(_) => "i32",
-                                                TypeBox::Int64(_) => "i64",
-                                                TypeBox::Boolean(_) => "bool",
-                                                TypeBox::String(_) => "string",
-                                                TypeBox::Unit(_) => "unit"
-                                        });
+                                            t = value.get_type());
                                         handled = true;
                                     }
                                 }
