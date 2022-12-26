@@ -131,7 +131,7 @@ impl Runtime {
         self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
     }
 
-    fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
+    pub fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
         expression.evaluate(self)
     }
 }
@@ -146,7 +146,7 @@ pub enum RuntimeError {
 }
 
 type EvaluateResult = Result<TypeBox, RuntimeError>;
-trait CanBeEvaluated {
+pub trait CanBeEvaluated {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
 }
 

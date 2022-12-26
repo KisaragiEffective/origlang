@@ -3,17 +3,18 @@ use std::io::{stdout, Write};
 use std::ops::Range;
 use ariadne::{Report, ReportKind, Source};
 use crate::cli::task::Task;
+use crate::error::AllError;
+use crate::lexer::Token;
 use crate::platform::CTRL_D_NL;
-use crate::parser::{Parser, ParserError};
-use crate::runtime::Runtime;
-use crate::type_check::error::TypeCheckError;
+use crate::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
+use crate::runtime::{Runtime, TypeBox};
 use crate::type_check::TypeChecker;
 
 pub struct Repl;
 
 impl Task for Repl {
     type Environment = ();
-    type Error = TypeCheckError;
+    type Error = AllError;
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         let mut line_count = 1;
@@ -41,37 +42,78 @@ impl Task for Repl {
                 }
                 Err(error_message) => {
                     let error = error_message.kind;
-                    let error_offset = 0;
-                    let error_code = match error {
-                        ParserError::LexerError(_) => 1,
-                        ParserError::UnconsumedToken { .. } => 2,
-                        ParserError::StatementTerminationError => 3,
-                        ParserError::EndOfFileError => 4,
-                        ParserError::UnexpectedToken { .. } => 5,
-                        ParserError::UnParsableIntLiteral { .. } => 6,
-                        ParserError::OverflowedLiteral { .. } => 7,
-                        ParserError::IfExpressionWithoutElseClause => 8,
-                        ParserError::IfExpressionWithoutThenClauseAndElseClause => 9,
-                    };
+                    let mut handled = false;
+                    if let ParserError::PartiallyParsed { hint, intermediate_state } = &error {
+                        // TODO: insta-expression eval
+                        if hint.len() == 1 {
+                            if let PartiallyParseFixCandidate::InsertBefore { tokens } = &hint[0] {
+                                if tokens.len() == 1 && tokens[0] == Token::KeywordPrint && intermediate_state.len() == 1 {
+                                    if let IntermediateStateCandidate::Expression(expression) = &intermediate_state[0] {
+                                        checker.check(expression)?;
+                                        let value = runtime.evaluate(expression)?;
 
-                    let d = Report::<Range<usize>>::build(ReportKind::Error, (), error_offset)
-                        .with_code(format!("E{error_code}"))
-                        .with_message(error.to_string())
-                        .finish();
-
-                    struct Dummy((), Source);
-
-                    impl ariadne::Cache<()> for Dummy {
-                        fn fetch(&mut self, id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
-                            Ok(&self.1)
-                        }
-
-                        fn display<'a>(&self, id: &'a ()) -> Option<Box<dyn Display + 'a>> {
-                            None
+                                        println!(
+                                            "=> {value} : {t}",
+                                            value = match value {
+                                                TypeBox::Int8(i) => i.to_string(),
+                                                TypeBox::Int16(i) => i.to_string(),
+                                                TypeBox::Int32(i) => i.to_string(),
+                                                TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
+                                                TypeBox::Boolean(b) => b.to_string(),
+                                                TypeBox::String(ref s) => format!(r#""{s}""#),
+                                                TypeBox::Unit(_) => "()".to_string()
+                                            },
+                                            t = match value {
+                                                TypeBox::NonCoercedInteger(_) => "{integer}",
+                                                TypeBox::Int8(_) => "i8",
+                                                TypeBox::Int16(_) => "i16",
+                                                TypeBox::Int32(_) => "i32",
+                                                TypeBox::Int64(_) => "i64",
+                                                TypeBox::Boolean(_) => "bool",
+                                                TypeBox::String(_) => "string",
+                                                TypeBox::Unit(_) => "unit"
+                                        });
+                                        handled = true;
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    d.write(Dummy((), Source::from(line)), std::io::stderr()).expect("TODO: panic message");
+                    if !handled {
+                        let error_offset = 0;
+                        let error_code = match error {
+                            ParserError::LexerError(_) => 1,
+                            ParserError::UnconsumedToken { .. } => 2,
+                            ParserError::StatementTerminationError => 3,
+                            ParserError::EndOfFileError => 4,
+                            ParserError::UnexpectedToken { .. } => 5,
+                            ParserError::UnParsableIntLiteral { .. } => 6,
+                            ParserError::OverflowedLiteral { .. } => 7,
+                            ParserError::IfExpressionWithoutElseClause => 8,
+                            ParserError::IfExpressionWithoutThenClauseAndElseClause => 9,
+                            ParserError::PartiallyParsed { .. } => 10,
+                        };
+
+                        let d = Report::<Range<usize>>::build(ReportKind::Error, (), error_offset)
+                            .with_code(format!("E{error_code}"))
+                            .with_message(error.to_string())
+                            .finish();
+
+                        struct Dummy((), Source);
+
+                        impl ariadne::Cache<()> for Dummy {
+                            fn fetch(&mut self, id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
+                                Ok(&self.1)
+                            }
+
+                            fn display<'a>(&self, id: &'a ()) -> Option<Box<dyn Display + 'a>> {
+                                None
+                            }
+                        }
+
+                        d.write(Dummy((), Source::from(line)), std::io::stderr()).expect("TODO: panic message");
+                    }
                 }
             }
             line_count += 1;

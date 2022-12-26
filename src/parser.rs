@@ -37,6 +37,11 @@ pub enum ParserError {
         pat: TokenKind,
         unmatch: Token,
     },
+    #[error("Incomplete program snippet. Check hint for fix candidates.")]
+    PartiallyParsed {
+        hint: Vec<PartiallyParseFixCandidate>,
+        intermediate_state: Vec<IntermediateStateCandidate>,
+    },
     #[error("input sequence cannot be parsed as a int literal: {error}")]
     UnParsableIntLiteral {
         error: ParseIntError
@@ -52,6 +57,25 @@ pub enum ParserError {
     IfExpressionWithoutElseClause,
     #[error("if expression requires `then` clause and `else` clause")]
     IfExpressionWithoutThenClauseAndElseClause,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum IntermediateStateCandidate {
+    Expression(Expression),
+}
+
+#[derive(Display, Debug, Eq, PartialEq, Clone)]
+pub enum PartiallyParseFixCandidate {
+    #[display(fmt = "No fixes available")]
+    None,
+    #[display(fmt = "Insert before")]
+    InsertBefore {
+        tokens: Vec<Token>,
+    },
+    #[display(fmt = "Insert after")]
+    InsertAfter {
+        tokens: Vec<Token>,
+    },
 }
 
 #[derive(Display, Debug, Eq, PartialEq, Copy, Clone)]
@@ -70,6 +94,8 @@ pub enum TokenKind {
     IntLiteral,
     #[display(fmt = "identifier")]
     Identifier,
+    #[display(fmt = "keyword:`print`")]
+    KeywordPrint,
 }
 
 pub struct Parser {
@@ -107,15 +133,40 @@ impl Parser {
     }
 
     fn parse_statement(&self) -> Result<Statement, SimpleErrorWithPos> {
-        let head = self.lexer.peek().data;
+        let head1 = self.lexer.peek();
+        let head = head1.data;
+        let pos = head1.position;
         let result = if head == Token::VarKeyword {
             self.parse_variable_declaration()?
         } else {
-            assert_eq!(head, Token::KeywordPrint);
-            self.lexer.next();
+            let missing_print_keyword = if head == Token::KeywordPrint {
+                self.lexer.next();
+                false
+            } else {
+                true
+            };
+
             // assuming expression
+            let expr = self.parse_lowest_precedence_expression()?;
+
+            if missing_print_keyword {
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::PartiallyParsed {
+                        hint: vec![
+                            PartiallyParseFixCandidate::InsertBefore {
+                                tokens: vec![ Token::KeywordPrint ]
+                            }
+                        ],
+                        intermediate_state: vec![
+                            IntermediateStateCandidate::Expression(expr)
+                        ]
+                    },
+                    position: pos,
+                })
+            }
+
             Statement::Print {
-                expression: self.parse_lowest_precedence_expression()?
+                expression: expr
             }
         };
         // 文は絶対に改行で終わる必要がある
