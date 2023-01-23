@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 ariadne = "0.1.5"
-clap = { version = "4.0.32", features = ["derive"] }
+clap = { version = "4.1.1", features = ["derive"] }
 derive_more = "0.99.17"
 env_logger = "0.10.0"
 log = "0.4.17"
