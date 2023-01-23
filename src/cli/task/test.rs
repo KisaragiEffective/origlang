@@ -99,6 +99,7 @@ impl Test {
         Self::test_coerced_int_literal()?;
         Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
         Self::test_overflowed_literal()?;
+        Self::test_variable_reassign()?;
 
         Ok(())
     }
@@ -228,6 +229,12 @@ impl Test {
         gen!(i8);
         gen!(i16);
         gen!(i32);
+
+        Ok(())
+    }
+
+    fn test_variable_reassign() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions("var a = 1\na = 2\nprint a\n")?, type_boxes![2 => NonCoercedInteger]);
 
         Ok(())
     }

@@ -56,5 +56,9 @@ pub enum Statement {
     VariableDeclaration {
         identifier: String,
         expression: Expression,
-    }
+    },
+    VariableAssignment {
+        identifier: String,
+        expression: Expression,
+    },
 }

@@ -198,6 +198,19 @@ impl TypeCheckTarget for &Statement {
                 checker.ctx.borrow_mut().add_variable_type(identifier.clone(), tp);
                 Ok(())
             }
+            Statement::VariableAssignment { identifier, expression } => {
+                let actual_type = checker.check(expression)?;
+                let expected_type = checker.ctx.borrow().lookup_variable_type(identifier)?;
+                if actual_type == expected_type {
+                    Ok(())
+                } else {
+                    Err(TypeCheckError::GenericTypeMismatch {
+                        context: "variable assignment".to_string(),
+                        expected_type,
+                        actual_type,
+                    })
+                }
+            }
         }
     }
 }

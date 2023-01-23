@@ -37,7 +37,7 @@ pub enum ParserError {
         pat: TokenKind,
         unmatch: Token,
     },
-    #[error("Incomplete program snippet. Check hint for fix candidates.")]
+    #[error("Incomplete program snippet. Check hint for fix candidates. hint:{hint:?} state:{intermediate_state:?}")]
     PartiallyParsed {
         hint: Vec<PartiallyParseFixCandidate>,
         intermediate_state: Vec<IntermediateStateCandidate>,
@@ -96,6 +96,8 @@ pub enum TokenKind {
     Identifier,
     #[display(fmt = "keyword:`print`")]
     KeywordPrint,
+    #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
+    Statement,
 }
 
 pub struct Parser {
@@ -136,50 +138,49 @@ impl Parser {
         let head1 = self.lexer.peek();
         let head = head1.data;
         let pos = head1.position;
-        let result = if head == Token::VarKeyword {
-            self.parse_variable_declaration()?
-        } else {
-            let missing_print_keyword = if head == Token::KeywordPrint {
+        dbg!(&head);
+        let s = match head {
+            Token::Identifier { .. } => {
+                self.parse_variable_assignment()?
+            }
+            Token::VarKeyword => {
+                self.parse_variable_declaration()?
+            }
+            Token::KeywordPrint => {
+                // assuming expression
                 self.lexer.next();
-                false
-            } else {
-                true
-            };
+                let expr = self.parse_lowest_precedence_expression()?;
 
-            // assuming expression
-            let expr = self.parse_lowest_precedence_expression()?;
-
-            if missing_print_keyword {
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::PartiallyParsed {
-                        hint: vec![
-                            PartiallyParseFixCandidate::InsertBefore {
-                                tokens: vec![ Token::KeywordPrint ]
-                            }
-                        ],
-                        intermediate_state: vec![
-                            IntermediateStateCandidate::Expression(expr)
-                        ]
-                    },
-                    position: pos,
+                (Statement::Print {
+                    expression: expr
                 })
             }
-
-            Statement::Print {
-                expression: expr
-            }
+            x => return Err(SimpleErrorWithPos {
+                kind: ParserError::UnexpectedToken {
+                    pat: TokenKind::Statement,
+                    unmatch: x,
+                },
+                position: pos,
+            })
         };
+
         // 文は絶対に改行で終わる必要がある
-        {
-            let next = self.lexer.next();
-            if next.data != Token::NewLine {
-                return Err(SimpleErrorWithPos {
-                    position: next.position,
-                    kind: ParserError::StatementTerminationError,
-                })
-            }
+        let next = self.lexer.next();
+        if next.data != Token::NewLine {
+            return Err(SimpleErrorWithPos {
+                position: next.position,
+                kind: ParserError::PartiallyParsed {
+                    hint: vec![
+                        PartiallyParseFixCandidate::InsertAfter {
+                            tokens: vec![ Token::NewLine ]
+                        }
+                    ],
+                    intermediate_state: vec![],
+                },
+            })
         }
-        Ok(result)
+
+        Ok(s)
     }
 
     /// 現在のトークン位置から基本式をパースしようと試みる。
@@ -505,6 +506,28 @@ impl Parser {
         self.assert_token_eq_with_consumed(Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableDeclaration {
+            identifier: name,
+            expression
+        })
+    }
+
+    fn parse_variable_assignment(&self) -> Result<Statement, SimpleErrorWithPos> {
+        debug!("assign:var");
+        let ident_token = self.lexer.next();
+        let name = if let Token::Identifier { inner } = ident_token.data {
+            inner
+        } else {
+            return Err(SimpleErrorWithPos {
+                position: ident_token.position,
+                kind: ParserError::UnexpectedToken {
+                    pat: TokenKind::Identifier,
+                    unmatch: ident_token.data,
+                }
+            })
+        };
+        self.assert_token_eq_with_consumed(Token::SymEq);
+        let expression = self.parse_lowest_precedence_expression()?;
+        Ok(Statement::VariableAssignment {
             identifier: name,
             expression
         })

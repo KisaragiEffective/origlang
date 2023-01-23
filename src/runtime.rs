@@ -106,6 +106,9 @@ impl Runtime {
                 Statement::VariableDeclaration { identifier, expression } => {
                     self.update_variable(identifier.as_str(), expression);
                 }
+                Statement::VariableAssignment { identifier, expression } => {
+                    self.update_variable(identifier.as_str(), expression);
+                }
             }
         }
     }
@@ -118,6 +121,9 @@ impl Runtime {
                     buf.push(self.evaluate(expression).unwrap());
                 }
                 Statement::VariableDeclaration { identifier, expression } => {
+                    self.update_variable(identifier.as_str(), expression);
+                }
+                Statement::VariableAssignment { identifier, expression } => {
                     self.update_variable(identifier.as_str(), expression);
                 }
             }
