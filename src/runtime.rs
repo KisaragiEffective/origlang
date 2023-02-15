@@ -219,17 +219,16 @@ macro_rules! indicate_type_checker_bug {
 impl CanBeEvaluated for &Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
-            Expression::IntLiteral { value: i, suffix } => if let Some(suffix) = suffix {
-                match suffix.as_ref() {
+            #[allow(clippy::cast_possible_truncation)]
+            Expression::IntLiteral { value: i, suffix } => suffix.as_ref().map_or_else(
+                || Ok((*i).conv::<NonCoerced>().into()),
+                |suffix| match suffix.as_ref() {
                     "i8" => Ok(((*i) as i8).into()),
                     "i16" => Ok(((*i) as i16).into()),
                     "i32" => Ok(((*i) as i32).into()),
                     "i64" => Ok((*i).conv::<Coerced>().into()),
                     _ => unreachable!()
-                }
-            } else {
-                Ok((*i).conv::<NonCoerced>().into())
-            },
+                }),
             Expression::BooleanLiteral(b) => Ok((*b).into()),
             Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::UnitLiteral => Ok(().into()),
