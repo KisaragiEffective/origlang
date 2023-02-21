@@ -1,6 +1,7 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use derive_more::{Display, From};
 use tap::Conv;
 use thiserror::Error;
@@ -84,61 +85,112 @@ impl TypeBox {
     }
 }
 
+pub struct Scope {
+    variables: HashMap<String, TypeBox>,
+}
+
+impl Scope {
+    fn empty() -> Self {
+        Self {
+            variables: (HashMap::new())
+        }
+    }
+}
+
 pub struct Runtime {
-    /// すでに評価された値を格納しておく
-    environment: RefCell<HashMap<String, TypeBox>>,
+    scopes: RefCell<VecDeque<Scope>>,
 }
 
 impl Runtime {
     pub(crate) fn create() -> Self {
+        let mut scopes = VecDeque::new();
+        scopes.push_front(Scope::empty());
+        let scopes = RefCell::new(scopes);
         Self {
-            environment: RefCell::new(HashMap::new()),
+            scopes,
         }
     }
 
     #[allow(dead_code)]
     pub(crate) fn execute(&self, ast: &RootAst) {
         for statement in &ast.statement {
-            match statement {
-                Statement::Print { expression } => {
-                    println!("{value}", value = self.evaluate(expression).unwrap());
-                }
-                Statement::VariableDeclaration { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
-                Statement::VariableAssignment { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
+            self.execute1(statement)
+        }
+    }
+
+    pub(crate) fn execute1(&self, statement: &Statement) {
+        match statement {
+            Statement::Print { expression } => {
+                println!("{value}", value = self.evaluate(expression).unwrap());
+            }
+            Statement::VariableDeclaration { identifier, expression } => {
+                self.update_variable(identifier.as_str(), expression);
+            }
+            Statement::VariableAssignment { identifier, expression } => {
+                self.update_variable(identifier.as_str(), expression);
+            }
+            Statement::Block { inner_statements } => {
+                for s in inner_statements.as_ref() {
+                    self.execute1(s)
                 }
             }
         }
     }
 
-    pub(crate) fn yield_all_evaluated_expressions(&self, ast: &RootAst) -> Vec<TypeBox> {
+    pub(crate) fn eval(&self, ast: &RootAst) -> Vec<TypeBox> {
         let mut buf = vec![];
         for statement in &ast.statement {
-            match statement {
-                Statement::Print { expression } => {
-                    buf.push(self.evaluate(expression).unwrap());
-                }
-                Statement::VariableDeclaration { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
-                Statement::VariableAssignment { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
+            self.eval1(statement, &mut buf)
+        }
+        buf
+    }
+
+    fn eval1(&self, statement: &Statement, buffer: &mut Vec<TypeBox>) {
+        match statement {
+            Statement::Print { expression } => {
+                buffer.push(self.evaluate(expression).unwrap());
+            }
+            Statement::VariableDeclaration { identifier, expression } => {
+                self.update_variable(identifier.as_str(), expression);
+            }
+            Statement::VariableAssignment { identifier, expression } => {
+                self.update_variable(identifier.as_str(), expression);
+            }
+            Statement::Block { inner_statements } => {
+                for s in inner_statements.as_ref() {
+                    self.eval1(s, buffer)
                 }
             }
         }
-        buf
     }
 
     fn update_variable(&self, identifier: &str, expression: &Expression) {
         // NOTE: please do not inline. it causes BorrowError.
         let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
-        self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
+        self.upsert_member_to_current_scope(identifier.to_string(), evaluated);
     }
 
     pub fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
         expression.evaluate(self)
+    }
+
+    fn push_scope(&self) {
+        self.scopes.borrow_mut().push_front(Scope::empty());
+    }
+
+    fn pop_scope(&self) {
+        self.scopes.borrow_mut().pop_front().expect("scope must not be empty");
+    }
+
+    fn search_member(&self, identifier: &str) -> Option<TypeBox> {
+        let x = self.scopes.borrow();
+        x.iter().find_map(|x| x.variables.get(identifier)).cloned()
+    }
+
+    fn upsert_member_to_current_scope(&self, identifier: String, value: TypeBox) {
+        let mut guard = self.scopes.borrow_mut();
+        let current_scope = guard.front_mut().expect("scope must not be empty");
+        current_scope.variables.insert(identifier, value);
     }
 }
 
@@ -233,9 +285,8 @@ impl CanBeEvaluated for &Expression {
             Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::UnitLiteral => Ok(().into()),
             Expression::Variable { ident } => {
-                runtime.environment.borrow().get(ident)
+                runtime.search_member(ident)
                     .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone().into_boxed_str() })
-                    .map(Clone::clone)
             },
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
@@ -282,14 +333,26 @@ impl CanBeEvaluated for &Expression {
             Expression::If { condition, then_clause_value, else_clause_value } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
+                    runtime.push_scope();
                     if b {
-                        then_clause_value.as_ref().evaluate(runtime)
+                        let v = then_clause_value.as_ref().evaluate(runtime);
+                        runtime.pop_scope();
+                        v
                     } else {
-                        else_clause_value.as_ref().evaluate(runtime)
+                        let v = else_clause_value.as_ref().evaluate(runtime);
+                        runtime.pop_scope();
+                        v
                     }
                 } else {
                     indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
+            }
+            Expression::Block { intermediate_statements, final_expression } => {
+                for s in intermediate_statements {
+                    runtime.execute1(s);
+                }
+
+                final_expression.as_ref().evaluate(runtime)
             }
         }
     }

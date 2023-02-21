@@ -14,9 +14,12 @@ mod platform;
 fn main() -> Result<(), crate::error::AllError> {
     use crate::cli::args::Args;
     use clap::Parser;
-    // std::env::set_var("RUST_LOG", "trace");
+    std::env::set_var("RUST_LOG", "trace");
     ::env_logger::init();
     let args = Args::parse();
-    args.execute()?;
+    if let Err(e) = args.execute() {
+        log::error!("{e}", e = &e);
+        return Err(e)
+    }
     Ok(())
 }

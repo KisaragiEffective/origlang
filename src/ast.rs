@@ -47,7 +47,7 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
@@ -61,4 +61,7 @@ pub enum Statement {
         identifier: String,
         expression: Expression,
     },
+    Block {
+        inner_statements: Box<Vec<Self>>
+    }
 }

@@ -1,6 +1,7 @@
 //! パース時の優先順位が消去された構造体の定義
 
 use derive_more::Display;
+use crate::ast::Statement;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
@@ -30,6 +31,10 @@ pub enum Expression {
         condition: Box<Self>,
         then_clause_value: Box<Self>,
         else_clause_value: Box<Self>,
+    },
+    Block {
+        intermediate_statements: Vec<Statement>,
+        final_expression: Box<Self>,
     }
 }
 

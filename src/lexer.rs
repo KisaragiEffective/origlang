@@ -5,8 +5,8 @@ use thiserror::Error;
 use crate::ast::{SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
-static KEYWORDS: [&str; 8] =
-    ["var", "if", "else", "then", "exit", "true", "false", "print"];
+static KEYWORDS: [&str; 10] =
+    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end"];
 
 #[derive(Error, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
@@ -198,6 +198,8 @@ impl Lexer {
                                     "then" => Token::KeywordThen,
                                     "else" => Token::KeywordElse,
                                     "print" => Token::KeywordPrint,
+                                    "block" => Token::KeywordBlock,
+                                    "end" => Token::KeywordEnd,
                                     other => Token::Reserved {
                                         matched: other.to_string(),
                                     }
@@ -366,7 +368,6 @@ impl Lexer {
         if advance_step == 0 {
             let token = self.next();
             self.set_current_index(to_rollback);
-            trace!("rollbacked");
             token
         } else {
             let mut token: Option<WithPosition<Token>> = None;
@@ -374,7 +375,6 @@ impl Lexer {
                 token = Some(self.next());
             }
             self.set_current_index(to_rollback);
-            trace!("rollbacked");
             // SAFETY: we already initialize it.
             unsafe { token.unwrap_unchecked() }
         }
@@ -410,6 +410,7 @@ impl Lexer {
     }
 
     fn advance(&self) {
+        trace!("lexer:advance");
         self.set_current_index(self.current_index.get() + 1);
     }
 }
@@ -436,6 +437,8 @@ pub enum Token {
     KeywordFalse,
     /// `print $expr`
     KeywordPrint,
+    KeywordBlock,
+    KeywordEnd,
     /// `"="`
     SymEq,
     /// `"+"`

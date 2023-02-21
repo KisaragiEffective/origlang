@@ -46,7 +46,7 @@ impl Test {
         let parser = Parser::create(source);
         let root_ast = parser.parse()?;
         let runtime = Runtime::create();
-        Ok(runtime.yield_all_evaluated_expressions(&root_ast))
+        Ok(runtime.eval(&root_ast))
     }
 
     #[allow(clippy::unreadable_literal)]
@@ -100,6 +100,7 @@ impl Test {
         Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
         Self::test_overflowed_literal()?;
         Self::test_variable_reassign()?;
+        Self::test_block_scope()?;
 
         Ok(())
     }
@@ -236,6 +237,32 @@ impl Test {
     fn test_variable_reassign() -> Result<(), SimpleErrorWithPos> {
         assert_eq!(Self::evaluated_expressions("var a = 1\na = 2\nprint a\n")?, type_boxes![2 => NonCoercedInteger]);
 
+        Ok(())
+    }
+
+    fn test_block_scope() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+block
+var a = 2
+print a
+end
+"#)?, type_boxes![2 => NonCoercedInteger]);
+        /*
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+var discard = block
+if true then block
+var a = 2
+print a
+()
+end
+else block
+var a = 3
+print a
+()
+end
+end
+"#)?, type_boxes![2 => NonCoercedInteger]);
+         */
         Ok(())
     }
 
