@@ -252,7 +252,8 @@ block
 var a = 2
 print a
 end
-"#)?, type_boxes![2 => NonCoercedInteger]);
+print a
+"#)?, type_boxes![2 => NonCoercedInteger, 1 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions(r#"var a = 1
 var discard = block
 if true then block
@@ -266,6 +267,17 @@ print a
 end
 end
 "#)?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+block
+    block
+        block
+            var a = 2
+            print a
+        end
+    end
+end
+"#)?, type_boxes![2 => NonCoercedInteger]);
+
         Ok(())
     }
 
