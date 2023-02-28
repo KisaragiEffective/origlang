@@ -29,19 +29,19 @@ pub enum Type {
 }
 
 impl Type {
-    const fn is_int_family(&self) -> bool {
+    const fn is_int_family(self) -> bool {
         matches!(self, Self::GenericInteger | Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
     }
 }
 
-pub trait TypeCheckTarget {
+pub trait Target {
     type Ok: Sized;
     type Err: Sized;
 
     fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err>;
 }
 
-impl TypeCheckTarget for &Expression {
+impl Target for &Expression {
     type Ok = Type;
     type Err = TypeCheckError;
 
@@ -182,14 +182,14 @@ impl TypeCheckTarget for &Expression {
                     })
                 }
             }
-            Expression::Block { intermediate_statements, final_expression } => {
+            Expression::Block { intermediate_statements: _, final_expression } => {
                 checker.check(final_expression.as_ref())
             }
         }
     }
 }
 
-impl TypeCheckTarget for &Statement {
+impl Target for &Statement {
     type Ok = ();
     type Err = TypeCheckError;
 
@@ -221,7 +221,7 @@ impl TypeCheckTarget for &Statement {
     }
 }
 
-impl TypeCheckTarget for &RootAst {
+impl Target for &RootAst {
     type Ok = ();
     type Err = TypeCheckError;
 
@@ -234,7 +234,7 @@ impl TypeCheckTarget for &RootAst {
 }
 
 pub struct TypeChecker {
-    ctx: Box<RefCell<TypeCheckContext>>
+    ctx: Box<RefCell<Context>>
 }
 
 impl TypeChecker {
@@ -250,20 +250,20 @@ impl TypeChecker {
 
     pub fn new() -> Self {
         Self {
-            ctx: Box::new(RefCell::new(TypeCheckContext::empty())),
+            ctx: Box::new(RefCell::new(Context::empty())),
         }
     }
 
-    pub fn check<T: TypeCheckTarget>(&self, t: T) -> Result<T::Ok, T::Err> {
+    pub fn check<T: Target>(&self, t: T) -> Result<T::Ok, T::Err> {
         t.check(self)
     }
 }
 
-pub struct TypeCheckContext {
+pub struct Context {
     map: HashMap<String, Type>,
 }
 
-impl TypeCheckContext {
+impl Context {
     pub fn empty() -> Self {
         Self {
             map: HashMap::new()

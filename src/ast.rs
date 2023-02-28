@@ -24,6 +24,7 @@ pub struct WithPosition<T> {
     pub data: T,
 }
 
+#[cfg(test)]
 mod tests {
     use crate::ast::SourcePos;
 
@@ -62,6 +63,6 @@ pub enum Statement {
         expression: Expression,
     },
     Block {
-        inner_statements: Box<Vec<Self>>
+        inner_statements: Vec<Self>
     }
 }

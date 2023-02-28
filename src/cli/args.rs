@@ -1,3 +1,6 @@
+// clap issue?: https://github.com/clap-rs/clap/issues/4733
+#![warn(clippy::almost_swapped)]
+
 use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use crate::cli::task::print_ast::{ParseSource, PrintAst};

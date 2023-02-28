@@ -1,4 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
@@ -32,10 +31,6 @@ impl From<NonCoerced> for TypeBox {
 
 #[derive(Error, Debug)]
 pub enum TypeBoxUnwrapError {
-    #[error("This box does not contain value of {requested}")]
-    DifferentType {
-        requested: Box<str>
-    }
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Display, From)]
@@ -77,15 +72,6 @@ impl TypeBox {
             Self::Int64(_) => Type::Int64,
         }
     }
-
-    fn as_int(&self) -> Result<i64, TypeBoxUnwrapError> {
-        match self {
-            Self::NonCoercedInteger(i) => Ok(*i),
-            _ => Err(TypeBoxUnwrapError::DifferentType {
-                requested: "i64".to_string().into_boxed_str(),
-            })
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -101,7 +87,7 @@ impl Scope {
     }
 }
 
-pub(crate) trait OutputAccumulator: Debug {
+pub trait OutputAccumulator: Debug {
     fn output(&mut self, tb: TypeBox);
 
     fn acc(&self) -> Option<Vec<TypeBox>>;
@@ -112,7 +98,7 @@ pub struct PrintToStdout;
 
 impl OutputAccumulator for PrintToStdout {
     fn output(&mut self, tb: TypeBox) {
-        println!("{tb}")
+        println!("{tb}");
     }
 
     fn acc(&self) -> Option<Vec<TypeBox>> {
@@ -139,7 +125,7 @@ impl<T: (Fn() -> TypeBox) + Debug> DebuggableTrait for T {}
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub(crate) enum EffectDescriptor<'cls> {
+pub enum EffectDescriptor<'cls> {
     Output(#[derivative(Debug="ignore")] Box<dyn (Fn() -> TypeBox) + 'cls>),
     UpdateVariable {
         ident: String,
@@ -154,16 +140,16 @@ impl<'s: 'cls, 'cls> EffectDescriptor<'cls> {
     fn invoke(&'s self, runtime: &Runtime) {
         match self {
             EffectDescriptor::Output(e) => {
-                runtime.o.as_ref().borrow_mut().output(e())
+                runtime.o.as_ref().borrow_mut().output(e());
             }
             EffectDescriptor::UpdateVariable { ident, value } => {
-                runtime.upsert_member_to_current_scope(ident.clone(), value())
+                runtime.upsert_member_to_current_scope(ident.clone(), value());
             }
             EffectDescriptor::PushScope => {
-                runtime.push_scope()
+                runtime.push_scope();
             }
             EffectDescriptor::PopScope => {
-                runtime.pop_scope()
+                runtime.pop_scope();
             }
         }
     }
@@ -188,38 +174,37 @@ impl Runtime {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn execute<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o Box<RefCell<dyn OutputAccumulator>> {
-        self.what_will_happen(ast).into_iter().for_each(|x| x.invoke(&self));
+    pub(crate) fn execute<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o RefCell<dyn OutputAccumulator> {
+        self.what_will_happen(ast).into_iter().for_each(|x| x.invoke(self));
         &self.o
     }
 
     pub(crate) fn what_will_happen(&self, ast: RootAst) -> Vec<EffectDescriptor> {
-        let happens = ast.statement.into_iter()
+        ast.statement.into_iter()
             .flat_map(|x| self.what_will_happen1(x))
-            .collect::<Vec<EffectDescriptor>>();
-        happens
+            .collect::<Vec<EffectDescriptor>>()
     }
 
     fn what_will_happen1(&self, statement: Statement) -> Vec<EffectDescriptor> {
         match statement {
             Statement::Print { expression } => {
                 vec![
-                    EffectDescriptor::Output(Box::new(move || self.evaluate(expression.clone()).unwrap()))
+                    EffectDescriptor::Output(Box::new(move || self.evaluate(&expression).unwrap()))
                 ]
             }
             Statement::VariableDeclaration { identifier, expression } => {
                 vec![
                     EffectDescriptor::UpdateVariable {
-                        ident: identifier.clone(),
-                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                        ident: identifier,
+                        value: Box::new(move || self.evaluate(&expression).unwrap()),
                     }
                 ]
             }
             Statement::VariableAssignment { identifier, expression } => {
                 vec![
                     EffectDescriptor::UpdateVariable {
-                        ident: identifier.clone(),
-                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                        ident: identifier,
+                        value: Box::new(move || self.evaluate(&expression).unwrap()),
                     }
                 ]
             }
@@ -234,13 +219,7 @@ impl Runtime {
         }
     }
 
-    fn update_variable(&self, identifier: &str, expression: &Expression) {
-        // NOTE: please do not inline. it causes BorrowError.
-        let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
-        self.upsert_member_to_current_scope(identifier.to_string(), evaluated);
-    }
-
-    pub fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
+    pub fn evaluate<E: CanBeEvaluated>(&self, expression: &E) -> EvaluateResult {
         expression.evaluate(self)
     }
 
@@ -344,7 +323,7 @@ impl CanBeEvaluated for Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
             #[allow(clippy::cast_possible_truncation)]
-            Expression::IntLiteral { value: i, suffix } => suffix.as_ref().map_or_else(
+            Self::IntLiteral { value: i, suffix } => suffix.as_ref().map_or_else(
                 || Ok((*i).conv::<NonCoerced>().into()),
                 |suffix| match suffix.as_ref() {
                     "i8" => Ok(((*i) as i8).into()),
@@ -353,14 +332,14 @@ impl CanBeEvaluated for Expression {
                     "i64" => Ok((*i).conv::<Coerced>().into()),
                     _ => unreachable!()
                 }),
-            Expression::BooleanLiteral(b) => Ok((*b).into()),
-            Expression::StringLiteral(s) => Ok(s.clone().into()),
-            Expression::UnitLiteral => Ok(().into()),
-            Expression::Variable { ident } => {
+            Self::BooleanLiteral(b) => Ok((*b).into()),
+            Self::StringLiteral(s) => Ok(s.clone().into()),
+            Self::UnitLiteral => Ok(().into()),
+            Self::Variable { ident } => {
                 runtime.search_member(ident)
                     .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone().into_boxed_str() })
             },
-            Expression::BinaryOperator { lhs, rhs, operator } => {
+            Self::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
                 let rhs = rhs.as_ref().evaluate(runtime)?;
                 if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
@@ -402,7 +381,7 @@ impl CanBeEvaluated for Expression {
                     _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
                 };
             }
-            Expression::If { condition, then_clause_value, else_clause_value } => {
+            Self::If { condition, then_clause_value, else_clause_value } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
                     runtime.push_scope();
@@ -419,10 +398,10 @@ impl CanBeEvaluated for Expression {
                     indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
             }
-            Expression::Block { intermediate_statements, final_expression } => {
+            Self::Block { intermediate_statements, final_expression } => {
                 runtime.push_scope();
                 for s in intermediate_statements {
-                    runtime.what_will_happen1(s.clone()).iter().for_each(|x| x.invoke(runtime))
+                    runtime.what_will_happen1(s.clone()).iter().for_each(|x| x.invoke(runtime));
                 }
                 runtime.pop_scope();
 
@@ -431,6 +410,7 @@ impl CanBeEvaluated for Expression {
         }
     }
 }
+
 impl CanBeEvaluated for &Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         (*self).evaluate(runtime)
