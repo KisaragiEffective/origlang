@@ -94,8 +94,6 @@ pub enum TokenKind {
     IntLiteral,
     #[display(fmt = "identifier")]
     Identifier,
-    #[display(fmt = "keyword:`print`")]
-    KeywordPrint,
     #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
     Statement,
 }
@@ -151,9 +149,9 @@ impl Parser {
                 self.lexer.next();
                 let expr = self.parse_lowest_precedence_expression()?;
 
-                (Statement::Print {
+                Statement::Print {
                     expression: expr
-                })
+                }
             }
             Token::KeywordBlock => {
                 self.parse_block_scope()?
@@ -486,18 +484,16 @@ impl Parser {
 
     /// 現在の`Lexer`に積まれている`Token`と期待される`Token`を比較し、違っていた場合はpanicする。
     /// この関数は`Lexer`の`Token`を一つ消費するという副作用がある。
-    fn assert_token_eq_with_consumed(&self, rhs: Token) {
+    fn assert_token_eq_with_consumed(&self, rhs: &Token) {
         let token = self.lexer.next().data;
-        assert_eq!(token, rhs, "expected: {rhs:?}, got: {token:?}");
+        assert_eq!(&token, rhs, "expected: {rhs:?}, got: {token:?}");
     }
 
     fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("decl:var");
-        self.assert_token_eq_with_consumed(Token::VarKeyword);
+        self.assert_token_eq_with_consumed(&Token::VarKeyword);
         let ident_token = self.lexer.next();
-        let name = if let Token::Identifier { inner } = ident_token.data {
-            inner
-        } else {
+        let Token::Identifier { inner: name } = ident_token.data else {
             return Err(SimpleErrorWithPos {
                 position: ident_token.position,
                 kind: ParserError::UnexpectedToken {
@@ -506,7 +502,7 @@ impl Parser {
                 }
             })
         };
-        self.assert_token_eq_with_consumed(Token::SymEq);
+        self.assert_token_eq_with_consumed(&Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
@@ -517,9 +513,7 @@ impl Parser {
     fn parse_variable_assignment(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("assign:var");
         let ident_token = self.lexer.next();
-        let name = if let Token::Identifier { inner } = ident_token.data {
-            inner
-        } else {
+        let Token::Identifier { inner: name } = ident_token.data else {
             return Err(SimpleErrorWithPos {
                 position: ident_token.position,
                 kind: ParserError::UnexpectedToken {
@@ -528,7 +522,7 @@ impl Parser {
                 }
             })
         };
-        self.assert_token_eq_with_consumed(Token::SymEq);
+        self.assert_token_eq_with_consumed(&Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableAssignment {
             identifier: name,
@@ -576,28 +570,28 @@ impl Parser {
         }
     }
 
-    fn parse_block_scope(&self) -> Result<Statement, SimpleErrorWithPos> {
+    fn parse_block_scope(&self) -> Statement {
         debug!("parser:block:scope");
-        self.assert_token_eq_with_consumed(Token::KeywordBlock);
+        self.assert_token_eq_with_consumed(&Token::KeywordBlock);
         if self.lexer.peek().data == Token::NewLine {
             self.lexer.next();
         }
 
         let mut statements = vec![];
         while let Ok(v) = self.parse_statement() {
-            statements.push(v)
+            statements.push(v);
         }
-        self.assert_token_eq_with_consumed(Token::KeywordEnd);
-        Ok(Statement::Block {
-            inner_statements: Box::new(statements),
-        })
+        self.assert_token_eq_with_consumed(&Token::KeywordEnd);
+        Statement::Block {
+            inner_statements: (statements),
+        }
     }
 
     fn parse_block_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("parser:block:expr");
         if self.lexer.peek().data == Token::KeywordBlock {
             self.lexer.next();
-            self.assert_token_eq_with_consumed(Token::NewLine);
+            self.assert_token_eq_with_consumed(&Token::NewLine);
             let mut statements = vec![];
             while let Ok(v) = self.parse_statement() {
                 statements.push(v);
@@ -606,7 +600,7 @@ impl Parser {
             if self.lexer.peek().data == Token::NewLine {
                 self.lexer.next();
             }
-            self.assert_token_eq_with_consumed(Token::KeywordEnd);
+            self.assert_token_eq_with_consumed(&Token::KeywordEnd);
             Ok(Expression::Block {
                 intermediate_statements: statements,
                 final_expression

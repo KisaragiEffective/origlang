@@ -10,6 +10,18 @@ use crate::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyPa
 use crate::runtime::{PrintToStdout, Runtime, TypeBox};
 use crate::type_check::TypeChecker;
 
+struct Dummy((), Source);
+
+impl ariadne::Cache<()> for Dummy {
+    fn fetch(&mut self, _id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
+        Ok(&self.1)
+    }
+
+    fn display<'a>(&self, _id: &'a ()) -> Option<Box<dyn Display + 'a>> {
+        None
+    }
+}
+
 pub struct Repl;
 
 impl Task for Repl {
@@ -48,24 +60,23 @@ impl Task for Repl {
                         if hint.len() == 1 {
                             if let PartiallyParseFixCandidate::InsertBefore { tokens } = &hint[0] {
                                 if tokens.len() == 1 && tokens[0] == Token::KeywordPrint && intermediate_state.len() == 1 {
-                                    if let IntermediateStateCandidate::Expression(expression) = &intermediate_state[0] {
-                                        checker.check(expression)?;
-                                        let value = runtime.evaluate(expression)?;
+                                    let IntermediateStateCandidate::Expression(expression) = &intermediate_state[0];
+                                    checker.check(expression)?;
+                                    let value = runtime.evaluate(expression)?;
 
-                                        println!(
-                                            "=> {value} : {t}",
-                                            value = match value {
-                                                TypeBox::Int8(i) => i.to_string(),
-                                                TypeBox::Int16(i) => i.to_string(),
-                                                TypeBox::Int32(i) => i.to_string(),
-                                                TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
-                                                TypeBox::Boolean(b) => b.to_string(),
-                                                TypeBox::String(ref s) => format!(r#""{s}""#),
-                                                TypeBox::Unit(_) => "()".to_string()
-                                            },
-                                            t = value.get_type());
-                                        handled = true;
-                                    }
+                                    println!(
+                                        "=> {value} : {t}",
+                                        value = match value {
+                                            TypeBox::Int8(i) => i.to_string(),
+                                            TypeBox::Int16(i) => i.to_string(),
+                                            TypeBox::Int32(i) => i.to_string(),
+                                            TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
+                                            TypeBox::Boolean(b) => b.to_string(),
+                                            TypeBox::String(ref s) => format!(r#""{s}""#),
+                                            TypeBox::Unit(_) => "()".to_string()
+                                        },
+                                        t = value.get_type());
+                                    handled = true;
                                 }
                             }
                         }
@@ -90,18 +101,6 @@ impl Task for Repl {
                             .with_code(format!("E{error_code}"))
                             .with_message(error.to_string())
                             .finish();
-
-                        struct Dummy((), Source);
-
-                        impl ariadne::Cache<()> for Dummy {
-                            fn fetch(&mut self, id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
-                                Ok(&self.1)
-                            }
-
-                            fn display<'a>(&self, id: &'a ()) -> Option<Box<dyn Display + 'a>> {
-                                None
-                            }
-                        }
 
                         d.write(Dummy((), Source::from(line)), std::io::stderr()).expect("TODO: panic message");
                     }

@@ -1,7 +1,6 @@
 #![forbid(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
-use std::borrow::Borrow;
 use log::debug;
 use crate::cli::task::Task;
 use crate::parser::{ParserError, SimpleErrorWithPos};
@@ -51,7 +50,7 @@ impl Test {
         let o = runtime.what_will_happen(root_ast.clone());
         println!("{o:?}", o = &o);
         let o = runtime.execute(root_ast);
-        let x = Ok(o.as_ref().borrow().acc().expect("???"));
+        let x = Ok(o.borrow().acc().expect("???"));
         x
     }
 
