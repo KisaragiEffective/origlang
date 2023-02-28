@@ -154,7 +154,7 @@ impl Parser {
                 }
             }
             Token::KeywordBlock => {
-                self.parse_block_scope()?
+                self.parse_block_scope()
             }
             x => return Err(SimpleErrorWithPos {
                 kind: ParserError::UnexpectedToken {
