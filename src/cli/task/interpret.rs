@@ -1,7 +1,7 @@
 use crate::cli::task::print_ast::ParseSource;
 use crate::cli::task::Task;
 use crate::error::AllError;
-use crate::runtime::Runtime;
+use crate::runtime::{PrintToStdout, Runtime};
 use crate::type_check::TypeChecker;
 
 pub struct Interpret;
@@ -17,8 +17,8 @@ impl Task for Interpret {
         let root_ast = parser.parse()?;
         let type_checker = TypeChecker::new();
         type_checker.check(&root_ast)?;
-        let runtime = Runtime::create();
-        runtime.execute(&root_ast);
+        let runtime = Runtime::create(PrintToStdout);
+        runtime.execute(root_ast);
         Ok(())
     }
 }

@@ -2,7 +2,10 @@ use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
+use derivative::Derivative;
 use derive_more::{Display, From};
+use log::debug;
 use tap::Conv;
 use thiserror::Error;
 use crate::ast::{RootAst, Statement};
@@ -85,6 +88,7 @@ impl TypeBox {
     }
 }
 
+#[derive(Debug)]
 pub struct Scope {
     variables: HashMap<String, TypeBox>,
 }
@@ -97,69 +101,135 @@ impl Scope {
     }
 }
 
+pub(crate) trait OutputAccumulator: Debug {
+    fn output(&mut self, tb: TypeBox);
+
+    fn acc(&self) -> Option<Vec<TypeBox>>;
+}
+
+#[derive(Debug)]
+pub struct PrintToStdout;
+
+impl OutputAccumulator for PrintToStdout {
+    fn output(&mut self, tb: TypeBox) {
+        println!("{tb}")
+    }
+
+    fn acc(&self) -> Option<Vec<TypeBox>> {
+        None
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct Accumulate(Vec<TypeBox>);
+
+impl OutputAccumulator for Accumulate {
+    fn output(&mut self, tb: TypeBox) {
+        self.0.push(tb);
+    }
+
+    fn acc(&self) -> Option<Vec<TypeBox>> {
+        Some(self.0.clone())
+    }
+}
+
+trait DebuggableTrait: (Fn() -> TypeBox) + Debug {}
+
+impl<T: (Fn() -> TypeBox) + Debug> DebuggableTrait for T {}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub(crate) enum EffectDescriptor<'cls> {
+    Output(#[derivative(Debug="ignore")] Box<dyn (Fn() -> TypeBox) + 'cls>),
+    UpdateVariable {
+        ident: String,
+        #[derivative(Debug="ignore")]
+        value: Box<dyn (Fn() -> TypeBox) + 'cls>,
+    },
+    PushScope,
+    PopScope,
+}
+
+impl<'s: 'cls, 'cls> EffectDescriptor<'cls> {
+    fn invoke(&'s self, runtime: &Runtime) {
+        match self {
+            EffectDescriptor::Output(e) => {
+                runtime.o.as_ref().borrow_mut().output(e())
+            }
+            EffectDescriptor::UpdateVariable { ident, value } => {
+                runtime.upsert_member_to_current_scope(ident.clone(), value())
+            }
+            EffectDescriptor::PushScope => {
+                runtime.push_scope()
+            }
+            EffectDescriptor::PopScope => {
+                runtime.pop_scope()
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Runtime {
     scopes: RefCell<VecDeque<Scope>>,
+    o: Box<RefCell<dyn OutputAccumulator>>,
 }
 
 impl Runtime {
-    pub(crate) fn create() -> Self {
+    pub(crate) fn create<T: OutputAccumulator + 'static>(t: T) -> Self {
         let mut scopes = VecDeque::new();
         scopes.push_front(Scope::empty());
         let scopes = RefCell::new(scopes);
+        let o = Box::new(RefCell::new(t));
         Self {
             scopes,
+            o
         }
     }
 
     #[allow(dead_code)]
-    pub(crate) fn execute(&self, ast: &RootAst) {
-        for statement in &ast.statement {
-            self.execute1(statement)
-        }
+    pub(crate) fn execute<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o Box<RefCell<dyn OutputAccumulator>> {
+        self.what_will_happen(ast).into_iter().for_each(|x| x.invoke(&self));
+        &self.o
     }
 
-    pub(crate) fn execute1(&self, statement: &Statement) {
+    pub(crate) fn what_will_happen(&self, ast: RootAst) -> Vec<EffectDescriptor> {
+        let happens = ast.statement.into_iter()
+            .flat_map(|x| self.what_will_happen1(x))
+            .collect::<Vec<EffectDescriptor>>();
+        happens
+    }
+
+    fn what_will_happen1(&self, statement: Statement) -> Vec<EffectDescriptor> {
         match statement {
             Statement::Print { expression } => {
-                println!("{value}", value = self.evaluate(expression).unwrap());
+                vec![
+                    EffectDescriptor::Output(Box::new(move || self.evaluate(expression.clone()).unwrap()))
+                ]
             }
             Statement::VariableDeclaration { identifier, expression } => {
-                self.update_variable(identifier.as_str(), expression);
+                vec![
+                    EffectDescriptor::UpdateVariable {
+                        ident: identifier.clone(),
+                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                    }
+                ]
             }
             Statement::VariableAssignment { identifier, expression } => {
-                self.update_variable(identifier.as_str(), expression);
+                vec![
+                    EffectDescriptor::UpdateVariable {
+                        ident: identifier.clone(),
+                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                    }
+                ]
             }
             Statement::Block { inner_statements } => {
-                for s in inner_statements.as_ref() {
-                    self.execute1(s)
-                }
-            }
-        }
-    }
-
-    pub(crate) fn eval(&self, ast: &RootAst) -> Vec<TypeBox> {
-        let mut buf = vec![];
-        for statement in &ast.statement {
-            self.eval1(statement, &mut buf)
-        }
-        buf
-    }
-
-    fn eval1(&self, statement: &Statement, buffer: &mut Vec<TypeBox>) {
-        match statement {
-            Statement::Print { expression } => {
-                buffer.push(self.evaluate(expression).unwrap());
-            }
-            Statement::VariableDeclaration { identifier, expression } => {
-                self.update_variable(identifier.as_str(), expression);
-            }
-            Statement::VariableAssignment { identifier, expression } => {
-                self.update_variable(identifier.as_str(), expression);
-            }
-            Statement::Block { inner_statements } => {
-                for s in inner_statements.as_ref() {
-                    self.eval1(s, buffer)
-                }
+                let mut vec = inner_statements.into_iter()
+                    .flat_map(|x| self.what_will_happen1(x))
+                    .collect::<VecDeque<EffectDescriptor>>();
+                vec.push_front(EffectDescriptor::PushScope);
+                vec.push_back(EffectDescriptor::PopScope);
+                vec.into()
             }
         }
     }
@@ -175,10 +245,12 @@ impl Runtime {
     }
 
     fn push_scope(&self) {
+        debug!("enter scope({len})", len = self.scopes.borrow().len());
         self.scopes.borrow_mut().push_front(Scope::empty());
     }
 
     fn pop_scope(&self) {
+        debug!("exit scope({len})", len = self.scopes.borrow().len());
         self.scopes.borrow_mut().pop_front().expect("scope must not be empty");
     }
 
@@ -268,7 +340,7 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
-impl CanBeEvaluated for &Expression {
+impl CanBeEvaluated for Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
             #[allow(clippy::cast_possible_truncation)]
@@ -348,13 +420,25 @@ impl CanBeEvaluated for &Expression {
                 }
             }
             Expression::Block { intermediate_statements, final_expression } => {
+                runtime.push_scope();
                 for s in intermediate_statements {
-                    let mut x = vec![];
-                    runtime.eval1(s, &mut x);
+                    runtime.what_will_happen1(s.clone()).iter().for_each(|x| x.invoke(runtime))
                 }
+                runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)
             }
         }
+    }
+}
+impl CanBeEvaluated for &Expression {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        (*self).evaluate(runtime)
+    }
+}
+
+impl CanBeEvaluated for Box<Expression> {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        self.as_ref().evaluate(runtime)
     }
 }

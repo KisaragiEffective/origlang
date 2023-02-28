@@ -1,10 +1,11 @@
 #![forbid(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
+use std::borrow::Borrow;
 use log::debug;
 use crate::cli::task::Task;
 use crate::parser::{ParserError, SimpleErrorWithPos};
-use crate::runtime::{Runtime, TypeBox};
+use crate::runtime::{Runtime, TypeBox, Accumulate};
 
 type Err = SimpleErrorWithPos;
 
@@ -45,8 +46,13 @@ impl Test {
         let source = src;
         let parser = Parser::create(source);
         let root_ast = parser.parse()?;
-        let runtime = Runtime::create();
-        Ok(runtime.eval(&root_ast))
+        let acc = Accumulate::default();
+        let runtime = Runtime::create(acc);
+        let o = runtime.what_will_happen(root_ast.clone());
+        println!("{o:?}", o = &o);
+        let o = runtime.execute(root_ast);
+        let x = Ok(o.as_ref().borrow().acc().expect("???"));
+        x
     }
 
     #[allow(clippy::unreadable_literal)]

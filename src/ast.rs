@@ -6,7 +6,7 @@ pub mod after_parse;
 
 /// 現時点のプログラムとは、プリントするべき式の列である
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RootAst {
     pub(crate) statement: Vec<Statement>
 }

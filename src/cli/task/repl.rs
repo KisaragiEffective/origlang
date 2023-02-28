@@ -7,7 +7,7 @@ use crate::error::AllError;
 use crate::lexer::Token;
 use crate::platform::CTRL_D_NL;
 use crate::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
-use crate::runtime::{Runtime, TypeBox};
+use crate::runtime::{PrintToStdout, Runtime, TypeBox};
 use crate::type_check::TypeChecker;
 
 pub struct Repl;
@@ -18,7 +18,7 @@ impl Task for Repl {
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         let mut line_count = 1;
-        let runtime = Runtime::create();
+        let runtime = Runtime::create(PrintToStdout);
         println!("Welcome to REPL!");
         let checker = TypeChecker::new();
         loop {
@@ -38,7 +38,7 @@ impl Task for Repl {
             match parser.parse() {
                 Ok(ast) => {
                     checker.check(&ast)?;
-                    runtime.execute(&ast);
+                    runtime.execute(ast);
                 }
                 Err(error_message) => {
                     let error = error_message.kind;
