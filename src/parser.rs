@@ -603,6 +603,10 @@ impl Parser {
                 statements.push(v);
             }
             let final_expression = Box::new(self.parse_lowest_precedence_expression()?);
+            if self.lexer.peek().data == Token::NewLine {
+                self.lexer.next();
+            }
+            self.assert_token_eq_with_consumed(Token::KeywordEnd);
             Ok(Expression::Block {
                 intermediate_statements: statements,
                 final_expression

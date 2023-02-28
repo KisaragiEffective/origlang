@@ -247,22 +247,19 @@ var a = 2
 print a
 end
 "#)?, type_boxes![2 => NonCoercedInteger]);
-        /*
         assert_eq!(Self::evaluated_expressions(r#"var a = 1
 var discard = block
 if true then block
 var a = 2
 print a
 ()
-end
-else block
+end else block
 var a = 3
 print a
 ()
 end
 end
 "#)?, type_boxes![2 => NonCoercedInteger]);
-         */
         Ok(())
     }
 

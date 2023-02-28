@@ -349,7 +349,8 @@ impl CanBeEvaluated for &Expression {
             }
             Expression::Block { intermediate_statements, final_expression } => {
                 for s in intermediate_statements {
-                    runtime.execute1(s);
+                    let mut x = vec![];
+                    runtime.eval1(s, &mut x);
                 }
 
                 final_expression.as_ref().evaluate(runtime)
