@@ -1,10 +1,11 @@
 #![forbid(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
+use std::borrow::Borrow;
 use log::debug;
 use crate::cli::task::Task;
 use crate::parser::{ParserError, SimpleErrorWithPos};
-use crate::runtime::{Runtime, TypeBox};
+use crate::runtime::{Runtime, TypeBox, Accumulate};
 
 type Err = SimpleErrorWithPos;
 
@@ -45,8 +46,13 @@ impl Test {
         let source = src;
         let parser = Parser::create(source);
         let root_ast = parser.parse()?;
-        let runtime = Runtime::create();
-        Ok(runtime.yield_all_evaluated_expressions(&root_ast))
+        let acc = Accumulate::default();
+        let runtime = Runtime::create(acc);
+        let o = runtime.what_will_happen(root_ast.clone());
+        println!("{o:?}", o = &o);
+        let o = runtime.execute(root_ast);
+        let x = Ok(o.as_ref().borrow().acc().expect("???"));
+        x
     }
 
     #[allow(clippy::unreadable_literal)]
@@ -100,6 +106,7 @@ impl Test {
         Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
         Self::test_overflowed_literal()?;
         Self::test_variable_reassign()?;
+        Self::test_block_scope()?;
 
         Ok(())
     }
@@ -235,6 +242,41 @@ impl Test {
 
     fn test_variable_reassign() -> Result<(), SimpleErrorWithPos> {
         assert_eq!(Self::evaluated_expressions("var a = 1\na = 2\nprint a\n")?, type_boxes![2 => NonCoercedInteger]);
+
+        Ok(())
+    }
+
+    fn test_block_scope() -> Result<(), SimpleErrorWithPos> {
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+block
+var a = 2
+print a
+end
+print a
+"#)?, type_boxes![2 => NonCoercedInteger, 1 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+var discard = block
+if true then block
+var a = 2
+print a
+()
+end else block
+var a = 3
+print a
+()
+end
+end
+"#)?, type_boxes![2 => NonCoercedInteger]);
+        assert_eq!(Self::evaluated_expressions(r#"var a = 1
+block
+    block
+        block
+            var a = 2
+            print a
+        end
+    end
+end
+"#)?, type_boxes![2 => NonCoercedInteger]);
 
         Ok(())
     }

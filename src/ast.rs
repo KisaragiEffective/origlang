@@ -6,7 +6,7 @@ pub mod after_parse;
 
 /// 現時点のプログラムとは、プリントするべき式の列である
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RootAst {
     pub(crate) statement: Vec<Statement>
 }
@@ -47,7 +47,7 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
@@ -61,4 +61,7 @@ pub enum Statement {
         identifier: String,
         expression: Expression,
     },
+    Block {
+        inner_statements: Box<Vec<Self>>
+    }
 }

@@ -1,7 +1,11 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
+use derivative::Derivative;
 use derive_more::{Display, From};
+use log::debug;
 use tap::Conv;
 use thiserror::Error;
 use crate::ast::{RootAst, Statement};
@@ -84,61 +88,181 @@ impl TypeBox {
     }
 }
 
+#[derive(Debug)]
+pub struct Scope {
+    variables: HashMap<String, TypeBox>,
+}
+
+impl Scope {
+    fn empty() -> Self {
+        Self {
+            variables: (HashMap::new())
+        }
+    }
+}
+
+pub(crate) trait OutputAccumulator: Debug {
+    fn output(&mut self, tb: TypeBox);
+
+    fn acc(&self) -> Option<Vec<TypeBox>>;
+}
+
+#[derive(Debug)]
+pub struct PrintToStdout;
+
+impl OutputAccumulator for PrintToStdout {
+    fn output(&mut self, tb: TypeBox) {
+        println!("{tb}")
+    }
+
+    fn acc(&self) -> Option<Vec<TypeBox>> {
+        None
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct Accumulate(Vec<TypeBox>);
+
+impl OutputAccumulator for Accumulate {
+    fn output(&mut self, tb: TypeBox) {
+        self.0.push(tb);
+    }
+
+    fn acc(&self) -> Option<Vec<TypeBox>> {
+        Some(self.0.clone())
+    }
+}
+
+trait DebuggableTrait: (Fn() -> TypeBox) + Debug {}
+
+impl<T: (Fn() -> TypeBox) + Debug> DebuggableTrait for T {}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub(crate) enum EffectDescriptor<'cls> {
+    Output(#[derivative(Debug="ignore")] Box<dyn (Fn() -> TypeBox) + 'cls>),
+    UpdateVariable {
+        ident: String,
+        #[derivative(Debug="ignore")]
+        value: Box<dyn (Fn() -> TypeBox) + 'cls>,
+    },
+    PushScope,
+    PopScope,
+}
+
+impl<'s: 'cls, 'cls> EffectDescriptor<'cls> {
+    fn invoke(&'s self, runtime: &Runtime) {
+        match self {
+            EffectDescriptor::Output(e) => {
+                runtime.o.as_ref().borrow_mut().output(e())
+            }
+            EffectDescriptor::UpdateVariable { ident, value } => {
+                runtime.upsert_member_to_current_scope(ident.clone(), value())
+            }
+            EffectDescriptor::PushScope => {
+                runtime.push_scope()
+            }
+            EffectDescriptor::PopScope => {
+                runtime.pop_scope()
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Runtime {
-    /// すでに評価された値を格納しておく
-    environment: RefCell<HashMap<String, TypeBox>>,
+    scopes: RefCell<VecDeque<Scope>>,
+    o: Box<RefCell<dyn OutputAccumulator>>,
 }
 
 impl Runtime {
-    pub(crate) fn create() -> Self {
+    pub(crate) fn create<T: OutputAccumulator + 'static>(t: T) -> Self {
+        let mut scopes = VecDeque::new();
+        scopes.push_front(Scope::empty());
+        let scopes = RefCell::new(scopes);
+        let o = Box::new(RefCell::new(t));
         Self {
-            environment: RefCell::new(HashMap::new()),
+            scopes,
+            o
         }
     }
 
     #[allow(dead_code)]
-    pub(crate) fn execute(&self, ast: &RootAst) {
-        for statement in &ast.statement {
-            match statement {
-                Statement::Print { expression } => {
-                    println!("{value}", value = self.evaluate(expression).unwrap());
-                }
-                Statement::VariableDeclaration { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
-                Statement::VariableAssignment { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
-            }
-        }
+    pub(crate) fn execute<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o Box<RefCell<dyn OutputAccumulator>> {
+        self.what_will_happen(ast).into_iter().for_each(|x| x.invoke(&self));
+        &self.o
     }
 
-    pub(crate) fn yield_all_evaluated_expressions(&self, ast: &RootAst) -> Vec<TypeBox> {
-        let mut buf = vec![];
-        for statement in &ast.statement {
-            match statement {
-                Statement::Print { expression } => {
-                    buf.push(self.evaluate(expression).unwrap());
-                }
-                Statement::VariableDeclaration { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
-                Statement::VariableAssignment { identifier, expression } => {
-                    self.update_variable(identifier.as_str(), expression);
-                }
+    pub(crate) fn what_will_happen(&self, ast: RootAst) -> Vec<EffectDescriptor> {
+        let happens = ast.statement.into_iter()
+            .flat_map(|x| self.what_will_happen1(x))
+            .collect::<Vec<EffectDescriptor>>();
+        happens
+    }
+
+    fn what_will_happen1(&self, statement: Statement) -> Vec<EffectDescriptor> {
+        match statement {
+            Statement::Print { expression } => {
+                vec![
+                    EffectDescriptor::Output(Box::new(move || self.evaluate(expression.clone()).unwrap()))
+                ]
+            }
+            Statement::VariableDeclaration { identifier, expression } => {
+                vec![
+                    EffectDescriptor::UpdateVariable {
+                        ident: identifier.clone(),
+                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                    }
+                ]
+            }
+            Statement::VariableAssignment { identifier, expression } => {
+                vec![
+                    EffectDescriptor::UpdateVariable {
+                        ident: identifier.clone(),
+                        value: Box::new(move || self.evaluate(expression.clone()).unwrap()),
+                    }
+                ]
+            }
+            Statement::Block { inner_statements } => {
+                let mut vec = inner_statements.into_iter()
+                    .flat_map(|x| self.what_will_happen1(x))
+                    .collect::<VecDeque<EffectDescriptor>>();
+                vec.push_front(EffectDescriptor::PushScope);
+                vec.push_back(EffectDescriptor::PopScope);
+                vec.into()
             }
         }
-        buf
     }
 
     fn update_variable(&self, identifier: &str, expression: &Expression) {
         // NOTE: please do not inline. it causes BorrowError.
         let evaluated = self.evaluate(expression).expect("error happened during evaluating expression");
-        self.environment.borrow_mut().insert(identifier.to_string(), evaluated);
+        self.upsert_member_to_current_scope(identifier.to_string(), evaluated);
     }
 
     pub fn evaluate<E: CanBeEvaluated>(&self, expression: E) -> EvaluateResult {
         expression.evaluate(self)
+    }
+
+    fn push_scope(&self) {
+        debug!("enter scope({len})", len = self.scopes.borrow().len());
+        self.scopes.borrow_mut().push_front(Scope::empty());
+    }
+
+    fn pop_scope(&self) {
+        debug!("exit scope({len})", len = self.scopes.borrow().len());
+        self.scopes.borrow_mut().pop_front().expect("scope must not be empty");
+    }
+
+    fn search_member(&self, identifier: &str) -> Option<TypeBox> {
+        let x = self.scopes.borrow();
+        x.iter().find_map(|x| x.variables.get(identifier)).cloned()
+    }
+
+    fn upsert_member_to_current_scope(&self, identifier: String, value: TypeBox) {
+        let mut guard = self.scopes.borrow_mut();
+        let current_scope = guard.front_mut().expect("scope must not be empty");
+        current_scope.variables.insert(identifier, value);
     }
 }
 
@@ -216,7 +340,7 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
-impl CanBeEvaluated for &Expression {
+impl CanBeEvaluated for Expression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
             #[allow(clippy::cast_possible_truncation)]
@@ -233,9 +357,8 @@ impl CanBeEvaluated for &Expression {
             Expression::StringLiteral(s) => Ok(s.clone().into()),
             Expression::UnitLiteral => Ok(().into()),
             Expression::Variable { ident } => {
-                runtime.environment.borrow().get(ident)
+                runtime.search_member(ident)
                     .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone().into_boxed_str() })
-                    .map(Clone::clone)
             },
             Expression::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
@@ -282,15 +405,40 @@ impl CanBeEvaluated for &Expression {
             Expression::If { condition, then_clause_value, else_clause_value } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
+                    runtime.push_scope();
                     if b {
-                        then_clause_value.as_ref().evaluate(runtime)
+                        let v = then_clause_value.as_ref().evaluate(runtime);
+                        runtime.pop_scope();
+                        v
                     } else {
-                        else_clause_value.as_ref().evaluate(runtime)
+                        let v = else_clause_value.as_ref().evaluate(runtime);
+                        runtime.pop_scope();
+                        v
                     }
                 } else {
                     indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
             }
+            Expression::Block { intermediate_statements, final_expression } => {
+                runtime.push_scope();
+                for s in intermediate_statements {
+                    runtime.what_will_happen1(s.clone()).iter().for_each(|x| x.invoke(runtime))
+                }
+                runtime.pop_scope();
+
+                final_expression.as_ref().evaluate(runtime)
+            }
         }
+    }
+}
+impl CanBeEvaluated for &Expression {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        (*self).evaluate(runtime)
+    }
+}
+
+impl CanBeEvaluated for Box<Expression> {
+    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
+        self.as_ref().evaluate(runtime)
     }
 }

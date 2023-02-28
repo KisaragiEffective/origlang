@@ -182,6 +182,9 @@ impl TypeCheckTarget for &Expression {
                     })
                 }
             }
+            Expression::Block { intermediate_statements, final_expression } => {
+                checker.check(final_expression.as_ref())
+            }
         }
     }
 }
@@ -210,6 +213,9 @@ impl TypeCheckTarget for &Statement {
                         actual_type,
                     })
                 }
+            }
+            Statement::Block { inner_statements: _ } => {
+                Ok(())
             }
         }
     }

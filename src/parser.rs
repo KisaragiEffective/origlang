@@ -138,7 +138,7 @@ impl Parser {
         let head1 = self.lexer.peek();
         let head = head1.data;
         let pos = head1.position;
-        dbg!(&head);
+        // dbg!(&head);
         let s = match head {
             Token::Identifier { .. } => {
                 self.parse_variable_assignment()?
@@ -154,6 +154,9 @@ impl Parser {
                 (Statement::Print {
                     expression: expr
                 })
+            }
+            Token::KeywordBlock => {
+                self.parse_block_scope()?
             }
             x => return Err(SimpleErrorWithPos {
                 kind: ParserError::UnexpectedToken {
@@ -535,22 +538,22 @@ impl Parser {
 
     fn parse_lowest_precedence_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("expr:lowest");
-        self.parse_if_expression()
+        self.parse_block_expression()
     }
 
     fn parse_if_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("expr:if");
         if self.lexer.peek().data == Token::KeywordIf {
             self.lexer.next();
-            let condition = self.parse_if_expression()?;
+            let condition = self.parse_lowest_precedence_expression()?;
             let WithPosition { position, data } = self.lexer.peek();
             if data == Token::KeywordThen {
                 self.lexer.next();
-                let then_clause_value = self.parse_if_expression()?;
+                let then_clause_value = self.parse_lowest_precedence_expression()?;
                 let WithPosition { position, data } = self.lexer.peek();
                 if data == Token::KeywordElse {
                     self.lexer.next();
-                    let else_clause_value = self.parse_if_expression()?;
+                    let else_clause_value = self.parse_lowest_precedence_expression()?;
                     Ok(Expression::If {
                         condition: Box::new(condition),
                         then_clause_value: Box::new(then_clause_value),
@@ -570,6 +573,46 @@ impl Parser {
             }
         } else {
             self.parse_equality_expression()
+        }
+    }
+
+    fn parse_block_scope(&self) -> Result<Statement, SimpleErrorWithPos> {
+        debug!("parser:block:scope");
+        self.assert_token_eq_with_consumed(Token::KeywordBlock);
+        if self.lexer.peek().data == Token::NewLine {
+            self.lexer.next();
+        }
+
+        let mut statements = vec![];
+        while let Ok(v) = self.parse_statement() {
+            statements.push(v)
+        }
+        self.assert_token_eq_with_consumed(Token::KeywordEnd);
+        Ok(Statement::Block {
+            inner_statements: Box::new(statements),
+        })
+    }
+
+    fn parse_block_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("parser:block:expr");
+        if self.lexer.peek().data == Token::KeywordBlock {
+            self.lexer.next();
+            self.assert_token_eq_with_consumed(Token::NewLine);
+            let mut statements = vec![];
+            while let Ok(v) = self.parse_statement() {
+                statements.push(v);
+            }
+            let final_expression = Box::new(self.parse_lowest_precedence_expression()?);
+            if self.lexer.peek().data == Token::NewLine {
+                self.lexer.next();
+            }
+            self.assert_token_eq_with_consumed(Token::KeywordEnd);
+            Ok(Expression::Block {
+                intermediate_statements: statements,
+                final_expression
+            })
+        } else {
+            self.parse_if_expression()
         }
     }
 }
