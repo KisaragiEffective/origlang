@@ -10,11 +10,11 @@ use crate::ast::{RootAst, Statement};
 use crate::type_check::error::TypeCheckError;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-struct TupleDisplay(Vec<Type>);
+pub struct TupleDisplay(Vec<Type>);
 
 impl Display for TupleDisplay {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut content = self.0.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let content = self.0.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         let output = format!("({content})");
 
         f.write_str(&output)
@@ -50,7 +50,7 @@ pub enum Type {
 }
 
 impl Type {
-    const fn is_int_family(self) -> bool {
+    const fn is_int_family(&self) -> bool {
         matches!(self, Self::GenericInteger | Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
     }
 }
@@ -94,67 +94,67 @@ impl Target for &Expression {
 
                 match operator {
                     BinaryOperatorKind::Plus => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
                             (Type::String, Type::String) => Ok(Type::String),
-                            (x, y) if x == y && x.is_int_family() => Ok(x),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::Minus => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                            (x, y) if x == y && x.is_int_family() => Ok(x),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::Multiply => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                            (x, y) if x == y && x.is_int_family() => Ok(x),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::Divide => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                            (x, y) if x == y && x.is_int_family() => Ok(x),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::More => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
                             (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::MoreEqual => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
                             (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::Less => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
                             (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::LessEqual => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
                             (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::ThreeWay => {
-                        match (lhs_type, rhs_type) {
+                        match (&lhs_type, &rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                            (x, y) if x == y && x.is_int_family() => Ok(x),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type, rhs_type))
+                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
+                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                         }
                     }
                     BinaryOperatorKind::Equal => {
@@ -205,6 +205,14 @@ impl Target for &Expression {
             }
             Expression::Block { intermediate_statements: _, final_expression } => {
                 checker.check(final_expression.as_ref())
+            }
+            Expression::Tuple { expressions } => {
+                let mut buf = Vec::with_capacity(expressions.len());
+                for expr in expressions {
+                    buf.push(checker.check(expr)?);
+                }
+
+                Ok(Type::Tuple(TupleDisplay(buf)))
             }
         }
     }
@@ -292,7 +300,7 @@ impl Context {
     }
 
     fn lookup_variable_type(&self, ident: &String) -> Result<Type, TypeCheckError> {
-        self.map.get(ident).copied().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
+        self.map.get(ident).cloned().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
     }
 
     fn add_variable_type(&mut self, ident: String, tp: Type) {

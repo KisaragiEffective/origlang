@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::fmt::{Display, Formatter};
 use log::{debug, trace};
 use thiserror::Error;
 
@@ -179,6 +180,13 @@ impl Lexer {
                 fold!(
                     self.try_any(&ASCII_NUMERIC_CHARS).expect("huh?"),
                     Some(self.scan_digits().expect("huh?")),
+                    None
+                )
+            )
+            .or_else(||
+                fold!(
+                    self.try_char(',').expect("huh?"),
+                    Some(Token::SymComma),
                     None
                 )
             )
@@ -413,6 +421,37 @@ impl Lexer {
         trace!("lexer:advance");
         self.set_current_index(self.current_index.get() + 1);
     }
+
+    /// パースに失敗するかも知れないものをパースしようと試みる。
+    /// 成功したならパースした値
+    /// 失敗したならNoneを返しつつ内部インデックスをこの関数を呼び出したときの値に戻す:
+    ///   これによってコパーサがどれだけ壊れていたとしても失敗時にもとのインデックスに戻ることが保証される
+    pub fn parse_fallible<T, E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
+        let t = self.create_reset_token();
+        match f() {
+            Ok(t) => Ok(t),
+            Err(e) => {
+                t.reset(self);
+                Err(e)
+            }
+        }
+    }
+
+    fn create_reset_token(&self) -> TemporalLexerUnwindToken {
+        TemporalLexerUnwindToken {
+            unwind_index: self.current_index.get()
+        }
+    }
+}
+
+struct TemporalLexerUnwindToken {
+    unwind_index: usize,
+}
+
+impl TemporalLexerUnwindToken {
+    fn reset(self, lexer: &Lexer) {
+        lexer.current_index.set(self.unwind_index)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -477,10 +516,131 @@ pub enum Token {
     KeywordElse,
     /// `"`
     SymDoubleQuote,
+    /// `,`
+    SymComma,
     StringLiteral(String),
     /// reserved for future use.
     Reserved {
         matched: String,
     },
 
+}
+
+impl Token {
+    pub fn display(&self) -> DisplayToken {
+        DisplayToken(self.kind0())
+    }
+
+    fn kind0(&self) -> &'static str {
+        match self {
+            Token::Identifier { .. } => {
+                "identifier"
+            }
+            Token::Digits { .. } => {
+                "literal:int"
+            }
+            Token::UnexpectedChar { .. } => {
+                "unexpected_char"
+            }
+            Token::EndOfFile => {
+                "EOF"
+            }
+            Token::NewLine => {
+                "new_line"
+            }
+            Token::VarKeyword => {
+                "keyword:var"
+            }
+            Token::KeywordTrue => {
+                "keyword:true"
+            }
+            Token::KeywordFalse => {
+                "keyword:false"
+            }
+            Token::KeywordPrint => {
+                "keyword:print"
+            }
+            Token::KeywordBlock => {
+                "keyword:block"
+            }
+            Token::KeywordEnd => {
+                "keyword:end"
+            }
+            Token::SymEq => {
+                "sym:eq"
+            }
+            Token::SymPlus => {
+                "sym:plus"
+            }
+            Token::SymMinus => {
+                "sym:minus"
+            }
+            Token::SymAsterisk => {
+                "sym:asterisk"
+            }
+            Token::SymSlash => {
+                "sym:slash"
+            }
+            Token::SymLeftPar => {
+                "sym:left_par"
+            }
+            Token::SymRightPar => {
+                "sym:right_par"
+            }
+            Token::SymMore => {
+                "sym:more"
+            }
+            Token::SymLess => {
+                "sym:less"
+            }
+            Token::SymBang => {
+                "sym:bang"
+            }
+            Token::PartEqEq => {
+                "part:eq_eq"
+            }
+            Token::PartBangEq => {
+                "part:bang_eq"
+            }
+            Token::PartLessEq => {
+                "part:less_eq"
+            }
+            Token::PartMoreEq => {
+                "part:more_eq"
+            }
+            Token::PartLessEqMore => {
+                "part:less_eq_more"
+            }
+            Token::KeywordIf => {
+                "keyword:if"
+            }
+            Token::KeywordThen => {
+                "keyword:then"
+            }
+            Token::KeywordElse => {
+                "keyword:else"
+            }
+            Token::SymDoubleQuote => {
+                "sym:double_quote"
+            }
+            Token::SymComma => {
+                "sym:comma"
+            }
+            Token::StringLiteral(_) => {
+                "literal:string"
+            }
+            Token::Reserved { .. } => {
+                "reserved_token"
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct DisplayToken(&'static str);
+
+impl Display for DisplayToken {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
 }

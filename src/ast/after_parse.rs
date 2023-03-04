@@ -35,6 +35,9 @@ pub enum Expression {
     Block {
         intermediate_statements: Vec<Statement>,
         final_expression: Box<Self>,
+    },
+    Tuple {
+        expressions: Vec<Self>,
     }
 }
 

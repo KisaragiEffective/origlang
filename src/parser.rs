@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 use crate::ast::{RootAst, SourcePos, Statement, WithPosition};
-use crate::lexer::{Lexer, LexerError, Token};
+use crate::lexer::{DisplayToken, Lexer, LexerError, Token};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
@@ -78,7 +78,7 @@ pub enum PartiallyParseFixCandidate {
     },
 }
 
-#[derive(Display, Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
     #[display(fmt = "int literal, boolean literal, string literal, or identifier")]
     First,
@@ -96,6 +96,8 @@ pub enum TokenKind {
     Identifier,
     #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
     Statement,
+    #[display(fmt = "{_0}")]
+    Only(DisplayToken)
 }
 
 pub struct Parser {
@@ -209,6 +211,8 @@ impl Parser {
                 if self.lexer.peek().data == Token::SymRightPar {
                     self.lexer.next();
                     Ok(Expression::UnitLiteral)
+                } else if let Ok(expr_tuple) = self.parse_tuple_expression() {
+                    Ok(expr_tuple)
                 } else {
                     let inner_expression = self.parse_lowest_precedence_expression()?;
                     assert_eq!(self.lexer.next().data, Token::SymRightPar);
@@ -243,6 +247,40 @@ impl Parser {
         }
     }
 
+
+    fn parse_tuple_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        self.lexer.parse_fallible(|| {
+            let mut buf = vec![];
+            while let Ok(e) = self.parse_lowest_precedence_expression() {
+                buf.push(e);
+                let peek = self.lexer.peek();
+                if peek.data != Token::SymComma {
+                    return Err(SimpleErrorWithPos {
+                        kind: ParserError::UnexpectedToken {
+                            pat: TokenKind::Only(Token::SymComma.display()),
+                            unmatch: peek.data,
+                        },
+                        position: peek.position,
+                    })
+                }
+            }
+
+            let peek = self.lexer.peek();
+            if peek.data != Token::SymRightPar {
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::Only(Token::SymRightPar.display()),
+                        unmatch: peek.data,
+                    },
+                    position: peek.position
+                })
+            }
+
+            Ok(Expression::Tuple {
+                expressions: buf
+            })
+        })
+    }
     /// 現在のトークン位置から乗除算をパースする。
     fn parse_multiplicative(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("expr:mul");
