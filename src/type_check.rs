@@ -2,13 +2,32 @@ pub mod error;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use derive_more::Display;
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use crate::ast::{RootAst, Statement};
 
 use crate::type_check::error::TypeCheckError;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Display)]
+#[derive(Clone, Eq, PartialEq, Debug)]
+struct TupleDisplay(Vec<Type>);
+
+impl Display for TupleDisplay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut content = self.0.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let output = format!("({content})");
+
+        f.write_str(&output)
+    }
+}
+
+impl From<Vec<Type>> for TupleDisplay {
+    fn from(value: Vec<Type>) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Display)]
 pub enum Type {
     #[display(fmt = "{{integer}}")]
     GenericInteger,
@@ -26,6 +45,8 @@ pub enum Type {
     Int32,
     #[display(fmt = "Int64")]
     Int64,
+    #[display(fmt = "{_0}")]
+    Tuple(TupleDisplay),
 }
 
 impl Type {
