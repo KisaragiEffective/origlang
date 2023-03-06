@@ -24,6 +24,25 @@ impl ariadne::Cache<()> for Dummy {
 
 pub struct Repl;
 
+impl Repl {
+    fn type_box_to_final_evaluated_form(tb: &TypeBox) -> String {
+        match tb {
+            TypeBox::NonCoercedInteger(i) => i.to_string(),
+            TypeBox::Int8(i) => i.to_string(),
+            TypeBox::Int16(i) => i.to_string(),
+            TypeBox::Int32(i) => i.to_string(),
+            TypeBox::Int64(i) => i.to_string(),
+            TypeBox::Boolean(b) => b.to_string(),
+            TypeBox::String(s) => format!(r#""{s}""#),
+            TypeBox::Unit(_) => "()".to_string(),
+            TypeBox::Tuple(tp) => {
+                let elements = tp.boxes.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
+                format!("({elements})")
+            }
+        }
+    }
+}
+
 impl Task for Repl {
     type Environment = ();
     type Error = AllError;
@@ -66,15 +85,7 @@ impl Task for Repl {
 
                                     println!(
                                         "=> {value} : {t}",
-                                        value = match value {
-                                            TypeBox::Int8(i) => i.to_string(),
-                                            TypeBox::Int16(i) => i.to_string(),
-                                            TypeBox::Int32(i) => i.to_string(),
-                                            TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
-                                            TypeBox::Boolean(b) => b.to_string(),
-                                            TypeBox::String(ref s) => format!(r#""{s}""#),
-                                            TypeBox::Unit(_) => "()".to_string()
-                                        },
+                                        value = Repl::type_box_to_final_evaluated_form(&value),
                                         t = value.get_type());
                                     handled = true;
                                 }
@@ -95,6 +106,7 @@ impl Task for Repl {
                             ParserError::IfExpressionWithoutElseClause => 8,
                             ParserError::IfExpressionWithoutThenClauseAndElseClause => 9,
                             ParserError::PartiallyParsed { .. } => 10,
+                            ParserError::InsufficientElementsForTupleLiteral(_) => 11,
                         };
 
                         let d = Report::<Range<usize>>::build(ReportKind::Error, (), error_offset)

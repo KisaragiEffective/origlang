@@ -1,6 +1,6 @@
 use std::num::ParseIntError;
 use crate::ast::{RootAst, SourcePos, Statement, WithPosition};
-use crate::lexer::{Lexer, LexerError, Token};
+use crate::lexer::{DisplayToken, Lexer, LexerError, Token};
 use crate::ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
@@ -57,6 +57,17 @@ pub enum ParserError {
     IfExpressionWithoutElseClause,
     #[error("if expression requires `then` clause and `else` clause")]
     IfExpressionWithoutThenClauseAndElseClause,
+    #[error("tuple literal requires 2 or more elements, but got {_0}")]
+    InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount),
+}
+
+#[repr(u8)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
+pub enum UnexpectedTupleLiteralElementCount {
+    #[display(fmt = "no elements")]
+    Zero = 0,
+    #[display(fmt = "only one element")]
+    One = 1,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -78,7 +89,7 @@ pub enum PartiallyParseFixCandidate {
     },
 }
 
-#[derive(Display, Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
     #[display(fmt = "int literal, boolean literal, string literal, or identifier")]
     First,
@@ -96,6 +107,8 @@ pub enum TokenKind {
     Identifier,
     #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
     Statement,
+    #[display(fmt = "{_0}")]
+    Only(DisplayToken)
 }
 
 pub struct Parser {
@@ -156,13 +169,15 @@ impl Parser {
             Token::KeywordBlock => {
                 self.parse_block_scope()
             }
-            x => return Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
-                    pat: TokenKind::Statement,
-                    unmatch: x,
-                },
-                position: pos,
-            })
+            x => {
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::Statement,
+                        unmatch: x,
+                    },
+                    position: pos,
+                })
+            }
         };
 
         // 文は絶対に改行で終わる必要がある
@@ -209,6 +224,8 @@ impl Parser {
                 if self.lexer.peek().data == Token::SymRightPar {
                     self.lexer.next();
                     Ok(Expression::UnitLiteral)
+                } else if let Ok(expr_tuple) = self.parse_tuple_expression() {
+                    Ok(expr_tuple)
                 } else {
                     let inner_expression = self.parse_lowest_precedence_expression()?;
                     assert_eq!(self.lexer.next().data, Token::SymRightPar);
@@ -243,6 +260,52 @@ impl Parser {
         }
     }
 
+
+    fn parse_tuple_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        self.lexer.parse_fallible(|| {
+            debug!("expr.tuple");
+
+            let mut buf = vec![];
+            while let Ok(e) = self.parse_lowest_precedence_expression() {
+                buf.push(e);
+                let peek = self.lexer.peek();
+                if peek.data == Token::SymRightPar {
+                    self.lexer.next();
+                    break
+                } else if peek.data != Token::SymComma {
+                    return Err(SimpleErrorWithPos {
+                        kind: ParserError::UnexpectedToken {
+                            pat: TokenKind::Only(Token::SymComma.display()),
+                            unmatch: peek.data,
+                        },
+                        position: peek.position,
+                    })
+                }
+
+                self.lexer.next();
+            }
+
+            let bl = buf.len();
+
+            if bl == 0 {
+                // disallow ()
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero),
+                    position: self.lexer.peek().position,
+                })
+            } else if bl == 1 {
+                // disallow (expr)
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One),
+                    position: self.lexer.peek().position,
+                })
+            }
+
+            Ok(Expression::Tuple {
+                expressions: buf
+            })
+        })
+    }
     /// 現在のトークン位置から乗除算をパースする。
     fn parse_multiplicative(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("expr:mul");

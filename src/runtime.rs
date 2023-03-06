@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use derivative::Derivative;
 use derive_more::{Display, From};
 use log::debug;
@@ -33,6 +33,19 @@ impl From<NonCoerced> for TypeBox {
 pub enum TypeBoxUnwrapError {
 }
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct DisplayTuple {
+    pub boxes: Vec<TypeBox>
+}
+
+impl Display for DisplayTuple {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = self.boxes.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let s = format!("({s})");
+        f.write_str(&s)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug, Display, From)]
 pub enum TypeBox {
     #[display(fmt = "{_0}")]
@@ -56,11 +69,14 @@ pub enum TypeBox {
     String(String),
     #[display(fmt = "()")]
     #[from]
-    Unit(())
+    Unit(()),
+    #[display(fmt = "{_0}")]
+    #[from]
+    Tuple(DisplayTuple)
 }
 
 impl TypeBox {
-    pub const fn get_type(&self) -> Type {
+    pub fn get_type(&self) -> Type {
         match self {
             Self::NonCoercedInteger(_) => Type::GenericInteger,
             Self::Boolean(_) => Type::Boolean,
@@ -70,6 +86,7 @@ impl TypeBox {
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,
             Self::Int64(_) => Type::Int64,
+            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(|x| x.get_type()).collect::<Vec<_>>().into())
         }
     }
 }
@@ -406,6 +423,16 @@ impl CanBeEvaluated for Expression {
                 runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)
+            }
+            Self::Tuple { expressions } => {
+                let mut res = Vec::with_capacity(expressions.len());
+                for e in expressions {
+                    res.push(e.evaluate(runtime)?);
+                }
+
+                Ok(TypeBox::Tuple(DisplayTuple {
+                    boxes: res
+                }))
             }
         }
     }
