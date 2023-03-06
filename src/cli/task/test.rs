@@ -1,10 +1,10 @@
 #![forbid(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
-use log::debug;
+use log::{debug, info};
 use crate::cli::task::Task;
 use crate::parser::{ParserError, SimpleErrorWithPos};
-use crate::runtime::{Runtime, TypeBox, Accumulate};
+use crate::runtime::{Runtime, TypeBox, Accumulate, DisplayTuple};
 
 type Err = SimpleErrorWithPos;
 
@@ -106,6 +106,7 @@ impl Test {
         Self::test_overflowed_literal()?;
         Self::test_variable_reassign()?;
         Self::test_block_scope()?;
+        Self::test_tuple_type()?;
 
         Ok(())
     }
@@ -280,6 +281,16 @@ end
         Ok(())
     }
 
+    fn test_tuple_type() -> Result<(), SimpleErrorWithPos> {
+        info!("test_tuple");
+
+        assert_eq!(Self::evaluated_expressions(r#"var a = (1, 2)
+var b = (3, 4)
+print a
+"#)?, &[TypeBox::Tuple(DisplayTuple { boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]})]);
+
+        Ok(())
+    }
 }
 
 impl Task for Test {

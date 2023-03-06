@@ -57,6 +57,17 @@ pub enum ParserError {
     IfExpressionWithoutElseClause,
     #[error("if expression requires `then` clause and `else` clause")]
     IfExpressionWithoutThenClauseAndElseClause,
+    #[error("tuple literal requires 2 or more elements, but got {_0}")]
+    InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount),
+}
+
+#[repr(u8)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
+pub enum UnexpectedTupleLiteralElementCount {
+    #[display(fmt = "no elements")]
+    Zero = 0,
+    #[display(fmt = "only one element")]
+    One = 1,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -158,13 +169,15 @@ impl Parser {
             Token::KeywordBlock => {
                 self.parse_block_scope()
             }
-            x => return Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
-                    pat: TokenKind::Statement,
-                    unmatch: x,
-                },
-                position: pos,
-            })
+            x => {
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::Statement,
+                        unmatch: x,
+                    },
+                    position: pos,
+                })
+            }
         };
 
         // 文は絶対に改行で終わる必要がある
@@ -250,11 +263,16 @@ impl Parser {
 
     fn parse_tuple_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         self.lexer.parse_fallible(|| {
+            debug!("expr.tuple");
+
             let mut buf = vec![];
             while let Ok(e) = self.parse_lowest_precedence_expression() {
                 buf.push(e);
                 let peek = self.lexer.peek();
-                if peek.data != Token::SymComma {
+                if peek.data == Token::SymRightPar {
+                    self.lexer.next();
+                    break
+                } else if peek.data != Token::SymComma {
                     return Err(SimpleErrorWithPos {
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::Only(Token::SymComma.display()),
@@ -263,16 +281,23 @@ impl Parser {
                         position: peek.position,
                     })
                 }
+
+                self.lexer.next();
             }
 
-            let peek = self.lexer.peek();
-            if peek.data != Token::SymRightPar {
+            let bl = buf.len();
+
+            if bl == 0 {
+                // disallow ()
                 return Err(SimpleErrorWithPos {
-                    kind: ParserError::UnexpectedToken {
-                        pat: TokenKind::Only(Token::SymRightPar.display()),
-                        unmatch: peek.data,
-                    },
-                    position: peek.position
+                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero),
+                    position: self.lexer.peek().position,
+                })
+            } else if bl == 1 {
+                // disallow (expr)
+                return Err(SimpleErrorWithPos {
+                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One),
+                    position: self.lexer.peek().position,
                 })
             }
 

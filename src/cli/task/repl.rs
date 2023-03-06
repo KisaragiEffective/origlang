@@ -106,6 +106,7 @@ impl Task for Repl {
                             ParserError::IfExpressionWithoutElseClause => 8,
                             ParserError::IfExpressionWithoutThenClauseAndElseClause => 9,
                             ParserError::PartiallyParsed { .. } => 10,
+                            ParserError::InsufficientElementsForTupleLiteral(_) => 11,
                         };
 
                         let d = Report::<Range<usize>>::build(ReportKind::Error, (), error_offset)
