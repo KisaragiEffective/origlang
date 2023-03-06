@@ -450,7 +450,7 @@ struct TemporalLexerUnwindToken {
 
 impl TemporalLexerUnwindToken {
     fn reset(self, lexer: &Lexer) {
-        lexer.current_index.set(self.unwind_index)
+        lexer.current_index.set(self.unwind_index);
     }
 }
 
@@ -527,111 +527,45 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn display(&self) -> DisplayToken {
+    pub const fn display(&self) -> DisplayToken {
         DisplayToken(self.kind0())
     }
 
-    fn kind0(&self) -> &'static str {
+    const fn kind0(&self) -> &'static str {
         match self {
-            Token::Identifier { .. } => {
-                "identifier"
-            }
-            Token::Digits { .. } => {
-                "literal:int"
-            }
-            Token::UnexpectedChar { .. } => {
-                "unexpected_char"
-            }
-            Token::EndOfFile => {
-                "EOF"
-            }
-            Token::NewLine => {
-                "new_line"
-            }
-            Token::VarKeyword => {
-                "keyword:var"
-            }
-            Token::KeywordTrue => {
-                "keyword:true"
-            }
-            Token::KeywordFalse => {
-                "keyword:false"
-            }
-            Token::KeywordPrint => {
-                "keyword:print"
-            }
-            Token::KeywordBlock => {
-                "keyword:block"
-            }
-            Token::KeywordEnd => {
-                "keyword:end"
-            }
-            Token::SymEq => {
-                "sym:eq"
-            }
-            Token::SymPlus => {
-                "sym:plus"
-            }
-            Token::SymMinus => {
-                "sym:minus"
-            }
-            Token::SymAsterisk => {
-                "sym:asterisk"
-            }
-            Token::SymSlash => {
-                "sym:slash"
-            }
-            Token::SymLeftPar => {
-                "sym:left_par"
-            }
-            Token::SymRightPar => {
-                "sym:right_par"
-            }
-            Token::SymMore => {
-                "sym:more"
-            }
-            Token::SymLess => {
-                "sym:less"
-            }
-            Token::SymBang => {
-                "sym:bang"
-            }
-            Token::PartEqEq => {
-                "part:eq_eq"
-            }
-            Token::PartBangEq => {
-                "part:bang_eq"
-            }
-            Token::PartLessEq => {
-                "part:less_eq"
-            }
-            Token::PartMoreEq => {
-                "part:more_eq"
-            }
-            Token::PartLessEqMore => {
-                "part:less_eq_more"
-            }
-            Token::KeywordIf => {
-                "keyword:if"
-            }
-            Token::KeywordThen => {
-                "keyword:then"
-            }
-            Token::KeywordElse => {
-                "keyword:else"
-            }
-            Token::SymDoubleQuote => {
-                "sym:double_quote"
-            }
-            Token::SymComma => {
-                "sym:comma"
-            }
-            Token::StringLiteral(_) => {
-                "literal:string"
-            }
-            Token::Reserved { .. } => {
-                "reserved_token"
-            }
+            Self::Identifier { .. } => "identifier",
+            Self::Digits { .. } => "literal:int",
+            Self::UnexpectedChar { .. } => "unexpected_char",
+            Self::EndOfFile => "EOF",
+            Self::NewLine => "new_line",
+            Self::VarKeyword => "keyword:var",
+            Self::KeywordTrue => "keyword:true",
+            Self::KeywordFalse => "keyword:false",
+            Self::KeywordPrint => "keyword:print",
+            Self::KeywordBlock => "keyword:block",
+            Self::KeywordEnd => "keyword:end",
+            Self::SymEq => "sym:eq",
+            Self::SymPlus => "sym:plus",
+            Self::SymMinus => "sym:minus",
+            Self::SymAsterisk => "sym:asterisk",
+            Self::SymSlash => "sym:slash",
+            Self::SymLeftPar => "sym:left_par",
+            Self::SymRightPar => "sym:right_par",
+            Self::SymMore => "sym:more",
+            Self::SymLess => "sym:less",
+            Self::SymBang => "sym:bang",
+            Self::PartEqEq => "part:eq_eq",
+            Self::PartBangEq => "part:bang_eq",
+            Self::PartLessEq => "part:less_eq",
+            Self::PartMoreEq => "part:more_eq",
+            Self::PartLessEqMore => "part:less_eq_more",
+            Self::KeywordIf => "keyword:if",
+            Self::KeywordThen => "keyword:then",
+            Self::KeywordElse => "keyword:else",
+            Self::SymDoubleQuote => "sym:double_quote",
+            Self::SymComma => "sym:comma",
+            Self::StringLiteral(_) => "literal:string",
+            Self::Reserved { .. } => "reserved_token",
         }
     }
 }
