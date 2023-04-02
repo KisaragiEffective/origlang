@@ -153,7 +153,7 @@ pub enum EffectDescriptor<'cls> {
 }
 
 impl<'s: 'cls, 'cls> EffectDescriptor<'cls> {
-    fn invoke(&'s self, runtime: &Runtime) {
+    pub fn invoke(&'s self, runtime: &Runtime) {
         match self {
             EffectDescriptor::Output(e) => {
                 runtime.o.as_ref().borrow_mut().output(e());
