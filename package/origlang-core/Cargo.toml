@@ -1,0 +1,17 @@
+[package]
+name = "origlang-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ariadne = "0.2.0"
+clap = { version = "4.1.9", features = ["derive"] }
+derivative = "2.2.0"
+derive_more = "0.99.17"
+env_logger = "0.10.0"
+log = "0.4.17"
+tap = "1.0.1"
+thiserror = "1.0.39"
+wasm-bindgen = "0.2.84"

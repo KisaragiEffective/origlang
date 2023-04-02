@@ -1,6 +1,11 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
+use wasm_bindgen::prelude::wasm_bindgen;
+use crate::ast::RootAst;
+use crate::lexer::Lexer;
+use crate::parser::{Parser, SimpleErrorWithPos};
+
 mod parser;
 mod ast;
 mod runtime;
