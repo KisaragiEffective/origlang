@@ -1,5 +1,11 @@
 [workspace]
 members = [
-    "package/origlang-core",
+    "package/origlang-ast",
+    "package/origlang-cli",
+    "package/origlang-compiler",
     "package/origlang-interop",
+    "package/origlang-interop-frontend-webserver",
+    "package/origlang-runtime",
+    "package/origlang-typesystem-model",
+    "package/origlang-platform",
 ]
