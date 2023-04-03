@@ -199,6 +199,7 @@ impl Target for &Statement {
             Statement::Block { inner_statements: _ } => {
                 Ok(())
             }
+            Statement::Comment { .. } => Ok(()),
         }
     }
 }

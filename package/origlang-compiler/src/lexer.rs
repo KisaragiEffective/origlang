@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::fmt::{Display, Formatter};
 use log::{debug, trace};
 use thiserror::Error;
-use origlang_ast::{SourcePos, WithPosition};
+use origlang_ast::{Comment, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 
 static KEYWORDS: [&str; 10] =
@@ -128,7 +128,17 @@ impl Lexer {
             .or_else(|| self.try_char('+').expect("huh?").map(|_| Token::SymPlus))
             .or_else(|| self.try_char('-').expect("huh?").map(|_| Token::SymMinus))
             .or_else(|| self.try_char('*').expect("huh?").map(|_| Token::SymAsterisk))
-            .or_else(|| self.try_char('/').expect("huh?").map(|_| Token::SymSlash))
+            .or_else(||
+                fold!(
+                    self.try_char('/').expect("huh?"),
+                    fold!(
+                        self.try_char('/').expect("huh?"),
+                        Some(self.scan_line_comment().expect("unable to parse comment")),
+                        Some(Token::SymSlash)
+                    ),
+                    None
+                )
+            )
             .or_else(|| self.try_char('(').expect("huh?").map(|_| Token::SymLeftPar))
             .or_else(|| self.try_char(')').expect("huh?").map(|_| Token::SymRightPar))
             .or_else(|| 
@@ -368,6 +378,16 @@ impl Lexer {
         self.current_column.set(future_line_column);
     }
 
+    fn scan_line_comment(&self) -> Result<Token, LexerError> {
+        let content = self.scan_by_predicate(|c| c != '\n', false)?;
+
+        Ok(Token::Comment {
+            content: Comment {
+                content,
+            },
+        })
+    }
+
     /// Get n-step away token without consume it.
     pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
         debug!("peek_n:{advance_step}");
@@ -405,7 +425,7 @@ impl Lexer {
             )
     }
 
-    fn consume_char(&self) -> Result<char, LexerError> {
+    pub(crate) fn consume_char(&self) -> Result<char, LexerError> {
         let c = self.current_char()?;
         trace!("consume: `{c}` (\\U{{{k:06X}}})", k = c as u32);
         self.advance();
@@ -517,6 +537,11 @@ pub enum Token {
     SymDoubleQuote,
     /// `,`
     SymComma,
+    /// `//`
+    PartSlashSlash,
+    Comment {
+        content: Comment,
+    },
     StringLiteral(String),
     /// reserved for future use.
     Reserved {
@@ -563,6 +588,8 @@ impl Token {
             Self::KeywordElse => "keyword:else",
             Self::SymDoubleQuote => "sym:double_quote",
             Self::SymComma => "sym:comma",
+            Self::PartSlashSlash => "part:slash_slash",
+            Self::Comment { .. } => "comment",
             Self::StringLiteral(_) => "literal:string",
             Self::Reserved { .. } => "reserved_token",
         }

@@ -5,6 +5,8 @@ use log::{debug, info};
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTuple};
 use crate::task::Task;
+use origlang_ast::{Comment, RootAst, Statement};
+use origlang_ast::after_parse::Expression;
 
 type Err = SimpleErrorWithPos;
 
@@ -52,6 +54,15 @@ impl Test {
         let o = runtime.execute(root_ast);
         let x = Ok(o.borrow().acc().expect("???"));
         x
+    }
+
+    fn ast(src: &str) -> Result<RootAst, Err> {
+        use origlang_compiler::parser::Parser;
+        debug!("src:\n{}", src);
+        let source = src;
+        let parser = Parser::create(source);
+        let root_ast = parser.parse()?;
+        Ok(root_ast)
     }
 
     #[allow(clippy::unreadable_literal)]
@@ -107,6 +118,7 @@ impl Test {
         Self::test_variable_reassign()?;
         Self::test_block_scope()?;
         Self::test_tuple_type()?;
+        Self::test_comment()?;
 
         Ok(())
     }
@@ -288,6 +300,32 @@ end
 var b = (3, 4)
 print a
 "#)?, &[TypeBox::Tuple(DisplayTuple { boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]})]);
+
+        Ok(())
+    }
+
+    fn test_comment() -> Result<(), SimpleErrorWithPos> {
+        info!("test_comment");
+        assert_eq!(
+            Self::ast(r#"//Hello, World!
+print 1
+"#)?,
+            RootAst {
+                statement: vec![
+                    Statement::Comment {
+                        content: Comment {
+                            content: "Hello, World!".to_string()
+                        },
+                    },
+                    Statement::Print {
+                        expression: Expression::IntLiteral {
+                            value: 1,
+                            suffix: None,
+                        },
+                    }
+                ]
+            }
+        );
 
         Ok(())
     }

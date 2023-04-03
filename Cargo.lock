@@ -941,6 +941,7 @@ dependencies = [
  "clap",
  "env_logger",
  "log",
+ "origlang-ast",
  "origlang-compiler",
  "origlang-platform",
  "origlang-runtime",
