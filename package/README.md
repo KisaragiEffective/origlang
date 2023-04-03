@@ -5,6 +5,7 @@
 * `origlang-compiler` - レキサー、パーサー、型チェック
 * `origlang-interop` - `origlang-compiler` をWebAssemblyで動かすためのグルーコード
 * `origlang-interop-frontend-webserver` - `origlang-interop` のフロントエンド
+* `origlang-interop-post` - `origlang-interop` のビルド後に `wasm-pack` を走らせる
 * `origlang-runtime` - スコープや中間コードなど、実行時の情報の格納
 
 より詳細な解説は各ディレクトリを参照してください。

@@ -22,6 +22,6 @@ fn main() {
 
         println!("copy: {from}", from = &from.display());
         println!("copy: {to}", to = &to.display());
-        copy_file(from, to).expect("copy failed");
+        copy_file(from, to).expect("copy failed, please build origlang-interop first.");
     }
 }

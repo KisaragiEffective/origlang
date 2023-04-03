@@ -70,3 +70,6 @@ pub fn run() {
         panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
     }
 }
+
+#[wasm_bindgen]
+pub fn xyzpris() {}
