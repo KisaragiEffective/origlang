@@ -6,11 +6,13 @@ on:
     paths:
       - package/origlang-interop/**/*
       - package/origlang-interop-frontend-webserver/**/*
+      - .github/workflows/rust-wasm.yml
   pull_request:
     branches: [ "master" ]
     paths:
       - package/origlang-interop/**/*
       - package/origlang-interop-frontend-webserver/**/*
+      - .github/workflows/rust-wasm.yml
 
 env:
   CARGO_TERM_COLOR: always
