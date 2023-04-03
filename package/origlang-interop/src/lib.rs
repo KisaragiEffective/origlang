@@ -48,8 +48,7 @@ pub fn run() {
     init_panic_hook();
 
     let src = get_source();
-    if src.is_string() {
-        let src = src.dyn_ref::<JsString>().expect("this should never fail");
+    if let Ok(src) = src.dyn_ref::<JsString>() {
         let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
         let parser = Parser::create(&src);
         match parser.parse() {
@@ -68,6 +67,3 @@ pub fn run() {
         panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
     }
 }
-
-#[wasm_bindgen]
-pub fn xyzpris() {}
