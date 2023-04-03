@@ -12,6 +12,9 @@ fn main() {
         let x = interop_file.expect("1");
         let from = x.path();
         let name = x.file_name();
+        if &&name == ".gitignore" {
+            continue
+        }
         let common_parent = from.iter().take(from.components().count() - 3).collect::<PathBuf>();
         println!("cpar: {}", common_parent.display());
 
