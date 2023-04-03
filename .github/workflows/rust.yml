@@ -26,7 +26,14 @@ jobs:
         prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # If it requires full-build, wasm-pack is required to build origlang-interop.
     - name: Install wasm-pack
-      run: cargo install wasm-pack
+      run: |
+        git_tag="v0.11.0"
+        d="$(mktemp)"
+        curl -L https://github.com/rustwasm/wasm-pack/releases/download/$git_tag/wasm-pack-${git_tag}-x86_64-unknown-linux-musl.tar.gz > "$d"
+        e="wasm-pack-${git_tag}-x86_64-unknown-linux-musl"
+        tar xf "$d" "$e"
+        mv "$e" /usr/local/bin && wasm-pack --version
+        rm "$d"
     - name: Build origlang-interop
       run: $GITHUB_WORKSPACE/package/origlang-interop/build.sh
     - name: Build other package
