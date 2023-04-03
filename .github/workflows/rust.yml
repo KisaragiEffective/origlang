@@ -26,6 +26,7 @@ jobs:
         prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # If it requires full-build, wasm-pack is required to build origlang-interop.
     - name: Install wasm-pack
+      shell: bash
       run: |
         git_tag="v0.11.0"
         d="$(mktemp)"
@@ -36,6 +37,7 @@ jobs:
         mv "$e" /usr/local/bin && wasm-pack --version
         rm "$d"
     - name: Build origlang-interop
+      shell: bash
       run: $GITHUB_WORKSPACE/package/origlang-interop/build.sh
     - name: Build other package
       run: cargo build --verbose
