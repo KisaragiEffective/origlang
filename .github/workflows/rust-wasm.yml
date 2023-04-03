@@ -44,7 +44,8 @@ jobs:
           e="wasm-pack-${git_tag}-x86_64-unknown-linux-musl/wasm-pack"
           tar xf "$d" "$e"
           chmod +x "$e"
-          mv "$e" /usr/local/bin && wasm-pack --version
+          # Windows' bash does not have "/usr/local/bin"
+          (mv "$e" /usr/local/bin || mv "$e" /usr/bin) && wasm-pack --version
           rm "$d"
       - name: Build origlang-interop (pre)
         shell: bash
