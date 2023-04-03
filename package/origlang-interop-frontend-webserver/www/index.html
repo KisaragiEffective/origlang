@@ -16,27 +16,19 @@
           const plural = (s, n) => n >= 2 ? `${s}s` : s;
           switch (s) {
             case "Hello, World":
-              src.value = `print "Hello, World"
-`;
+              fetch("./example/hello_world.ol").then(x => x.text()).then(t => {
+                document.getElementById("src").value = t;
+              });
               break;
             case "Fizz Buzz":
-              src.value = Array.from({ length: 100 }, (_, n) => n).map(i => i + 1).map(i =>
-                  ((i % 3 === 0) ? "Fizz" : "") +
-                  ((i % 5 === 0) ? "Buzz" : "") || i.toString(10)
-              ).map(e => `print "${e}"\n`).join("");
+              fetch("./example/fizz_buzz.ol").then(x => x.text()).then(t => {
+                document.getElementById("src").value = t;
+              });
               break;
             case "99 Bottles of Beer":
-              // FIXME: まともにコンパイルできない
-              src.value = (Array.from({ length: 99 }, (_, n) => n)
-                  .map(i => i + 1)
-                  .reverse()
-                  .map(e => `${e} ${plural("bottle", e)} of beer on the wall, ${e} bottle${plural("bottle", e)} of beer.
-Take one down and pass it around, ${(e - 1) ? plural("bottle", e - 1) : "no more bottles"} of beer on the wall.`)
-                  .join("\n") + `No more bottles of beer on the wall, no more bottles of beer.
-Go to the store and buy some more, 99 bottles of beer on the wall.`)
-                  .split("\n")
-                  .map(s => `print "${s}"\n`)
-                  .join("");
+              fetch("./example/99_bottles_of_beer.ol").then(x => x.text()).then(t => {
+                document.getElementById("src").value = t;
+              })
               break;
             default:
               console.error(`${s} is unknown`);
