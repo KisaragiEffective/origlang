@@ -15,9 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-      # FIXME: windows does not recognize /usr/local/bin, causing build to be failed
-      fail-fast: false
-    
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -26,22 +24,8 @@ jobs:
       uses: Swatinem/rust-cache@v2.2.1
       with:
         prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
-    # If it requires full-build, wasm-pack is required to build origlang-interop.
-    - name: Install wasm-pack
-      shell: bash
-      run: |
-        git_tag="v0.11.0"
-        d="$(mktemp)"
-        curl -L https://github.com/rustwasm/wasm-pack/releases/download/$git_tag/wasm-pack-${git_tag}-x86_64-unknown-linux-musl.tar.gz > "$d"
-        e="wasm-pack-${git_tag}-x86_64-unknown-linux-musl/wasm-pack"
-        tar xf "$d" "$e"
-        chmod +x "$e"
-        mv "$e" /usr/local/bin && wasm-pack --version
-        rm "$d"
-    - name: Build origlang-interop
-      shell: bash
-      run: $GITHUB_WORKSPACE/package/origlang-interop/build.sh
-    - name: Build other package
-      run: cargo build --verbose
+    # See rust-wasm.yml for CI details about those package
+    - name: Build package
+      run: cargo build --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
