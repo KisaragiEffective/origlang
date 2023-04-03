@@ -64,7 +64,7 @@ Go to the store and buy some more, 99 bottles of beer on the wall.`)
         document.getElementById("compile_error").value = "";
         document.getElementById("output").value = "";
         document.getElementById("run").addEventListener("click", () => {
-          init().then(() => echo_clear()).then(() => run()).then(() => {
+          init().then(() => run()).then(() => {
             // TODO コンパイル時間の表示
             document.getElementById("run").enabled = false;
           })
