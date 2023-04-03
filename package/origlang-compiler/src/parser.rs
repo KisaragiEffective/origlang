@@ -169,6 +169,10 @@ impl Parser {
             Token::KeywordBlock => {
                 self.parse_block_scope()
             }
+            Token::Comment { content } => {
+                self.lexer.next();
+                Statement::Comment { content }
+            }
             x => {
                 return Err(SimpleErrorWithPos {
                     kind: ParserError::UnexpectedToken {

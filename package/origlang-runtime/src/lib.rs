@@ -232,6 +232,7 @@ impl Runtime {
                 vec.push_back(EffectDescriptor::PopScope);
                 vec.into()
             }
+            Statement::Comment { .. } => vec![],
         }
     }
 
