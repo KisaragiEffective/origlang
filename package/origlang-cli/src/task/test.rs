@@ -326,6 +326,26 @@ print 1
                 ]
             }
         );
+        assert_eq!(
+            Self::ast(r#"print 1
+//Hello, World!
+"#)?,
+            RootAst {
+                statement: vec![
+                    Statement::Print {
+                        expression: Expression::IntLiteral {
+                            value: 1,
+                            suffix: None,
+                        },
+                    },
+                    Statement::Comment {
+                        content: Comment {
+                            content: "Hello, World!".to_string()
+                        },
+                    },
+                ]
+            }
+        );
 
         Ok(())
     }
