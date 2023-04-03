@@ -11,8 +11,6 @@ extern {
     fn set_compile_error(s: JsString);
 
     fn echo(s: JsString);
-
-    fn echo_clear();
 }
 
 #[wasm_bindgen]
