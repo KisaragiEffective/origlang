@@ -26,7 +26,7 @@ pub struct WithPosition<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::SourcePos;
+    use crate::SourcePos;
 
     #[test]
     fn source_pos_order() {
