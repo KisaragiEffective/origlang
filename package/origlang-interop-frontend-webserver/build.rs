@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fs::{copy as copy_file, read_dir};
 use std::path::PathBuf;
 
@@ -12,7 +13,7 @@ fn main() {
         let x = interop_file.expect("1");
         let from = x.path();
         let name = x.file_name();
-        if &&name == ".gitignore" {
+        if name == OsString::from(".gitignore") {
             continue
         }
         let common_parent = from.iter().take(from.components().count() - 3).collect::<PathBuf>();
