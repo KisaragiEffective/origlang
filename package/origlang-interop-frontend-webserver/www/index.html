@@ -4,9 +4,51 @@
     <script type="module" src="./origlang_interop.js"></script>
     <script type="application/wasm" src="origlang_interop_bg.wasm"></script>
     <script>
+      "use strict";
+      window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("src").addEventListener("input", () => {
+          document.getElementById("run").enabled = true;
+        });
+
+        document.getElementById("example_load").addEventListener("click", () => {
+          const s = document.getElementById("example").value;
+          const src = document.getElementById("src");
+          const plural = (s, n) => n >= 2 ? `${s}s` : s;
+          switch (s) {
+            case "Hello, World":
+              src.value = `print "Hello, World"
+`;
+              break;
+            case "Fizz Buzz":
+              src.value = Array.from({ length: 100 }, (_, n) => n).map(i => i + 1).map(i =>
+                  ((i % 3 === 0) ? "Fizz" : "") +
+                  ((i % 5 === 0) ? "Buzz" : "") || i.toString(10)
+              ).map(e => `print "${e}"\n`).join("");
+              break;
+            case "99 Bottles of Beer":
+              // FIXME: まともにコンパイルできない
+              src.value = (Array.from({ length: 99 }, (_, n) => n)
+                  .map(i => i + 1)
+                  .reverse()
+                  .map(e => `${e} ${plural("bottle", e)} of beer on the wall, ${e} bottle${plural("bottle", e)} of beer.
+Take one down and pass it around, ${(e - 1) ? plural("bottle", e - 1) : "no more bottles"} of beer on the wall.`)
+                  .join("\n") + `No more bottles of beer on the wall, no more bottles of beer.
+Go to the store and buy some more, 99 bottles of beer on the wall.`)
+                  .split("\n")
+                  .map(s => `print "${s}"\n`)
+                  .join("");
+              break;
+            default:
+              console.error(`${s} is unknown`);
+          }
+        })
+      });
+    </script>
+    <script>
       // origlang-interopと同期させること！！
       const get_source = () => document.getElementById("src").value;
 
+      // FIXME: パニックしたときもここに表示させたい
       const set_compile_error = (s) => {
         document.getElementById("compile_error").value = s;
       };
@@ -16,27 +58,59 @@
       };
 
       const echo_clear = () => {
-        document.getElementById("echo").value = "";
+        document.getElementById("output").value = "";
       };
     </script>
     <script type="module">
       import init, {run} from "./origlang_interop.js";
 
       window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("compile_error").value = "";
+        document.getElementById("output").value = "";
         document.getElementById("run").addEventListener("click", () => {
-          init().then(() => run())
+          init().then(() => echo_clear()).then(() => run()).then(() => {
+            // TODO コンパイル時間の表示
+            document.getElementById("run").enabled = false;
+          })
         });
       });
     </script>
     <title>origlang playground</title>
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 <main>
-    <!-- TODO: シンタックスハイライト -->
-    <label for="src">ソースコード</label><textarea id="src"></textarea>
-    <label for="compile_error">コンパイルエラー</label><textarea id="compile_error"></textarea>
-    <label for="output">出力結果</label><textarea id="output"></textarea>
-    <button id="run">Run!</button>
+    <div id="header">
+        <span id="button-run">
+            <button id="run">Run!</button>
+        </span>
+        <label for="example" class="hidden">例</label>
+        <select id="example">
+            <option>Hello, World</option>
+            <option>Fizz Buzz</option>
+            <option>99 Bottles of Beer</option>
+        </select>
+        <button id="example_load">Load</button>
+    </div>
+    <div id="texts">
+        <!-- TODO: シンタックスハイライト -->
+        <div>
+            <label for="src" class="hidden">ソースコード</label>
+            <textarea id="src" placeholder="ソースコードを入力..."></textarea>
+        </div>
+        <div>
+            <label for="compile_error" class="hidden">コンパイルエラー</label>
+            <textarea id="compile_error" readonly placeholder="コンパイルエラー"></textarea>
+        </div>
+        <div>
+            <label for="output" class="hidden">実行結果</label>
+            <textarea id="output" readonly placeholder="出力"></textarea>
+        </div>
+    </div>
 </main>
 </body>
 </html>
