@@ -22,10 +22,13 @@ jobs:
   build:
     strategy:
       matrix:
-        - os: ubuntu-latest
-          wasmpack_target_triple: x86_64-unknown-linux-musl
-        - os: windows-latest
-          wasmpack_target_triple: x86_64-pc-windows-msvc
+        os: [ubuntu-latest, windows-latest]
+        wasmpack_target_triple: [x86_64-unknown-linux-musl, x86_64-pc-windows-msvc]
+        include:
+          - os: ubuntu-latest
+            wasmpack_target_triple: x86_64-unknown-linux-musl
+          - os: windows-latest
+            wasmpack_target_triple: x86_64-pc-windows-msvc
       # FIXME: windows does not recognize /usr/local/bin, causing build to be failed
       fail-fast: false
 
