@@ -28,8 +28,7 @@ jobs:
     - name: Install wasm-pack
       run: cargo install wasm-pack
     - name: Build origlang-interop
-      run: package/origlang-interop/build.sh
-      working-directory: package/origlang-interop
+      run: $GITHUB_WORKSPACE/package/origlang-interop/build.sh
     - name: Build other package
       run: cargo build --verbose
     - name: Run tests
