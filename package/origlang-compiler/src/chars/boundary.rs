@@ -54,7 +54,7 @@ impl OwnedBoundedRope {
         self.boundaries.iter()
     }
 
-    pub fn find_boundary(&self, boundary: Utf8CharBoundaryStartByte) -> Option<(PositionInChars, Utf8CharStride)> {
+    pub fn boundary_to_char_position(&self, boundary: Utf8CharBoundaryStartByte) -> Option<(PositionInChars, Utf8CharStride)> {
         self.boundaries.iter().enumerate()
             .find(|(_, (b, _))| *b == boundary)
             .map(|(index_in_iterator, (_, stride))| (PositionInChars(index_in_iterator), *stride))
@@ -244,19 +244,32 @@ impl Add<PositionInChars> for PositionInChars {
     }
 }
 
-impl Add<usize> for PositionInChars {
+impl Add<PositionStepBetweenChars> for PositionInChars {
     type Output = PositionInChars;
 
-    fn add(self, rhs: usize) -> Self::Output {
-        Self::new(self.as_usize() + rhs)
+    fn add(self, rhs: PositionStepBetweenChars) -> Self::Output {
+        Self::new(self.as_usize() + rhs.as_usize())
     }
 }
 
 impl Sub<PositionInChars> for PositionInChars {
-    type Output = usize;
+    type Output = PositionStepBetweenChars;
 
     fn sub(self, rhs: PositionInChars) -> Self::Output {
-        self.as_usize() - rhs.as_usize()
+        PositionStepBetweenChars::new(self.as_usize() - rhs.as_usize())
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
+pub struct PositionStepBetweenChars(usize);
+
+impl PositionStepBetweenChars {
+    pub fn new(v: usize) -> Self {
+        Self(v)
+    }
+
+    pub fn as_usize(&self) -> usize {
+        self.0
     }
 }
 
@@ -324,7 +337,7 @@ mod tests {
         println!("{rope:?}");
 
         rope
-            .find_boundary(Utf8CharBoundaryStartByte(b))
+            .boundary_to_char_position(Utf8CharBoundaryStartByte(b))
             .map(|(b, s)| (b.as_usize(), s.as_usize()))
     }
 

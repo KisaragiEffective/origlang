@@ -6,7 +6,7 @@ use log::{debug, trace, warn};
 use thiserror::Error;
 use origlang_ast::{Comment, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
-use crate::chars::boundary::{OwnedBoundedRope, PositionInChars, Utf8CharBoundaryStartByte};
+use crate::chars::boundary::{OwnedBoundedRope, PositionInChars, PositionStepBetweenChars, Utf8CharBoundaryStartByte};
 use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
 
@@ -381,12 +381,18 @@ impl Lexer {
         };
 
         let mut string_char_literal_content = {
-            let (skip_length, _) = self.source.find_boundary(skip_byte_in_utf8)
+            let (base_boundary, _) = self.source.boundaries()
+                .nth(self.source_index_nth.get().as_usize()).expect("overflow");
+            let (found_boundary_nth, _) = self.source
+                .boundary_to_char_position(Utf8CharBoundaryStartByte::new(base_boundary.as_usize() + skip_byte_in_utf8.as_usize()))
                 .unwrap_or_else(|| panic!("char boundary could not be found: {skip_byte_in_utf8:?}"));
-            println!("skip: {skip_length:?}");
 
-            let s = &self.source[current_chars_nth..(current_chars_nth + skip_length)];
-            self.source_index_nth.set(PositionInChars::new(current_chars_nth.as_usize() + skip_length.as_usize()));
+            // assert!(found_boundary_nth >= current_chars_nth, "{found_boundary_nth:?} >= {current_chars_nth:?}");
+            let skip_chars = found_boundary_nth - current_chars_nth;
+
+            let new_char_nth = current_chars_nth + skip_chars;
+            let s = &self.source[current_chars_nth..new_char_nth];
+            self.source_index_nth.set(new_char_nth);
             s.to_string()
         };
 
@@ -411,7 +417,7 @@ impl Lexer {
     fn set_current_index(&self, future_index: PositionInChars) -> Result<(), LineComputationError> {
         // trace!("set index to: {future_index}");
         let SourcePos { line, column } =
-            LineComputation::compute(future_index + 1, &self.newline_codepoint_nth_index)?;
+            LineComputation::compute(future_index + PositionStepBetweenChars::new(1), &self.newline_codepoint_nth_index)?;
 
         // trace!("compute: {line}:{column}");
         self.source_index_nth.set(future_index);
@@ -479,7 +485,7 @@ impl Lexer {
 
     fn advance(&self) {
         trace!("lexer:advance");
-        self.set_current_index(self.source_index_nth.get() + 1).map_err(|e| {
+        self.set_current_index(self.source_index_nth.get() + PositionStepBetweenChars::new(1)).map_err(|e| {
             warn!("discarding error: {e}");
         }).unwrap_or_default();
     }
@@ -655,7 +661,6 @@ mod tests {
     fn test(str_lit: &str) {
         let src = format!("var x = \"{str_lit}\"\n");
         let p = Lexer::create(&src);
-        println!("source: {src}");
 
         assert_eq!(p.next().data, Token::VarKeyword);
         assert_eq!(p.next().data, Token::Identifier {

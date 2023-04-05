@@ -28,7 +28,7 @@ impl LineComputation {
 
         Ok(SourcePos {
             line: future_line.try_into().map_err(|_| LineComputationError::LineIsZero)?,
-            column: future_line_column.try_into().map_err(|_| LineComputationError::ColumnIsZero)?,
+            column: future_line_column.as_usize().try_into().map_err(|_| LineComputationError::ColumnIsZero)?,
         })
     }
 }
