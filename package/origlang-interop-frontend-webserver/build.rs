@@ -39,15 +39,15 @@ fn main() {
         std::fs::create_dir_all(&www_example_dir).expect("www/example");
     }
     std::fs::copy(
-        useful_example_dir.join("99_bottles_of_beer.ol"),
-        www_example_dir.join("99_bottles_of_beer.ol")
+        useful_example_dir.join("99_bottles_of_beer.origlang"),
+        www_example_dir.join("99_bottles_of_beer.origlang")
     ).expect("99 bottles");
     std::fs::copy(
-        useful_example_dir.join("hello_world.ol"),
-        www_example_dir.join("hello_world.ol")
+        useful_example_dir.join("hello_world.origlang"),
+        www_example_dir.join("hello_world.origlang")
     ).expect("Hello world");
     std::fs::copy(
-        useful_example_dir.join("fizz_buzz.ol"),
-        www_example_dir.join("fizz_buzz.ol")
+        useful_example_dir.join("fizz_buzz.origlang"),
+        www_example_dir.join("fizz_buzz.origlang")
     ).expect("Fizz Buzz");
 }
