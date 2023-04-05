@@ -67,6 +67,10 @@ impl OwnedBoundedRope {
     pub fn string(&self) -> &str {
         &self.str
     }
+
+    pub fn count_char(&self) -> usize {
+        self.boundaries.len()
+    }
 }
 
 fn create_valid_range_for_utf8_boundary(

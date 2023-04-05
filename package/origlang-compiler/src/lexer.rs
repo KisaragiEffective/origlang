@@ -91,7 +91,7 @@ impl Lexer {
     }
 
     fn try_char(&self, t: char) -> Result<Option<char>, LexerError> {
-        trace!("lexer:try:{t}");
+        trace!("lexer:try:{t:?}");
         if !self.reached_end() && self.current_char()? == t {
             self.consume_char()?;
             Ok(Some(t))
@@ -419,7 +419,7 @@ impl Lexer {
         let SourcePos { line, column } =
             LineComputation::compute(future_index + PositionStepBetweenChars::new(1), &self.newline_codepoint_nth_index)?;
 
-        // trace!("compute: {line}:{column}");
+        trace!("compute: {line}:{column}");
         self.source_index_nth.set(future_index);
         self.current_line.set(line);
         self.current_column.set(column);
@@ -480,7 +480,8 @@ impl Lexer {
     }
 
     fn reached_end(&self) -> bool {
-        self.source_index_nth.get().as_usize() >= self.source.string().len()
+        // <&str>::len() yields length of BYTES, not CHARS
+        self.source_index_nth.get().as_usize() >= self.source.count_char()
     }
 
     fn advance(&self) {
