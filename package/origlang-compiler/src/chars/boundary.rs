@@ -11,6 +11,7 @@ pub struct OwnedBoundedRope {
 impl OwnedBoundedRope {
     pub fn new(s: String) -> Self {
         let intermediate = s.chars().enumerate().fold(
+            // page fault, do not copy nor give dummy value to be copied (dummy zeroing does not have effect)
             (Utf8CharBoundaryStartByte(0), Vec::with_capacity(s.len() + 1)),
             |(char_position_as_bytes, mut acc), (n, c)| {
                 let char_byte_width = c.len_utf8();
@@ -33,21 +34,11 @@ impl OwnedBoundedRope {
         let byte_view = self.str.as_bytes();
         let (start, stride) = self.boundaries.get(index.0)?;
         let sub_slice = &byte_view[create_valid_range_for_utf8_boundary(*start, *start, *stride)];
-        let tmp = core::str::from_utf8(sub_slice).expect("implementation bug - get");
+        // SAFETY: above subslice is guaranteed to be a valid UTF-8 byte sequence.
+        let tmp = unsafe { core::str::from_utf8_unchecked(sub_slice) };
         let c_opt = tmp.chars().next();
 
         c_opt
-    }
-
-    pub unsafe fn nth_char_unchecked(&self, index: PositionInChars) -> char {
-        let get = self.nth_char(index);
-        let res = unsafe { get.unwrap_unchecked() };
-
-        res
-    }
-
-    pub fn boundary(&self, boundary_nth: PositionInChars) -> Option<&(Utf8CharBoundaryStartByte, Utf8CharStride)> {
-        self.boundaries.get(boundary_nth.0)
     }
 
     pub fn boundaries(&self) -> Iter<'_, (Utf8CharBoundaryStartByte, Utf8CharStride)> {
@@ -55,17 +46,10 @@ impl OwnedBoundedRope {
     }
 
     pub fn boundary_to_char_position(&self, boundary: Utf8CharBoundaryStartByte) -> Option<(PositionInChars, Utf8CharStride)> {
-        self.boundaries.iter().enumerate()
-            .find(|(_, (b, _))| *b == boundary)
-            .map(|(index_in_iterator, (_, stride))| (PositionInChars(index_in_iterator), *stride))
-    }
+        // this method would be succeed :)
+        let boundary_nth = self.boundaries.binary_search_by_key(&boundary, |cb| cb.0).ok()?;
 
-    pub fn find(&self, pattern: char) -> Option<usize> {
-        self.str.find(pattern)
-    }
-
-    pub fn string(&self) -> &str {
-        &self.str
+        Some((PositionInChars(boundary_nth), self.boundaries[boundary_nth].1))
     }
 
     pub fn count_char(&self) -> usize {
@@ -131,13 +115,15 @@ impl Index<RangeInclusive<PositionInChars>> for OwnedBoundedRope {
             let (byte_pos, stride) = self.boundaries[i];
             let sub_slice = &self.str.as_bytes()[create_valid_range_for_utf8_boundary(byte_pos, byte_pos, stride)];
 
-            core::str::from_utf8(sub_slice).expect("implementation bug - single")
+            // SAFETY: above subslice is guaranteed to be a valid UTF-8 byte sequence.
+            unsafe { core::str::from_utf8_unchecked(sub_slice) }
         } else {
             let boundaries = &self.boundaries[start_char_pos..=end_char_pos];
             if boundaries.is_empty() {
                 // this is empty
                 let sub_slice = &[];
-                core::str::from_utf8(sub_slice).expect("implementation bug - none")
+                // SAFETY: empty sequence is valid UTF-8.
+                unsafe { core::str::from_utf8_unchecked(sub_slice) }
             } else {
                 // SAFETY: first returns None if and only if the underlying vector is empty.
                 // However, we've checked if the vector is empty, so this call never fails.
@@ -149,7 +135,8 @@ impl Index<RangeInclusive<PositionInChars>> for OwnedBoundedRope {
                     *first_boundary, *last_boundary, *last_stride
                 )];
 
-                core::str::from_utf8(sub_slice).expect("implementation bug - multi")
+                // SAFETY: above subslice is guaranteed to be a valid UTF-8 byte sequence.
+                unsafe { core::str::from_utf8_unchecked(sub_slice) }
             }
         }
     }
@@ -180,6 +167,7 @@ impl Index<RangeToInclusive<PositionInChars>> for OwnedBoundedRope {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
+#[repr(transparent)]
 pub struct Utf8CharBoundaryStartByte(usize);
 
 impl Utf8CharBoundaryStartByte {
@@ -228,7 +216,8 @@ impl TryFrom<u8> for Utf8CharStride {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
-pub struct PositionInChars(pub usize);
+#[repr(transparent)]
+pub struct PositionInChars(usize);
 
 impl PositionInChars {
     pub fn new(byte: usize) -> Self {

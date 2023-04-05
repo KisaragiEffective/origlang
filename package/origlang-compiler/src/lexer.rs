@@ -70,7 +70,7 @@ impl Lexer {
         };
 
         Self {
-            source_index_nth: Cell::new(PositionInChars(0)),
+            source_index_nth: Cell::new(PositionInChars::new(0)),
             current_line: Cell::new(
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
@@ -468,7 +468,7 @@ impl Lexer {
     fn current_char(&self) -> Result<char, LexerError> {
         self.source.nth_char(self.source_index_nth.get()).ok_or_else(|| LexerError::OutOfRange {
             current: self.source_index_nth.get(),
-            max: self.source.boundaries().count(),
+            max: self.source.count_char(),
         })
     }
 
