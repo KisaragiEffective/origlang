@@ -6,7 +6,7 @@ use log::{debug, trace, warn};
 use thiserror::Error;
 use origlang_ast::{Comment, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
-use crate::chars::boundary::{OwnedBoundedRope, PositionInChars, PositionStepBetweenChars, Utf8CharBoundaryStartByte};
+use crate::chars::boundary::{MultiByteBoundaryAwareString, PositionInChars, PositionStepBetweenChars, Utf8CharBoundaryStartByte};
 use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
 
@@ -31,7 +31,7 @@ pub enum LexerError {
 #[derive(Debug)]
 pub struct Lexer {
     source_index_nth: Cell<PositionInChars>,
-    source: OwnedBoundedRope,
+    source: MultiByteBoundaryAwareString,
     current_line: Cell<NonZeroUsize>,
     current_column: Cell<NonZeroUsize>,
     newline_codepoint_nth_index: OccurrenceSet<PositionInChars>,
@@ -79,7 +79,7 @@ impl Lexer {
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
             ),
-            source: OwnedBoundedRope::new(src.to_string()),
+            source: MultiByteBoundaryAwareString::new(src.to_string()),
             newline_codepoint_nth_index
         }
     }

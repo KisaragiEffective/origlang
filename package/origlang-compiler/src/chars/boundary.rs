@@ -3,12 +3,12 @@ use std::slice::Iter;
 
 /// efficient and fast alternative for caching `String::chars`.
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
-pub struct OwnedBoundedRope {
+pub struct MultiByteBoundaryAwareString {
     str: String,
     boundaries: Vec<(Utf8CharBoundaryStartByte, Utf8CharStride)>,
 }
 
-impl OwnedBoundedRope {
+impl MultiByteBoundaryAwareString {
     pub fn new(s: String) -> Self {
         let intermediate = s.chars().enumerate().fold(
             // page fault, do not copy nor give dummy value to be copied (dummy zeroing does not have effect)
@@ -24,7 +24,7 @@ impl OwnedBoundedRope {
             }
         ).1;
 
-        OwnedBoundedRope {
+        MultiByteBoundaryAwareString {
             str: s,
             boundaries: intermediate,
         }
@@ -70,7 +70,7 @@ fn create_valid_range_for_utf8_boundary(
 // taking its sub-slice.
 
 // m[i..j]
-impl Index<Range<PositionInChars>> for OwnedBoundedRope {
+impl Index<Range<PositionInChars>> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, index: Range<PositionInChars>) -> &Self::Output {
@@ -82,7 +82,7 @@ impl Index<Range<PositionInChars>> for OwnedBoundedRope {
 }
 
 // m[i..]
-impl Index<RangeFrom<PositionInChars>> for OwnedBoundedRope {
+impl Index<RangeFrom<PositionInChars>> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, index: RangeFrom<PositionInChars>) -> &Self::Output {
@@ -94,7 +94,7 @@ impl Index<RangeFrom<PositionInChars>> for OwnedBoundedRope {
 }
 
 // m[..]
-impl Index<RangeFull> for OwnedBoundedRope {
+impl Index<RangeFull> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, _: RangeFull) -> &Self::Output {
@@ -103,7 +103,7 @@ impl Index<RangeFull> for OwnedBoundedRope {
 }
 
 // m[i..=j] (mail implementation)
-impl Index<RangeInclusive<PositionInChars>> for OwnedBoundedRope {
+impl Index<RangeInclusive<PositionInChars>> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, index: RangeInclusive<PositionInChars>) -> &Self::Output {
@@ -143,7 +143,7 @@ impl Index<RangeInclusive<PositionInChars>> for OwnedBoundedRope {
 }
 
 // m[..j]
-impl Index<RangeTo<PositionInChars>> for OwnedBoundedRope {
+impl Index<RangeTo<PositionInChars>> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, index: RangeTo<PositionInChars>) -> &Self::Output {
@@ -155,7 +155,7 @@ impl Index<RangeTo<PositionInChars>> for OwnedBoundedRope {
 }
 
 // m[..=j]
-impl Index<RangeToInclusive<PositionInChars>> for OwnedBoundedRope {
+impl Index<RangeToInclusive<PositionInChars>> for MultiByteBoundaryAwareString {
     type Output = str;
 
     fn index(&self, index: RangeToInclusive<PositionInChars>) -> &Self::Output {
@@ -268,10 +268,10 @@ impl PositionStepBetweenChars {
 
 #[cfg(test)]
 mod tests {
-    use crate::chars::boundary::{OwnedBoundedRope, PositionInChars, Utf8CharBoundaryStartByte, Utf8CharStride};
+    use crate::chars::boundary::{MultiByteBoundaryAwareString, PositionInChars, Utf8CharBoundaryStartByte, Utf8CharStride};
 
     fn char_boundary_and_stride(s: &str) -> Vec<(usize, usize)> {
-        OwnedBoundedRope::new(s.to_string()).boundaries()
+        MultiByteBoundaryAwareString::new(s.to_string()).boundaries()
             .map(|(a, b)| (a.as_usize(), b.as_usize())).collect()
     }
 
@@ -326,7 +326,7 @@ mod tests {
     }
 
     fn find_boundary(s: &str, b: usize) -> Option<(usize, usize)> {
-        let rope = OwnedBoundedRope::new(s.to_string());
+        let rope = MultiByteBoundaryAwareString::new(s.to_string());
         println!("{rope:?}");
 
         rope
