@@ -383,7 +383,7 @@ impl Lexer {
         let mut string_char_literal_content = {
             let (base_boundary, _) = self.source.boundaries()
                 .nth(self.source_index_nth.get().as_usize()).expect("overflow");
-            let (found_boundary_nth, _) = self.source
+            let found_boundary_nth = self.source
                 .boundary_to_char_position(Utf8CharBoundaryStartByte::new(base_boundary.as_usize() + skip_byte_in_utf8.as_usize()))
                 .unwrap_or_else(|| panic!("char boundary could not be found: {skip_byte_in_utf8:?}"));
 

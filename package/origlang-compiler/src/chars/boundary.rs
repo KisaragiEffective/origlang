@@ -45,7 +45,11 @@ impl MultiByteBoundaryAwareString {
         self.boundaries.iter()
     }
 
-    pub fn boundary_to_char_position(&self, boundary: Utf8CharBoundaryStartByte) -> Option<(PositionInChars, Utf8CharStride)> {
+    pub fn boundary_to_char_position(&self, boundary: Utf8CharBoundaryStartByte) -> Option<PositionInChars> {
+        self.boundary_to_char_position_and_stride(boundary).map(|x| x.0)
+    }
+
+    pub fn boundary_to_char_position_and_stride(&self, boundary: Utf8CharBoundaryStartByte) -> Option<(PositionInChars, Utf8CharStride)> {
         // this method would be succeed :)
         let boundary_nth = self.boundaries.binary_search_by_key(&boundary, |cb| cb.0).ok()?;
 
@@ -330,7 +334,7 @@ mod tests {
         println!("{rope:?}");
 
         rope
-            .boundary_to_char_position(Utf8CharBoundaryStartByte(b))
+            .boundary_to_char_position_and_stride(Utf8CharBoundaryStartByte(b))
             .map(|(b, s)| (b.as_usize(), s.as_usize()))
     }
 
