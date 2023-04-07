@@ -12,7 +12,7 @@ impl MultiByteBoundaryAwareString {
     pub fn new(s: String) -> Self {
         let intermediate = s.chars().enumerate().fold(
             // page fault, do not copy nor give dummy value to be copied (dummy zeroing does not have effect)
-            (Utf8CharBoundaryStartByte(0), Vec::with_capacity(s.len() + 1)),
+            (Utf8CharBoundaryStartByte(0), Vec::with_capacity(s.chars().count())),
             |(char_position_as_bytes, mut acc), (n, c)| {
                 let char_byte_width = c.len_utf8();
                 // SAFETY: len_utf8 always return 1..=4; u8 can hold all values, so this will always succeed.
