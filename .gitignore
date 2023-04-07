@@ -1,3 +1,11 @@
 /target
 .idea
 *.iml
+
+# cargo-flamegraph related things
+flamegraph.svg
+perf.data
+perf.data.old
+
+# please give it proper name
+a.out
