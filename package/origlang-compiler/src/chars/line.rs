@@ -1,12 +1,12 @@
 use thiserror::Error;
 use origlang_ast::SourcePos;
-use crate::chars::boundary::PositionInChars;
+use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::chars::occurrence::OccurrenceSet;
 
 pub struct LineComputation;
 
 impl LineComputation {
-    pub fn compute(future_index: PositionInChars, new_line_occurrences: &OccurrenceSet<PositionInChars>) -> Result<SourcePos, LineComputationError> {
+    pub fn compute(future_index: Utf8CharBoundaryStartByte, new_line_occurrences: &OccurrenceSet<Utf8CharBoundaryStartByte>) -> Result<SourcePos, LineComputationError> {
         /*
         // This may be an error, however this snippet leads to infinite loop.
         if new_line_occurrences.contains(&future_index) {
@@ -21,14 +21,14 @@ impl LineComputation {
             // if future_index is still on first line, there's no such occurrence - substitute
             // this value with zero to leave future_index as is.
             .copied()
-            .unwrap_or(PositionInChars::new(0));
+            .unwrap_or(Utf8CharBoundaryStartByte::new(0));
 
         assert!(future_index >= most_recent_new_line_occurrence_codepoint, "{future_index:?} >= {most_recent_new_line_occurrence_codepoint:?}");
-        let future_line_column = future_index - most_recent_new_line_occurrence_codepoint;
+        let future_line_column = future_index.as_usize() - most_recent_new_line_occurrence_codepoint.as_usize();
 
         Ok(SourcePos {
             line: future_line.try_into().map_err(|_| LineComputationError::LineIsZero)?,
-            column: future_line_column.as_usize().try_into().map_err(|_| LineComputationError::ColumnIsZero)?,
+            column: future_line_column.try_into().map_err(|_| LineComputationError::ColumnIsZero)?,
         })
     }
 }
@@ -46,14 +46,14 @@ pub enum LineComputationError {
 #[cfg(test)]
 mod tests {
     use origlang_ast::SourcePos;
-    use crate::chars::boundary::PositionInChars;
+    use crate::chars::boundary::Utf8CharBoundaryStartByte;
     use crate::chars::line::LineComputation;
     use crate::chars::occurrence::OccurrenceSet;
 
     #[test]
     fn no_newline() {
         assert_eq!(
-            LineComputation::compute(PositionInChars::new(12), &OccurrenceSet::default()),
+            LineComputation::compute(Utf8CharBoundaryStartByte::new(12), &OccurrenceSet::default()),
             Ok(SourcePos {
                 line: 1.try_into().unwrap(),
                 column: 12.try_into().unwrap(),
@@ -64,8 +64,8 @@ mod tests {
     #[test]
     fn single_newline_pre() {
         assert_eq!(
-            LineComputation::compute(PositionInChars::new(1), &OccurrenceSet::new(
-                vec![PositionInChars::new(100)]
+            LineComputation::compute(Utf8CharBoundaryStartByte::new(1), &OccurrenceSet::new(
+                vec![Utf8CharBoundaryStartByte::new(100)]
             ).unwrap()),
             Ok(SourcePos {
                 line: 1.try_into().unwrap(),
@@ -77,8 +77,8 @@ mod tests {
     #[test]
     fn single_newline_pre_99() {
         assert_eq!(
-            LineComputation::compute(PositionInChars::new(99), &OccurrenceSet::new(
-                vec![PositionInChars::new(100)]
+            LineComputation::compute(Utf8CharBoundaryStartByte::new(99), &OccurrenceSet::new(
+                vec![Utf8CharBoundaryStartByte::new(100)]
             ).unwrap()),
             Ok(SourcePos {
                 line: 1.try_into().unwrap(),
@@ -90,8 +90,8 @@ mod tests {
     #[test]
     fn single_newline_post() {
         assert_eq!(
-            LineComputation::compute(PositionInChars::new(101), &OccurrenceSet::new(
-                vec![PositionInChars::new(100)]
+            LineComputation::compute(Utf8CharBoundaryStartByte::new(101), &OccurrenceSet::new(
+                vec![Utf8CharBoundaryStartByte::new(100)]
             ).unwrap()),
             Ok(SourcePos {
                 line: 2.try_into().unwrap(),
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn single_newline_point_is_error() {
         assert_eq!(
-            LineComputation::compute(PositionInChars::new(100), &OccurrenceSet::new(vec![PositionInChars::new(100)]).unwrap()),
+            LineComputation::compute(Utf8CharBoundaryStartByte::new(100), &OccurrenceSet::new(vec![Utf8CharBoundaryStartByte::new(100)]).unwrap()),
             Ok(SourcePos {
                 line: 1.try_into().unwrap(),
                 column: 100.try_into().unwrap(),

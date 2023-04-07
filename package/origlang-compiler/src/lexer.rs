@@ -6,7 +6,7 @@ use log::{debug, trace, warn};
 use thiserror::Error;
 use origlang_ast::{Comment, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
-use crate::chars::boundary::{MultiByteBoundaryAwareString, PositionInChars, PositionStepBetweenChars, Utf8CharBoundaryStartByte};
+use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
 
@@ -20,7 +20,7 @@ pub enum LexerError {
     InvalidSuffix,
     #[error("Internal compiler error: lexer index overflow: {current:?} > {max}")]
     OutOfRange {
-        current: PositionInChars,
+        current: Utf8CharBoundaryStartByte,
         max: usize,
     },
     #[error("Unclosed string literal was found")]
@@ -43,11 +43,11 @@ impl<T> AssociateWithPos for T {
 // FIXME: 行番号、列番号がおかしい
 #[derive(Debug)]
 pub struct Lexer {
-    source_index_nth: Cell<PositionInChars>,
-    source: MultiByteBoundaryAwareString,
+    source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
+    source: String,
     current_line: Cell<NonZeroUsize>,
     current_column: Cell<NonZeroUsize>,
-    newline_codepoint_nth_index: OccurrenceSet<PositionInChars>,
+    newline_codepoint_nth_index: OccurrenceSet<Utf8CharBoundaryStartByte>,
 }
 
 impl Lexer {
@@ -58,9 +58,9 @@ impl Lexer {
             Cow::Borrowed(source)
         };
 
-        let newline_codepoint_nth_index = src.chars().enumerate()
-            .filter(|(_, x)| *x == '\n')
-            .map(|(i, _)| PositionInChars::new(i))
+        let newline_codepoint_nth_index = src.bytes().enumerate()
+            .filter(|(_, x)| *x == b'\n')
+            .map(|(i, _)| Utf8CharBoundaryStartByte::new(i))
             .collect::<Vec<_>>();
 
         // SAFETY: inner value has sorted, because:
@@ -70,7 +70,7 @@ impl Lexer {
         };
 
         Self {
-            source_index_nth: Cell::new(PositionInChars::new(0)),
+            source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             current_line: Cell::new(
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
@@ -79,7 +79,7 @@ impl Lexer {
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
             ),
-            source: MultiByteBoundaryAwareString::new(src.to_string()),
+            source: src.to_string(),
             newline_codepoint_nth_index
         }
     }
@@ -259,7 +259,8 @@ impl Lexer {
             })
             // dont eager evaluate
             .unwrap_or_else(|| Token::UnexpectedChar {
-                index: self.source_index_nth.get(),
+                // TODO: this is cold path, so may convert boundary to char_nth.
+                index: self.source_bytes_nth.get(),
                 char: self.current_char().expect("unexpected_char"),
             });
         Ok(v)
@@ -367,13 +368,17 @@ impl Lexer {
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
         debug!("lexer:lit:string");
-        let current_chars_nth = self.source_index_nth.get();
+        let current_chars_nth = self.source_bytes_nth.get();
         // this search is exact at this point.
         // However, once we introduce escape sequence or another delimiter for string literal,
         // this code is likely to needed to be rewritten.
-        let skip_byte_in_utf8 = self.source[current_chars_nth..]
+        // TODO: can we avoid this iterator?
+        let skip_byte_in_utf8 = self.source.as_bytes()[current_chars_nth.as_usize()..]
             // NB: call to find(char) yields CharBoundaryStartByte, not PositionInChars.
-            .find('"')
+            .iter()
+            .enumerate()
+            .find(|(_, x)| **x == b'"')
+            .map(|(i, _)| i)
             .map(Utf8CharBoundaryStartByte::new);
 
         let Some(skip_byte_in_utf8) = skip_byte_in_utf8 else {
@@ -381,18 +386,15 @@ impl Lexer {
         };
 
         let mut string_char_literal_content = {
-            let (base_boundary, _) = self.source.boundaries()
-                .nth(self.source_index_nth.get().as_usize()).expect("overflow");
-            let found_boundary_nth = self.source
-                .boundary_to_char_position(Utf8CharBoundaryStartByte::new(base_boundary.as_usize() + skip_byte_in_utf8.as_usize()))
-                .unwrap_or_else(|| panic!("char boundary could not be found: {skip_byte_in_utf8:?}"));
+            // the starting quote is handled in `next_inner`, so this boundary is either first
+            // char in the literal, or ending quote.
+            let maybe_first_char_boundary = self.source_bytes_nth.get();
+            let quote_end_boundary = Utf8CharBoundaryStartByte::new(maybe_first_char_boundary.as_usize() + skip_byte_in_utf8.as_usize());
 
             // assert!(found_boundary_nth >= current_chars_nth, "{found_boundary_nth:?} >= {current_chars_nth:?}");
-            let skip_chars = found_boundary_nth - current_chars_nth;
 
-            let new_char_nth = current_chars_nth + skip_chars;
-            let s = &self.source[current_chars_nth..new_char_nth];
-            self.source_index_nth.set(new_char_nth);
+            let s = &self.source[(maybe_first_char_boundary.as_usize())..(quote_end_boundary.as_usize())];
+            self.source_bytes_nth.set(quote_end_boundary);
             s.to_string()
         };
 
@@ -414,13 +416,16 @@ impl Lexer {
     }
 
     #[inline(never)]
-    fn set_current_index(&self, future_index: PositionInChars) -> Result<(), LineComputationError> {
+    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
         // trace!("set index to: {future_index}");
         let SourcePos { line, column } =
-            LineComputation::compute(future_index + PositionStepBetweenChars::new(1), &self.newline_codepoint_nth_index)?;
+            LineComputation::compute(
+                Utf8CharBoundaryStartByte::new(future_index.as_usize() + 1),
+                &self.newline_codepoint_nth_index
+            )?;
 
         trace!("compute: {line}:{column}");
-        self.source_index_nth.set(future_index);
+        self.source_bytes_nth.set(future_index);
         self.current_line.set(line);
         self.current_column.set(column);
 
@@ -440,7 +445,7 @@ impl Lexer {
     /// Get n-step away token without consume it.
     pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
         debug!("peek_n:{advance_step}");
-        let to_rollback = self.source_index_nth.get();
+        let to_rollback = self.source_bytes_nth.get();
         if advance_step == 0 {
             let token = self.next();
             self.set_current_index(to_rollback).map_err(|e| {
@@ -465,11 +470,40 @@ impl Lexer {
         self.peek_n(1)
     }
 
+    fn current_char_stride(&self) -> Result<Utf8CharStride, LexerError> {
+        let current_boundary = self.source_bytes_nth.get();
+        let index = current_boundary.as_usize();
+        let heading_byte = self.source.as_bytes()[index];
+
+        let stride = if heading_byte <= 0x7F {
+            Utf8CharStride::One
+        } else if heading_byte & 0b1110_0000 == 0b1110_0000 {
+            Utf8CharStride::Four
+        } else if heading_byte & 0b1100_0000 == 0b1100_0000 {
+            Utf8CharStride::Three
+        } else if heading_byte & 0b1000_0000 == 0b1000_0000 {
+            Utf8CharStride::Four
+        } else {
+            // TODO: convert this into LexerError
+            panic!("You have broken UTF-8 (lexer index is pointing continuation byte), or our fatal. Invalid index: {index}")
+        };
+
+        Ok(stride)
+    }
+
     fn current_char(&self) -> Result<char, LexerError> {
-        self.source.nth_char(self.source_index_nth.get()).ok_or_else(|| LexerError::OutOfRange {
-            current: self.source_index_nth.get(),
-            max: self.source.count_char(),
-        })
+        let current_boundary = self.source_bytes_nth.get();
+        let index = current_boundary.as_usize();
+        let stride = self.current_char_stride()?;
+
+        let c = self.source[index..(index + stride.as_usize())].chars().next().ok_or(LexerError::OutOfRange {
+            current: current_boundary,
+            // bytes in UTF-8
+            max: self.source.len(),
+        })?;
+
+
+        Ok(c)
     }
 
     pub(crate) fn consume_char(&self) -> Result<char, LexerError> {
@@ -481,12 +515,13 @@ impl Lexer {
 
     fn reached_end(&self) -> bool {
         // <&str>::len() yields length of BYTES, not CHARS
-        self.source_index_nth.get().as_usize() >= self.source.count_char()
+        self.source_bytes_nth.get().as_usize() >= self.source.len()
     }
 
     fn advance(&self) {
         trace!("lexer:advance");
-        self.set_current_index(self.source_index_nth.get() + PositionStepBetweenChars::new(1)).map_err(|e| {
+        let new = Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + self.current_char_stride().unwrap().as_usize());
+        self.set_current_index(new).map_err(|e| {
             warn!("discarding error: {e}");
         }).unwrap_or_default();
     }
@@ -508,18 +543,18 @@ impl Lexer {
 
     fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken {
-            unwind_index: self.source_index_nth.get()
+            unwind_index: self.source_bytes_nth.get()
         }
     }
 }
 
 struct TemporalLexerUnwindToken {
-    unwind_index: PositionInChars,
+    unwind_index: Utf8CharBoundaryStartByte,
 }
 
 impl TemporalLexerUnwindToken {
     fn reset(self, lexer: &Lexer) {
-        lexer.source_index_nth.set(self.unwind_index);
+        lexer.source_bytes_nth.set(self.unwind_index);
     }
 }
 
@@ -533,7 +568,7 @@ pub enum Token {
         suffix: Option<Box<str>>
     },
     UnexpectedChar {
-        index: PositionInChars,
+        index: Utf8CharBoundaryStartByte,
         char: char,
     },
     EndOfFile,
