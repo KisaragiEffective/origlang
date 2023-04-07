@@ -368,20 +368,38 @@ impl Lexer {
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
         debug!("lexer:lit:string");
-        let current_chars_nth = self.source_bytes_nth.get();
+        fn calc_skip_byte_in_utf8(start: Utf8CharBoundaryStartByte, source: &str) -> Option<Utf8CharBoundaryStartByte> {
+            // well, at least, this code accesses memory to sequential order.
+            let sub_slice = &source.as_bytes()[start.as_usize()..];
+            const BATCH_SIZE: usize = 32;
+            for step in 0..(sub_slice.len() / BATCH_SIZE) {
+                let offset = step * BATCH_SIZE;
+                let chunk = &sub_slice[offset..(offset + BATCH_SIZE)];
+                for sub_offset in 0..BATCH_SIZE {
+                    if chunk[sub_offset] == b'"' {
+                        return Some(Utf8CharBoundaryStartByte::new(offset + sub_offset))
+                    }
+                }
+            }
+
+            let last_offset = sub_slice.len() / BATCH_SIZE * BATCH_SIZE;
+            let last_byte = sub_slice.len();
+
+            #[allow(clippy::needless_range_loop)]
+            for offset in last_offset..last_byte {
+                if sub_slice[offset] == b'"' {
+                    return Some(Utf8CharBoundaryStartByte::new(offset));
+                }
+            }
+
+            None
+        }
+
         // this search is exact at this point.
         // However, once we introduce escape sequence or another delimiter for string literal,
         // this code is likely to needed to be rewritten.
-        // TODO: can we avoid this iterator?
-        let skip_byte_in_utf8 = self.source.as_bytes()[current_chars_nth.as_usize()..]
-            // NB: call to find(char) yields CharBoundaryStartByte, not PositionInChars.
-            .iter()
-            .enumerate()
-            .find(|(_, x)| **x == b'"')
-            .map(|(i, _)| i)
-            .map(Utf8CharBoundaryStartByte::new);
 
-        let Some(skip_byte_in_utf8) = skip_byte_in_utf8 else {
+        let Some(skip_byte_in_utf8) = calc_skip_byte_in_utf8(self.source_bytes_nth.get(), &self.source) else {
             return Err(LexerError::UnclosedStringLiteral)
         };
 
