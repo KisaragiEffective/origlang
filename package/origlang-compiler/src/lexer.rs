@@ -27,16 +27,6 @@ pub enum LexerError {
     UnclosedStringLiteral,
 }
 
-// FIXME: 行番号、列番号がおかしい
-#[derive(Debug)]
-pub struct Lexer {
-    source_index_nth: Cell<PositionInChars>,
-    source: MultiByteBoundaryAwareString,
-    current_line: Cell<NonZeroUsize>,
-    current_column: Cell<NonZeroUsize>,
-    newline_codepoint_nth_index: OccurrenceSet<PositionInChars>,
-}
-
 trait AssociateWithPos {
     fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
 }
@@ -48,6 +38,16 @@ impl<T> AssociateWithPos for T {
             data: self
         }
     }
+}
+
+// FIXME: 行番号、列番号がおかしい
+#[derive(Debug)]
+pub struct Lexer {
+    source_index_nth: Cell<PositionInChars>,
+    source: MultiByteBoundaryAwareString,
+    current_line: Cell<NonZeroUsize>,
+    current_column: Cell<NonZeroUsize>,
+    newline_codepoint_nth_index: OccurrenceSet<PositionInChars>,
 }
 
 impl Lexer {
