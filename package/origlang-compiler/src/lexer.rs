@@ -6,6 +6,9 @@ use log::{debug, trace, warn};
 use thiserror::Error;
 use origlang_ast::{Comment, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
+use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
+use crate::chars::line::{LineComputation, LineComputationError};
+use crate::chars::occurrence::OccurrenceSet;
 
 static KEYWORDS: [&str; 10] =
     ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end"];
@@ -15,151 +18,13 @@ static KEYWORDS: [&str; 10] =
 pub enum LexerError {
     #[error("Invalid suffix for integer literal. Supported suffixes are [`i8`, `i16`, `i32`, `i64`]")]
     InvalidSuffix,
-    #[error("Internal compiler error: lexer index overflow: {current} > {max}")]
+    #[error("Internal compiler error: lexer index overflow: {current:?} > {max}")]
     OutOfRange {
-        current: usize,
+        current: Utf8CharBoundaryStartByte,
         max: usize,
-    }
-}
-
-#[derive(Clone, Eq, PartialEq, Debug, Hash, Default)]
-struct OccurrenceSet<T: Ord>(Vec<T>);
-
-impl OccurrenceSet<usize> {
-    fn new(v: Vec<usize>) -> Option<Self> {
-        if v.len() <= 1 {
-            Some(Self(v))
-        } else {
-            if Self::invariant_was_satisfied(&v) {
-                // SAFETY: we've checked precondition.
-                unsafe {
-                    Some(Self::new_unchecked(v))
-                }
-            } else {
-                None
-            }
-        }
-    }
-
-    const fn invariant_was_satisfied(v: &[usize]) -> bool {
-        if v.len() <= 1 {
-            return true
-        }
-
-        Self::invariant_was_satisfied_inner(0, v)
-    }
-
-    const fn invariant_was_satisfied_inner(start: usize, p: &[usize]) -> bool {
-        if start == p.len() - 2 - 1 {
-            true
-        } else {
-            if p[start] < p[start + 1] {
-                Self::invariant_was_satisfied_inner(start + 1, p)
-            } else {
-                false
-            }
-        }
-    }
-
-    unsafe fn new_unchecked(v: Vec<usize>) -> Self {
-        assert!(Self::invariant_was_satisfied(&v), "invariant was violated");
-
-        Self(v)
-    }
-
-    fn count_lowers_exclusive(&self, upper: usize) -> usize {
-        let mut i = 0;
-        let values: &[usize] = &self.0;
-        let mut run_rest = true;
-        if values.len() >= 6400 {
-            // if values are too many to being cached in L1 storage,
-            // switch strategy to binary_search.
-            return values.binary_search(&upper).map_or_else(|x| x, |x| x);
-        } else if values.len() >= 8 {
-            while i < values.len() - 8 {
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v1 = unsafe { *values.get_unchecked(i) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v2 = unsafe { *values.get_unchecked(i + 1) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v3 = unsafe { *values.get_unchecked(i + 2) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v4 = unsafe { *values.get_unchecked(i + 3) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v5 = unsafe { *values.get_unchecked(i + 4) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v6 = unsafe { *values.get_unchecked(i + 5) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v7 = unsafe { *values.get_unchecked(i + 6) };
-                // SAFETY: above condition ensures that no OOB-reads happen.
-                let v8 = unsafe { *values.get_unchecked(i + 7) };
-
-
-                if v8 < upper {
-                    // let CPU to guess what is going on, manual _mm_prefetch is inefficient
-                    i += 8;
-                } else {
-                    // v8 >= upper
-                    // partition point must be in v1..v8
-                    if v8 < upper {
-                        i += 8;
-                    } else if v7 < upper {
-                        i += 7;
-                    } else if v6 < upper {
-                        i += 6;
-                    } else if v5 < upper {
-                        i += 5;
-                    } else if v4 < upper {
-                        i += 4;
-                    } else if v3 < upper {
-                        i += 3;
-                    } else if v2 < upper {
-                        i += 2;
-                    } else if v1 < upper {
-                        i += 1;
-                    }
-
-                    run_rest = false;
-                    break
-                }
-            }
-        }
-
-        if run_rest {
-            let j = i;
-            for x in &values[j..] {
-                if *x < upper {
-                    i += 1;
-                }
-            }
-        }
-
-        i
-    }
-
-    fn max_upper_bounded_exclusive(&self, upper: usize) -> Option<usize> {
-        let values: &[usize] = &self.0;
-
-        let k = self.count_lowers_exclusive(upper);
-        if k == 0 {
-            None
-        } else {
-            Some(*values.get(k - 1).expect("!"))
-        }
-    }
-}
-
-type SortedSet<T> = OccurrenceSet<T>;
-
-// FIXME: 行番号、列番号がおかしい
-#[derive(Debug)]
-pub struct Lexer {
-    current_index: Cell<usize>,
-    current_source: String,
-    current_line: Cell<NonZeroUsize>,
-    current_column: Cell<NonZeroUsize>,
-    newline_codepoint_nth_index: SortedSet<usize>,
-    char_cache: Vec<char>,
+    },
+    #[error("Unclosed string literal was found")]
+    UnclosedStringLiteral,
 }
 
 trait AssociateWithPos {
@@ -175,6 +40,16 @@ impl<T> AssociateWithPos for T {
     }
 }
 
+// FIXME: 行番号、列番号がおかしい
+#[derive(Debug)]
+pub struct Lexer {
+    source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
+    source: String,
+    current_line: Cell<NonZeroUsize>,
+    current_column: Cell<NonZeroUsize>,
+    newline_codepoint_nth_index: OccurrenceSet<Utf8CharBoundaryStartByte>,
+}
+
 impl Lexer {
     pub fn create(source: &str) -> Self {
         let src: Cow<'_, str> = if cfg!(windows) {
@@ -183,8 +58,9 @@ impl Lexer {
             Cow::Borrowed(source)
         };
 
-        let newline_codepoint_nth_index = src.char_indices()
-            .filter(|(_, x)| *x == '\n').map(|(i, _)| i)
+        let newline_codepoint_nth_index = src.bytes().enumerate()
+            .filter(|(_, x)| *x == b'\n')
+            .map(|(i, _)| Utf8CharBoundaryStartByte::new(i))
             .collect::<Vec<_>>();
 
         // SAFETY: inner value has sorted, because:
@@ -194,10 +70,7 @@ impl Lexer {
         };
 
         Self {
-            newline_codepoint_nth_index,
-            char_cache: src.chars().collect(),
-            current_source: src.to_string(),
-            current_index: Cell::new(0),
+            source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             current_line: Cell::new(
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
@@ -206,6 +79,8 @@ impl Lexer {
                 // SAFETY: 1 != 0
                 unsafe { NonZeroUsize::new_unchecked(1) }
             ),
+            source: src.to_string(),
+            newline_codepoint_nth_index
         }
     }
 
@@ -216,7 +91,7 @@ impl Lexer {
     }
 
     fn try_char(&self, t: char) -> Result<Option<char>, LexerError> {
-        trace!("lexer:try:{t}");
+        trace!("lexer:try:{t:?}");
         if !self.reached_end() && self.current_char()? == t {
             self.consume_char()?;
             Ok(Some(t))
@@ -384,7 +259,8 @@ impl Lexer {
             })
             // dont eager evaluate
             .unwrap_or_else(|| Token::UnexpectedChar {
-                index: self.current_index.get(),
+                // TODO: this is cold path, so may convert boundary to char_nth.
+                index: self.source_bytes_nth.get(),
                 char: self.current_char().expect("unexpected_char"),
             });
         Ok(v)
@@ -492,23 +368,54 @@ impl Lexer {
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
         debug!("lexer:lit:string");
-        let head = self.current_index.get();
-        let preallocate_len = self.char_cache[head..].iter().enumerate().find(|(_, c)| **c == '"').map(|x| x.0);
-        let mut buf = if let Some(pre_alloc) = preallocate_len {
-            let mut buf = String::with_capacity(preallocate_len.unwrap_or(65535));
-            let next = head + pre_alloc;
-            {
-                let mut s = String::with_capacity(pre_alloc);
-                for c in &self.char_cache[head..next] {
-                    s.push(*c)
+        fn calc_skip_byte_in_utf8(start: Utf8CharBoundaryStartByte, source: &str) -> Option<Utf8CharBoundaryStartByte> {
+            // well, at least, this code accesses memory to sequential order.
+            let sub_slice = &source.as_bytes()[start.as_usize()..];
+            const BATCH_SIZE: usize = 32;
+            for step in 0..(sub_slice.len() / BATCH_SIZE) {
+                let offset = step * BATCH_SIZE;
+                let chunk = &sub_slice[offset..(offset + BATCH_SIZE)];
+                for sub_offset in 0..BATCH_SIZE {
+                    if chunk[sub_offset] == b'"' {
+                        return Some(Utf8CharBoundaryStartByte::new(offset + sub_offset))
+                    }
                 }
-                buf.push_str(&s);
             }
-            self.current_index.set(next);
-            buf
-        } else {
-            String::new()
+
+            let last_offset = sub_slice.len() / BATCH_SIZE * BATCH_SIZE;
+            let last_byte = sub_slice.len();
+
+            #[allow(clippy::needless_range_loop)]
+            for offset in last_offset..last_byte {
+                if sub_slice[offset] == b'"' {
+                    return Some(Utf8CharBoundaryStartByte::new(offset));
+                }
+            }
+
+            None
+        }
+
+        // this search is exact at this point.
+        // However, once we introduce escape sequence or another delimiter for string literal,
+        // this code is likely to needed to be rewritten.
+
+        let Some(skip_byte_in_utf8) = calc_skip_byte_in_utf8(self.source_bytes_nth.get(), &self.source) else {
+            return Err(LexerError::UnclosedStringLiteral)
         };
+
+        let mut string_char_literal_content = {
+            // the starting quote is handled in `next_inner`, so this boundary is either first
+            // char in the literal, or ending quote.
+            let maybe_first_char_boundary = self.source_bytes_nth.get();
+            let quote_end_boundary = Utf8CharBoundaryStartByte::new(maybe_first_char_boundary.as_usize() + skip_byte_in_utf8.as_usize());
+
+            // assert!(found_boundary_nth >= current_chars_nth, "{found_boundary_nth:?} >= {current_chars_nth:?}");
+
+            let s = &self.source[(maybe_first_char_boundary.as_usize())..(quote_end_boundary.as_usize())];
+            self.source_bytes_nth.set(quote_end_boundary);
+            s.to_string()
+        };
+
         loop {
             if self.reached_end() {
                 break
@@ -521,19 +428,22 @@ impl Lexer {
                 break
             }
             let c = self.consume_char()?;
-            buf.push(c);
+            string_char_literal_content.push(c);
         }
-        Ok(Token::StringLiteral(buf))
+        Ok(Token::StringLiteral(string_char_literal_content))
     }
 
     #[inline(never)]
-    fn set_current_index(&self, future_index: usize) -> Result<(), LineComputationError> {
+    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
         // trace!("set index to: {future_index}");
         let SourcePos { line, column } =
-            LineComputation::compute(future_index + 1, &self.newline_codepoint_nth_index)?;
+            LineComputation::compute(
+                Utf8CharBoundaryStartByte::new(future_index.as_usize() + 1),
+                &self.newline_codepoint_nth_index
+            )?;
 
-        // trace!("compute: {line}:{column}");
-        self.current_index.set(future_index);
+        trace!("compute: {line}:{column}");
+        self.source_bytes_nth.set(future_index);
         self.current_line.set(line);
         self.current_column.set(column);
 
@@ -553,7 +463,7 @@ impl Lexer {
     /// Get n-step away token without consume it.
     pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
         debug!("peek_n:{advance_step}");
-        let to_rollback = self.current_index.get();
+        let to_rollback = self.source_bytes_nth.get();
         if advance_step == 0 {
             let token = self.next();
             self.set_current_index(to_rollback).map_err(|e| {
@@ -578,16 +488,40 @@ impl Lexer {
         self.peek_n(1)
     }
 
+    fn current_char_stride(&self) -> Result<Utf8CharStride, LexerError> {
+        let current_boundary = self.source_bytes_nth.get();
+        let index = current_boundary.as_usize();
+        let heading_byte = self.source.as_bytes()[index];
+
+        let stride = if heading_byte <= 0x7F {
+            Utf8CharStride::One
+        } else if heading_byte & 0b1110_0000 == 0b1110_0000 {
+            Utf8CharStride::Four
+        } else if heading_byte & 0b1100_0000 == 0b1100_0000 {
+            Utf8CharStride::Three
+        } else if heading_byte & 0b1000_0000 == 0b1000_0000 {
+            Utf8CharStride::Four
+        } else {
+            // TODO: convert this into LexerError
+            panic!("You have broken UTF-8 (lexer index is pointing continuation byte), or our fatal. Invalid index: {index}")
+        };
+
+        Ok(stride)
+    }
+
     fn current_char(&self) -> Result<char, LexerError> {
-        self.char_cache
-            .get(self.current_index.get())
-            .ok_or_else(||
-                LexerError::OutOfRange {
-                    current: self.current_index.get(),
-                    max: self.current_source.len(),
-                }
-            )
-            .map(|x| *x)
+        let current_boundary = self.source_bytes_nth.get();
+        let index = current_boundary.as_usize();
+        let stride = self.current_char_stride()?;
+
+        let c = self.source[index..(index + stride.as_usize())].chars().next().ok_or(LexerError::OutOfRange {
+            current: current_boundary,
+            // bytes in UTF-8
+            max: self.source.len(),
+        })?;
+
+
+        Ok(c)
     }
 
     pub(crate) fn consume_char(&self) -> Result<char, LexerError> {
@@ -598,12 +532,14 @@ impl Lexer {
     }
 
     fn reached_end(&self) -> bool {
-        self.current_index.get() >= self.current_source.len()
+        // <&str>::len() yields length of BYTES, not CHARS
+        self.source_bytes_nth.get().as_usize() >= self.source.len()
     }
 
     fn advance(&self) {
         trace!("lexer:advance");
-        self.set_current_index(self.current_index.get() + 1).map_err(|e| {
+        let new = Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + self.current_char_stride().unwrap().as_usize());
+        self.set_current_index(new).map_err(|e| {
             warn!("discarding error: {e}");
         }).unwrap_or_default();
     }
@@ -625,119 +561,18 @@ impl Lexer {
 
     fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken {
-            unwind_index: self.current_index.get()
+            unwind_index: self.source_bytes_nth.get()
         }
-    }
-}
-
-struct LineComputation;
-
-impl LineComputation {
-    #[inline(never)]
-    fn compute(future_index: usize, new_line_occurrences: &SortedSet<usize>) -> Result<SourcePos, LineComputationError> {
-        /*
-        // This may be an error, however this snippet leads to infinite loop.
-        if new_line_occurrences.contains(&future_index) {
-            return Err(LineComputationError::PointedOnNewLine)
-        }
-        */
-
-        let future_line = new_line_occurrences.count_lowers_exclusive(future_index) + 1;
-
-        let most_recent_new_line_occurrence_codepoint: usize = new_line_occurrences
-            .max_upper_bounded_exclusive(future_index)
-            // if future_index is still on first line, there's no such occurrence - substitute
-            // this value with zero to leave future_index as is.
-            .unwrap_or(0);
-
-        assert!(future_index >= most_recent_new_line_occurrence_codepoint, "{future_index} >= {most_recent_new_line_occurrence_codepoint}");
-        let future_line_column = future_index - most_recent_new_line_occurrence_codepoint;
-
-        Ok(SourcePos {
-            line: future_line.try_into().map_err(|_| LineComputationError::LineIsZero)?,
-            column: future_line_column.try_into().map_err(|_| LineComputationError::ColumnIsZero)?,
-        })
-    }
-}
-
-#[derive(Error, Debug, Eq, PartialEq, Copy, Clone)]
-enum LineComputationError {
-    #[error("the index pointed on newline")]
-    PointedOnNewLine,
-    #[error("line number is zero")]
-    LineIsZero,
-    #[error("column number is zero")]
-    ColumnIsZero,
-}
-
-#[cfg(test)]
-mod tests {
-    use origlang_ast::SourcePos;
-    use crate::lexer::{LineComputation, LineComputationError, SortedSet, OccurrenceSet};
-
-    #[test]
-    fn no_newline() {
-        assert_eq!(
-            LineComputation::compute(12, &SortedSet::default()),
-            Ok(SourcePos {
-                line: 1.try_into().unwrap(),
-                column: 12.try_into().unwrap(),
-            })
-        );
-    }
-
-    #[test]
-    fn single_newline_pre() {
-        assert_eq!(
-            LineComputation::compute(1, &OccurrenceSet::new(vec![100]).unwrap()),
-            Ok(SourcePos {
-                line: 1.try_into().unwrap(),
-                column: 1.try_into().unwrap(),
-            })
-        )
-    }
-
-    #[test]
-    fn single_newline_pre_99() {
-        assert_eq!(
-            LineComputation::compute(99, &OccurrenceSet::new(vec![100]).unwrap()),
-            Ok(SourcePos {
-                line: 1.try_into().unwrap(),
-                column: 99.try_into().unwrap(),
-            })
-        )
-    }
-
-    #[test]
-    fn single_newline_post() {
-        assert_eq!(
-            LineComputation::compute(101, &OccurrenceSet::new(vec![100]).unwrap()),
-            Ok(SourcePos {
-                line: 2.try_into().unwrap(),
-                column: 1.try_into().unwrap(),
-            })
-        )
-    }
-
-    #[test]
-    fn single_newline_point_is_error() {
-        assert_eq!(
-            LineComputation::compute(100, &OccurrenceSet::new(vec![100]).unwrap()),
-            Ok(SourcePos {
-                line: 1.try_into().unwrap(),
-                column: 100.try_into().unwrap(),
-            })
-        )
     }
 }
 
 struct TemporalLexerUnwindToken {
-    unwind_index: usize,
+    unwind_index: Utf8CharBoundaryStartByte,
 }
 
 impl TemporalLexerUnwindToken {
     fn reset(self, lexer: &Lexer) {
-        lexer.current_index.set(self.unwind_index);
+        lexer.source_bytes_nth.set(self.unwind_index);
     }
 }
 
@@ -751,7 +586,7 @@ pub enum Token {
         suffix: Option<Box<str>>
     },
     UnexpectedChar {
-        index: usize,
+        index: Utf8CharBoundaryStartByte,
         char: char,
     },
     EndOfFile,
@@ -870,5 +705,102 @@ pub struct DisplayToken(&'static str);
 impl Display for DisplayToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lexer::{Lexer, Token};
+
+    fn test(str_lit: &str) {
+        let src = format!("var x = \"{str_lit}\"\n");
+        let p = Lexer::create(&src);
+
+        assert_eq!(p.next().data, Token::VarKeyword);
+        assert_eq!(p.next().data, Token::Identifier {
+            inner: "x".to_string(),
+        });
+        assert_eq!(p.next().data, Token::SymEq);
+        assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string()));
+    }
+
+    #[test]
+    fn parse_string_literal_ascii() {
+        test("123456")
+    }
+
+    #[test]
+    fn parse_string_literal_empty() {
+        test("")
+    }
+
+    #[test]
+    fn parse_string_literal_two_bytes() {
+        test("\u{80}")
+    }
+
+    #[test]
+    fn parse_string_literal_three_bytes() {
+        test("\u{800}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_1_2() {
+        test("1\u{80}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_1_3() {
+        test("1あ")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_1_4() {
+        test("1\u{10000}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_2_1() {
+        test("\u{80}1")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_2_3() {
+        test("\u{80}あ")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_2_4() {
+        test("\u{80}\u{10000}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_3_1() {
+        test("あ1")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_3_2() {
+        test("あ\u{80}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_3_4() {
+        test("あ\u{10000}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_4_1() {
+        test("\u{10000}1")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_4_2() {
+        test("\u{10000}\u{80}")
+    }
+
+    #[test]
+    fn parse_string_literal_mixed_4_3() {
+        test("\u{10000}あ")
     }
 }
