@@ -1,7 +1,7 @@
 //! パース時の優先順位が消去された構造体の定義
 
 use derive_more::Display;
-use crate::Statement;
+use crate::{Identifier, Statement};
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
@@ -18,7 +18,7 @@ pub enum Expression {
     UnitLiteral,
     /// 変数
     Variable {
-        ident: String
+        ident: Identifier
     },
     /// 四則演算、比較演算、等価性判定
     BinaryOperator {

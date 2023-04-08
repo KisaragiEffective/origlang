@@ -1,5 +1,6 @@
 use thiserror::Error;
 use origlang_ast::after_parse::BinaryOperatorKind;
+use origlang_ast::Identifier;
 use crate::type_check::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
@@ -13,7 +14,7 @@ pub enum TypeCheckError {
         got_rhs: Type,
     },
     #[error("Undefined identifier: {0}")]
-    UndefinedIdentifier(String),
+    UndefinedIdentifier(Identifier),
     #[error("Cannot compare between two different types. lhs: {got_lhs}, rhs: {got_rhs}")]
     UnableToUnifyEqualityQuery {
         operator: BinaryOperatorKind,

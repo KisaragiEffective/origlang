@@ -6,7 +6,7 @@ use derive_more::{Display, From};
 use log::debug;
 use tap::Conv;
 use thiserror::Error;
-use origlang_ast::{RootAst, Statement};
+use origlang_ast::{Identifier, RootAst, Statement};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_typesystem_model::Type;
 
@@ -92,7 +92,7 @@ impl TypeBox {
 
 #[derive(Debug)]
 pub struct Scope {
-    variables: HashMap<String, TypeBox>,
+    variables: HashMap<Identifier, TypeBox>,
 }
 
 impl Scope {
@@ -144,7 +144,7 @@ impl<T: (Fn() -> TypeBox) + Debug> DebuggableTrait for T {}
 pub enum EffectDescriptor<'cls> {
     Output(#[derivative(Debug="ignore")] Box<dyn (Fn() -> TypeBox) + 'cls>),
     UpdateVariable {
-        ident: String,
+        ident: Identifier,
         #[derivative(Debug="ignore")]
         value: Box<dyn (Fn() -> TypeBox) + 'cls>,
     },
@@ -250,12 +250,12 @@ impl Runtime {
         self.scopes.borrow_mut().pop_front().expect("scope must not be empty");
     }
 
-    fn search_member(&self, identifier: &str) -> Option<TypeBox> {
+    fn search_member(&self, identifier: &Identifier) -> Option<TypeBox> {
         let x = self.scopes.borrow();
         x.iter().find_map(|x| x.variables.get(identifier)).cloned()
     }
 
-    fn upsert_member_to_current_scope(&self, identifier: String, value: TypeBox) {
+    fn upsert_member_to_current_scope(&self, identifier: Identifier, value: TypeBox) {
         let mut guard = self.scopes.borrow_mut();
         let current_scope = guard.front_mut().expect("scope must not be empty");
         current_scope.variables.insert(identifier, value);
@@ -267,7 +267,7 @@ impl Runtime {
 pub enum RuntimeError {
     #[error("variable {identifier} is not defined in current scope")]
     UndefinedVariable {
-        identifier: Box<str>,
+        identifier: Identifier,
     },
 }
 
@@ -354,7 +354,7 @@ impl CanBeEvaluated for Expression {
             Self::UnitLiteral => Ok(().into()),
             Self::Variable { ident } => {
                 runtime.search_member(ident)
-                    .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone().into_boxed_str() })
+                    .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone() })
             },
             Self::BinaryOperator { lhs, rhs, operator } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
