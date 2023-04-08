@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
 use log::{debug, trace, warn};
 use thiserror::Error;
-use origlang_ast::{Comment, SourcePos, WithPosition};
+use origlang_ast::{Comment, Identifier, SourcePos, WithPosition};
 use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::chars::line::{LineComputation, LineComputationError};
@@ -248,7 +248,7 @@ impl Lexer {
                                     }
                                 }
                             } else {
-                                Token::Identifier { inner: scan_result }
+                                Token::Identifier { inner: Identifier::new(scan_result) }
                             }
                         };
 
@@ -579,7 +579,7 @@ impl TemporalLexerUnwindToken {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Token {
     Identifier {
-        inner: String,
+        inner: Identifier,
     },
     Digits {
         sequence: String,
@@ -710,6 +710,7 @@ impl Display for DisplayToken {
 
 #[cfg(test)]
 mod tests {
+    use origlang_ast::Identifier;
     use crate::lexer::{Lexer, Token};
 
     fn test(str_lit: &str) {
@@ -718,7 +719,7 @@ mod tests {
 
         assert_eq!(p.next().data, Token::VarKeyword);
         assert_eq!(p.next().data, Token::Identifier {
-            inner: "x".to_string(),
+            inner: Identifier::new("x".to_string()),
         });
         assert_eq!(p.next().data, Token::SymEq);
         assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string()));

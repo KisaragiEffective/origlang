@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter, Write};
 use std::num::NonZeroUsize;
 use derive_more::Display;
 use crate::after_parse::Expression;
@@ -55,11 +56,11 @@ pub enum Statement {
         expression: Expression,
     },
     VariableDeclaration {
-        identifier: String,
+        identifier: Identifier,
         expression: Expression,
     },
     VariableAssignment {
-        identifier: String,
+        identifier: Identifier,
         expression: Expression,
     },
     Block {
@@ -73,4 +74,26 @@ pub enum Statement {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Comment {
     pub content: String
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Hash)]
+pub struct Identifier(String);
+
+impl Identifier {
+    pub fn new(s: String) -> Self {
+        Self(s)
+    }
+
+    pub fn name(self) -> String {
+        self.0
+    }
+
+    pub fn as_name(&self) -> &str {
+        &self.0
+    }
+}
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
 }

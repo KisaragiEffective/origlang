@@ -3,7 +3,7 @@ pub mod error;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_ast::{RootAst, Statement};
+use origlang_ast::{Identifier, RootAst, Statement};
 use origlang_typesystem_model::{TupleDisplay, Type};
 
 use crate::type_check::error::TypeCheckError;
@@ -243,21 +243,21 @@ impl TypeChecker {
 }
 
 pub struct Context {
-    map: HashMap<String, Type>,
+    typed_variables: HashMap<Identifier, Type>,
 }
 
 impl Context {
     pub fn empty() -> Self {
         Self {
-            map: HashMap::new()
+            typed_variables: HashMap::new()
         }
     }
 
-    fn lookup_variable_type(&self, ident: &String) -> Result<Type, TypeCheckError> {
-        self.map.get(ident).cloned().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
+    fn lookup_variable_type(&self, ident: &Identifier) -> Result<Type, TypeCheckError> {
+        self.typed_variables.get(ident).cloned().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
     }
 
-    fn add_variable_type(&mut self, ident: String, tp: Type) {
-        self.map.insert(ident, tp);
+    fn add_variable_type(&mut self, ident: Identifier, tp: Type) {
+        self.typed_variables.insert(ident, tp);
     }
 }
