@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn single_newline_point_is_error() {
+    fn single_newline_point_is_not_an_error() {
         assert_eq!(
             LineComputation::compute(Utf8CharBoundaryStartByte::new(100), &OccurrenceSet::new(vec![Utf8CharBoundaryStartByte::new(100)]).unwrap()),
             Ok(SourcePos {
