@@ -13,6 +13,19 @@ fn is_sorted<T: Ord>(slice: &[T]) -> bool {
 }
 
 impl<T: Ord> OccurrenceSet<T> {
+    pub fn new(v: Vec<T>) -> Option<Self> {
+        if v.len() <= 1 {
+            Some(Self(v))
+        } else if Self::invariant_was_satisfied(&v) {
+            // SAFETY: we've checked precondition.
+            unsafe {
+                Some(Self::new_unchecked(v))
+            }
+        } else {
+            None
+        }
+    }
+
     fn invariant_was_satisfied(v: &[T]) -> bool {
         is_sorted(v)
     }
