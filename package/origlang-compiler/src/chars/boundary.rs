@@ -3,11 +3,11 @@
 pub struct Utf8CharBoundaryStartByte(usize);
 
 impl Utf8CharBoundaryStartByte {
-    pub fn new(byte: usize) -> Self {
+    pub const fn new(byte: usize) -> Self {
         Self(byte)
     }
 
-    pub fn as_usize(&self) -> usize {
+    pub const fn as_usize(self) -> usize {
         self.0
     }
 }
@@ -22,14 +22,14 @@ pub enum Utf8CharStride {
 }
 
 impl Utf8CharStride {
-    pub fn as_usize(&self) -> usize {
-        *self as u8 as usize
+    pub const fn as_usize(self) -> usize {
+        self as u8 as usize
     }
 }
 
 impl From<Utf8CharStride> for u8 {
     fn from(value: Utf8CharStride) -> Self {
-        value as u8
+        value as Self
     }
 }
 

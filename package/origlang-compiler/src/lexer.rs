@@ -25,6 +25,10 @@ pub enum LexerError {
     },
     #[error("Unclosed string literal was found")]
     UnclosedStringLiteral,
+    #[error("Input is malformed UTF-8")]
+    MalformedAsUtf8 {
+        boundary: Utf8CharBoundaryStartByte,
+    },
 }
 
 trait AssociateWithPos {
@@ -51,6 +55,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    #[must_use = "Lexer do nothing unless calling parsing function"]
     pub fn create(source: &str) -> Self {
         let src: Cow<'_, str> = if cfg!(windows) {
             source.replace("\r\n", "\n").into()
@@ -367,16 +372,15 @@ impl Lexer {
     }
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
-        debug!("lexer:lit:string");
         fn calc_skip_byte_in_utf8(start: Utf8CharBoundaryStartByte, source: &str) -> Option<Utf8CharBoundaryStartByte> {
             // well, at least, this code accesses memory to sequential order.
-            let sub_slice = &source.as_bytes()[start.as_usize()..];
             const BATCH_SIZE: usize = 32;
+            let sub_slice = &source.as_bytes()[start.as_usize()..];
             for step in 0..(sub_slice.len() / BATCH_SIZE) {
                 let offset = step * BATCH_SIZE;
                 let chunk = &sub_slice[offset..(offset + BATCH_SIZE)];
-                for sub_offset in 0..BATCH_SIZE {
-                    if chunk[sub_offset] == b'"' {
+                for (sub_offset, b) in chunk.iter().enumerate() {
+                    if *b == b'"' {
                         return Some(Utf8CharBoundaryStartByte::new(offset + sub_offset))
                     }
                 }
@@ -394,6 +398,7 @@ impl Lexer {
 
             None
         }
+        debug!("lexer:lit:string");
 
         // this search is exact at this point.
         // However, once we introduce escape sequence or another delimiter for string literal,
@@ -502,8 +507,9 @@ impl Lexer {
         } else if heading_byte & 0b1000_0000 == 0b1000_0000 {
             Utf8CharStride::Four
         } else {
-            // TODO: convert this into LexerError
-            panic!("You have broken UTF-8 (lexer index is pointing continuation byte), or our fatal. Invalid index: {index}")
+            return Err(LexerError::MalformedAsUtf8 {
+                boundary: current_boundary,
+            })
         };
 
         Ok(stride)
@@ -548,6 +554,8 @@ impl Lexer {
     /// 成功したならパースした値
     /// 失敗したならNoneを返しつつ内部インデックスをこの関数を呼び出したときの値に戻す:
     ///   これによってコパーサがどれだけ壊れていたとしても失敗時にもとのインデックスに戻ることが保証される
+    /// # Errors
+    /// もしfがErrを返したとき、パーサーの位置を戻し、その後fの値を伝播する。
     pub fn parse_fallible<T, E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
         let t = self.create_reset_token();
         match f() {
@@ -559,6 +567,7 @@ impl Lexer {
         }
     }
 
+    #[must_use = "Dropping token do nothing"]
     fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken {
             unwind_index: self.source_bytes_nth.get()
@@ -654,6 +663,7 @@ pub enum Token {
 }
 
 impl Token {
+    #[must_use = "You'd like to call its Display impl"]
     pub const fn display(&self) -> DisplayToken {
         DisplayToken(self.kind0())
     }

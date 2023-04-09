@@ -116,6 +116,7 @@ pub struct Parser {
 }
 
 impl Parser {
+    #[must_use = "Parser do nothing unless calling parsing function"]
     pub fn create(source: &str) -> Self {
         Self {
             lexer: Lexer::create(source)
@@ -124,6 +125,8 @@ impl Parser {
 
     /// プログラムが文の列とみなしてパースを試みる。
     /// 事前条件: プログラム全体が任意個の文として分解できる
+    /// # Errors
+    /// プログラムのパースに失敗したときErr。
     pub fn parse(&self) -> Result<RootAst, SimpleErrorWithPos> {
         let mut statements = vec![];
         while self.lexer.peek().data != Token::EndOfFile {

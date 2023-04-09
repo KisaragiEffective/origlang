@@ -83,14 +83,18 @@ pub struct Comment {
 pub struct Identifier(String);
 
 impl Identifier {
-    pub fn new(s: String) -> Self {
+    #[must_use = "If you don't use it, it will drop entire String"]
+    pub const fn new(s: String) -> Self {
         Self(s)
     }
 
+    #[must_use = "If you don't use it, it will drop entire String"]
+    #[allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/10617
     pub fn name(self) -> String {
         self.0
     }
 
+    #[allow(clippy::must_use_candidate)]
     pub fn as_name(&self) -> &str {
         &self.0
     }

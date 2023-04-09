@@ -9,7 +9,7 @@ use crate::task::interpret::Interpret;
 use crate::task::lexer_dump::LexerDump;
 use crate::task::repl::Repl;
 use crate::task::Task;
-use crate::error::AllError;
+use crate::error::TaskExecutionError;
 
 
 #[derive(Parser)]
@@ -19,7 +19,12 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn execute(self) -> Result<(), AllError> {
+    pub fn execute(self) -> Result<(), TaskExecutionError> {
+
+        let x = |input_file, input_source| {
+            input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile)
+        };
+
         match self.sub_command {
             SubCom::Repl => {
                 let task = Repl;
@@ -28,14 +33,13 @@ impl Args {
             }
             SubCom::Execute { input_file, input_source } => {
                 let task = Interpret;
-                let source = input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile);
-
+                let source = x(input_file, input_source);
                 task.execute(source)?;
                 Ok(())
             }
             SubCom::Ast { input_file, input_source } => {
                 let task = PrintAst;
-                let source = input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile);
+                let source = x(input_file, input_source);
 
                 task.execute(source)?;
                 Ok(())
@@ -47,11 +51,7 @@ impl Args {
             }
             SubCom::LexerDump { input_file, input_source } => {
                 let task = LexerDump;
-                let source = input_file.map_or_else(|| if let Some(input_source) = input_source {
-                    ParseSource::RawSource(input_source)
-                } else {
-                    unreachable!("oops")
-                }, ParseSource::FromFile);
+                let source = x(input_file, input_source);
 
                 task.execute(source)?;
                 Ok(())

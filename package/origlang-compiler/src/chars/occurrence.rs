@@ -1,4 +1,5 @@
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[allow(clippy::module_name_repetitions)]
 pub struct OccurrenceSet<T>(Vec<T>);
 
 fn is_sorted<T: Ord>(slice: &[T]) -> bool {
@@ -12,7 +13,6 @@ fn is_sorted<T: Ord>(slice: &[T]) -> bool {
 }
 
 impl<T: Ord> OccurrenceSet<T> {
-    #[inline(always)]
     fn invariant_was_satisfied(v: &[T]) -> bool {
         is_sorted(v)
     }
@@ -23,14 +23,14 @@ impl<T: Ord> OccurrenceSet<T> {
         Self(v)
     }
 
-    pub fn count_lowers_exclusive(&self, upper: T) -> usize {
+    pub fn count_lowers_exclusive(&self, upper: &T) -> usize {
         let mut i = 0;
         let values: &[T] = &self.0;
         let mut run_rest = true;
         if values.len() >= 6400 {
             // if values are too many to being cached in L1 storage,
             // switch strategy to binary_search.
-            return values.binary_search(&upper).map_or_else(|x| x, |x| x);
+            return values.binary_search(upper).map_or_else(|x| x, |x| x);
         } else if values.len() >= 8 {
             while i < values.len() - 8 {
                 // SAFETY: above condition ensures that no OOB-reads happen.
@@ -84,7 +84,7 @@ impl<T: Ord> OccurrenceSet<T> {
         if run_rest {
             let j = i;
             for x in &values[j..] {
-                if *x < upper {
+                if x < upper {
                     i += 1;
                 }
             }
@@ -93,7 +93,7 @@ impl<T: Ord> OccurrenceSet<T> {
         i
     }
 
-    pub fn max_upper_bounded_exclusive(&self, upper: T) -> Option<&T> {
+    pub fn max_upper_bounded_exclusive(&self, upper: &T) -> Option<&T> {
         let values: &[T] = &self.0;
 
         let k = self.count_lowers_exclusive(upper);

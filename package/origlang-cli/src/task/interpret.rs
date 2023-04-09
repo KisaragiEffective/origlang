@@ -3,14 +3,14 @@ use origlang_compiler::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
 use crate::task::print_ast::ParseSource;
 use crate::task::Task;
-use crate::error::AllError;
+use crate::error::TaskExecutionError;
 use origlang_compiler::type_check::TypeChecker;
 
 pub struct Interpret;
 
 impl Task for Interpret {
     type Environment = ParseSource;
-    type Error = AllError;
+    type Error = TaskExecutionError;
 
     fn execute(&self, environment: Self::Environment) -> Result<(), Self::Error> {
         let i = Instant::now();

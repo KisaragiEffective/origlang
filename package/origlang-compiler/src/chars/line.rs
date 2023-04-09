@@ -3,6 +3,7 @@ use origlang_ast::SourcePos;
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::chars::occurrence::OccurrenceSet;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct LineComputation;
 
 impl LineComputation {
@@ -14,10 +15,10 @@ impl LineComputation {
         }
         */
 
-        let future_line = new_line_occurrences.count_lowers_exclusive(future_index) + 1;
+        let future_line = new_line_occurrences.count_lowers_exclusive(&future_index) + 1;
 
         let most_recent_new_line_occurrence_codepoint = new_line_occurrences
-            .max_upper_bounded_exclusive(future_index)
+            .max_upper_bounded_exclusive(&future_index)
             // if future_index is still on first line, there's no such occurrence - substitute
             // this value with zero to leave future_index as is.
             .copied()
@@ -34,6 +35,7 @@ impl LineComputation {
 }
 
 #[derive(Error, Debug, Eq, PartialEq, Copy, Clone)]
+#[allow(clippy::module_name_repetitions)]
 pub enum LineComputationError {
     #[error("line number is zero")]
     LineIsZero,
