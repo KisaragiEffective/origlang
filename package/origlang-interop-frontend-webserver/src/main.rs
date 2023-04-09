@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use actix_files::Files;
 use actix_web::{App, HttpServer};
 use actix_web::dev::Service;

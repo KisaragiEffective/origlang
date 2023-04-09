@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
 use derive_more::Display;
