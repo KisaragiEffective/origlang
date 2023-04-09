@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 mod platform;
 
 #[cfg(windows)]

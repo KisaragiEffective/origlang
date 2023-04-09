@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
@@ -68,24 +71,25 @@ pub enum TypeBox {
     String(String),
     #[display(fmt = "()")]
     #[from]
-    Unit(()),
+    Unit,
     #[display(fmt = "{_0}")]
     #[from]
     Tuple(DisplayTuple)
 }
 
 impl TypeBox {
+    #[must_use]
     pub fn get_type(&self) -> Type {
         match self {
             Self::NonCoercedInteger(_) => Type::GenericInteger,
             Self::Boolean(_) => Type::Boolean,
             Self::String(_) => Type::String,
-            Self::Unit(_) => Type::Unit,
+            Self::Unit => Type::Unit,
             Self::Int8(_) => Type::Int8,
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,
             Self::Int64(_) => Type::Int64,
-            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(|x| x.get_type()).collect::<Vec<_>>().into())
+            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(Self::get_type).collect::<Vec<_>>().into())
         }
     }
 }
@@ -236,6 +240,8 @@ impl Runtime {
         }
     }
 
+    /// # Errors
+    /// If the evaluation was failed, this method will return proper [`RuntimeError`].
     pub fn evaluate<E: CanBeEvaluated>(&self, expression: &E) -> EvaluateResult {
         expression.evaluate(self)
     }
@@ -273,6 +279,8 @@ pub enum RuntimeError {
 
 type EvaluateResult = Result<TypeBox, RuntimeError>;
 pub trait CanBeEvaluated {
+    /// # Errors
+    /// If the evaluation was failed, this method will return proper [`RuntimeError`].
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult;
 }
 

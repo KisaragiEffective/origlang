@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use js_sys::JsString;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -32,11 +35,11 @@ impl OutputAccumulator for PseudoStdout {
             TypeBox::Int64(i) => i.to_string(),
             TypeBox::Boolean(i) => i.to_string(),
             TypeBox::String(s) => s,
-            TypeBox::Unit(u) => "()".to_string(),
+            TypeBox::Unit => "()".to_string(),
             TypeBox::Tuple(t) => t.to_string(),
         };
 
-        echo(JsString::from(s))
+        echo(JsString::from(s));
     }
 
     fn acc(&self) -> Option<Vec<TypeBox>> {
@@ -61,6 +64,8 @@ impl<'a> Drop for Timer<'a> {
     }
 }
 
+/// # Panics
+/// if [`get_source`] did not return [`JsString`].
 #[wasm_bindgen]
 pub fn run() {
     let _ = Timer::new("entire");
@@ -69,37 +74,39 @@ pub fn run() {
         init_panic_hook();
         get_source()
     };
-    if let Some(src) = src.dyn_ref::<JsString>() {
-        let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
-        let parser = {
-            let _ = Timer::new("parse.construction");
-            Parser::create(&src)
-        };
-        let res = {
-            let _ = Timer::new("parse");
-            parser.parse()
-        };
-        match res {
-            Ok(ast) => {
-                let _ = Timer::new("runtime");
-                let runtime = {
-                    let _ = Timer::new("runtime.construction");
-                    Runtime::create(PseudoStdout)
-                };
-                let instructions = {
-                    let _ = Timer::new("runtime.intermediate");
-                    runtime.what_will_happen(ast)
-                };
-                let _ = Timer::new("runtime.execution");
-                for instruction in instructions {
-                    instruction.invoke(&runtime);
+
+    src.dyn_ref::<JsString>().map_or_else(
+        || {
+            panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
+        },
+        |src| {
+            let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
+            let parser = {
+                let _ = Timer::new("parse.construction");
+                Parser::create(&src)
+            };
+            let res = {
+                let _ = Timer::new("parse");
+                parser.parse()
+            };
+            res.map_or_else(
+                |e| set_compile_error(JsString::from(e.to_string())),
+                |ast| {
+                    let _ = Timer::new("runtime");
+                    let runtime = {
+                        let _ = Timer::new("runtime.construction");
+                        Runtime::create(PseudoStdout)
+                    };
+                    let instructions = {
+                        let _ = Timer::new("runtime.intermediate");
+                        runtime.what_will_happen(ast)
+                    };
+                    let _ = Timer::new("runtime.execution");
+                    for instruction in instructions {
+                        instruction.invoke(&runtime);
+                    }
                 }
-            }
-            Err(e) => {
-                set_compile_error(JsString::from(e.to_string()));
-            }
+            );
         }
-    } else {
-        panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
-    }
+    );
 }

@@ -105,7 +105,9 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("print false\n")?, type_boxes![false => Boolean]);
         assert_ne!(Self::evaluated_expressions("print false\n")?, type_boxes![true => Boolean]);
 
-        Self::test_comparison_operator()?;
+        Self::test_less()?;
+        Self::test_more()?;
+        Self::test_spaceship()?;
         Self::test_equality_operator()?;
         Self::test_if_expression()?;
         Self::test_parenthesised_expression()?;
@@ -123,7 +125,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_comparison_operator() -> Result<(), Err> {
+    fn test_less() -> Result<(), Err> {
         // less equal
         assert_eq!(Self::evaluated_expressions("print 1 <= 0\n")?, type_boxes![false => Boolean]);
         assert_eq!(Self::evaluated_expressions("print 1 <= 1\n")?, type_boxes![true => Boolean]);
@@ -144,6 +146,10 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("print 1 < 1 == 1 > 1\n")?, type_boxes![true => Boolean]);
         assert_eq!(Self::evaluated_expressions("print 1 < 2 == 2 > 1\n")?, type_boxes![true => Boolean]);
 
+        Ok(())
+    }
+
+    fn test_more() -> Result<(), Err> {
         // more equal
         assert_eq!(Self::evaluated_expressions("print 1 >= 0\n")?, type_boxes![true => Boolean]);
         assert_eq!(Self::evaluated_expressions("print 1 >= 1\n")?, type_boxes![true => Boolean]);
@@ -164,6 +170,10 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("print 1 > 1 == 1 < 1\n")?, type_boxes![true => Boolean]);
         assert_eq!(Self::evaluated_expressions("print 1 > 2 == 2 < 1\n")?, type_boxes![true => Boolean]);
 
+        Ok(())
+    }
+
+    fn test_spaceship() -> Result<(), Err> {
         // spaceship operator
         assert_eq!(Self::evaluated_expressions("print 1 <=> 0\n")?, type_boxes![1 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("print 1 <=> 1\n")?, type_boxes![0 => NonCoercedInteger]);
@@ -204,7 +214,7 @@ impl Test {
     }
 
     fn test_unit_literal() -> Result<(), SimpleErrorWithPos> {
-        assert_eq!(Self::evaluated_expressions("print ()\n")?, type_boxes![() => Unit]);
+        assert_eq!(Self::evaluated_expressions("print ()\n")?, vec![TypeBox::Unit]);
         Ok(())
     }
 

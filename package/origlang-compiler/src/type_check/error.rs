@@ -4,6 +4,7 @@ use origlang_ast::Identifier;
 use crate::type_check::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
+#[allow(clippy::module_name_repetitions)]
 pub enum TypeCheckError {
     #[error("Only ({accepted_lhs}) {operator} ({accepted_rhs}) is defined, but got {got_lhs} {operator} {got_rhs}")]
     InvalidCombinationForBinaryOperator {

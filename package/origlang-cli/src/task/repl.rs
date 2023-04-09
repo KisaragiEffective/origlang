@@ -3,7 +3,7 @@ use std::io::{stdout, Write};
 use std::ops::Range;
 use ariadne::{Report, ReportKind, Source};
 use crate::task::Task;
-use crate::error::AllError;
+use crate::error::TaskExecutionError;
 use origlang_compiler::lexer::Token;
 use origlang_platform::CTRL_D_NL;
 use origlang_compiler::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
@@ -27,14 +27,13 @@ pub struct Repl;
 impl Repl {
     fn type_box_to_final_evaluated_form(tb: &TypeBox) -> String {
         match tb {
-            TypeBox::NonCoercedInteger(i) => i.to_string(),
             TypeBox::Int8(i) => i.to_string(),
             TypeBox::Int16(i) => i.to_string(),
             TypeBox::Int32(i) => i.to_string(),
-            TypeBox::Int64(i) => i.to_string(),
+            TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
             TypeBox::Boolean(b) => b.to_string(),
             TypeBox::String(s) => format!(r#""{s}""#),
-            TypeBox::Unit(_) => "()".to_string(),
+            TypeBox::Unit => "()".to_string(),
             TypeBox::Tuple(tp) => {
                 let elements = tp.boxes.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
                 format!("({elements})")
@@ -45,7 +44,7 @@ impl Repl {
 
 impl Task for Repl {
     type Environment = ();
-    type Error = AllError;
+    type Error = TaskExecutionError;
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         let mut line_count = 1;
@@ -85,7 +84,7 @@ impl Task for Repl {
 
                                     println!(
                                         "=> {value} : {t}",
-                                        value = Repl::type_box_to_final_evaluated_form(&value),
+                                        value = Self::type_box_to_final_evaluated_form(&value),
                                         t = value.get_type());
                                     handled = true;
                                 }

@@ -4,7 +4,8 @@ use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_runtime::RuntimeError;
 
 #[derive(Error, Debug)]
-pub enum AllError {
+#[allow(clippy::module_name_repetitions)]
+pub enum TaskExecutionError {
     #[error("{0}")]
     Generic(#[from] SimpleErrorWithPos),
     #[error("{0}")]
