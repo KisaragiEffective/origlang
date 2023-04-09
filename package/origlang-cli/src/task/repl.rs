@@ -34,7 +34,7 @@ impl Repl {
             TypeBox::Int64(i) => i.to_string(),
             TypeBox::Boolean(b) => b.to_string(),
             TypeBox::String(s) => format!(r#""{s}""#),
-            TypeBox::Unit(_) => "()".to_string(),
+            TypeBox::Unit => "()".to_string(),
             TypeBox::Tuple(tp) => {
                 let elements = tp.boxes.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
                 format!("({elements})")

@@ -35,8 +35,6 @@ impl LineComputation {
 
 #[derive(Error, Debug, Eq, PartialEq, Copy, Clone)]
 pub enum LineComputationError {
-    #[error("the index pointed on newline")]
-    PointedOnNewLine,
     #[error("line number is zero")]
     LineIsZero,
     #[error("column number is zero")]

@@ -12,26 +12,13 @@ fn is_sorted<T: Ord>(slice: &[T]) -> bool {
 }
 
 impl<T: Ord> OccurrenceSet<T> {
-    pub fn new(v: Vec<T>) -> Option<Self> {
-        if v.len() <= 1 {
-            Some(Self(v))
-        } else if Self::invariant_was_satisfied(&v) {
-            // SAFETY: we've checked precondition.
-            unsafe {
-                Some(Self::new_unchecked(v))
-            }
-        } else {
-            None
-        }
-    }
-
     #[inline(always)]
     fn invariant_was_satisfied(v: &[T]) -> bool {
         is_sorted(v)
     }
 
     pub unsafe fn new_unchecked(v: Vec<T>) -> Self {
-        assert!(Self::invariant_was_satisfied(&v), "invariant was violated");
+        debug_assert!(Self::invariant_was_satisfied(&v), "invariant was violated");
 
         Self(v)
     }
@@ -113,7 +100,7 @@ impl<T: Ord> OccurrenceSet<T> {
         if k == 0 {
             None
         } else {
-            Some(values.get(k - 1).expect("!"))
+            values.get(k - 1)
         }
     }
 }

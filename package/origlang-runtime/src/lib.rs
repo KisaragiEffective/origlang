@@ -68,7 +68,7 @@ pub enum TypeBox {
     String(String),
     #[display(fmt = "()")]
     #[from]
-    Unit(()),
+    Unit,
     #[display(fmt = "{_0}")]
     #[from]
     Tuple(DisplayTuple)
@@ -80,7 +80,7 @@ impl TypeBox {
             Self::NonCoercedInteger(_) => Type::GenericInteger,
             Self::Boolean(_) => Type::Boolean,
             Self::String(_) => Type::String,
-            Self::Unit(_) => Type::Unit,
+            Self::Unit => Type::Unit,
             Self::Int8(_) => Type::Int8,
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,

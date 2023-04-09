@@ -204,7 +204,7 @@ impl Test {
     }
 
     fn test_unit_literal() -> Result<(), SimpleErrorWithPos> {
-        assert_eq!(Self::evaluated_expressions("print ()\n")?, type_boxes![() => Unit]);
+        assert_eq!(Self::evaluated_expressions("print ()\n")?, vec![TypeBox::Unit]);
         Ok(())
     }
 
