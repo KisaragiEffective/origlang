@@ -21,7 +21,7 @@ pub struct Args {
 impl Args {
     pub fn execute(self) -> Result<(), TaskExecutionError> {
 
-        let x = |input_file, input_source| {
+        let x = |input_file: Option<PathBuf>, input_source: Option<String>| {
             input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile)
         };
 
