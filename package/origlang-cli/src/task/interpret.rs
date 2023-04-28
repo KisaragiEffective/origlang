@@ -27,7 +27,7 @@ impl Task for Interpret {
         eprintln!("typeck.check: {:?}", i.elapsed());
         let runtime = Runtime::create(PrintToStdout);
         eprintln!("runtime.ctor: {:?}", i.elapsed());
-        runtime.execute(root_ast);
+        runtime.start(root_ast);
         eprintln!("runtime.run: {:?}", i.elapsed());
         Ok(())
     }

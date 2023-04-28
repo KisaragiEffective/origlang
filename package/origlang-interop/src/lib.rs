@@ -97,14 +97,8 @@ pub fn run() {
                         let _ = Timer::new("runtime.construction");
                         Runtime::create(PseudoStdout)
                     };
-                    let instructions = {
-                        let _ = Timer::new("runtime.intermediate");
-                        runtime.what_will_happen(ast)
-                    };
                     let _ = Timer::new("runtime.execution");
-                    for instruction in instructions {
-                        instruction.invoke(&runtime);
-                    }
+                    runtime.start(ast);
                 }
             );
         }

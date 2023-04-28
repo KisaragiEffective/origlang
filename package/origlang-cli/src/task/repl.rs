@@ -68,7 +68,7 @@ impl Task for Repl {
             match parser.parse() {
                 Ok(ast) => {
                     checker.check(&ast)?;
-                    runtime.execute(ast);
+                    runtime.start(ast);
                 }
                 Err(error_message) => {
                     let error = error_message.kind;
