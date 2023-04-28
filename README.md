@@ -11,7 +11,16 @@
 
 * 既存の言語の良いところをピックアップする
 * ユーザーエクスペリエンスの観点から見て必須ではない制限を取り除く
-
+* 明示的に緩めない限り強いセマンティクスをもたせる
+  * ❌
+    * C++'s `noexcept`
+    * Java's `final`
+  * ⭕️
+    * Kotlin's `open`
+    * Rust's `mut`
+    * Java's `throws`
+      * nb. no plan to introduce checked exception
+    
 ## 現状の機能
 
 * **静的型付け**
