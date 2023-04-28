@@ -22,7 +22,7 @@ impl Args {
     pub fn execute(self) -> Result<(), TaskExecutionError> {
 
         let x = |input_file: Option<PathBuf>, input_source: Option<String>| {
-            input_file.map_or_else(|| input_source.map_or_else(|| unreachable!("oops"), ParseSource::RawSource), ParseSource::FromFile)
+            input_file.map_or_else(|| input_source.map_or_else(|| panic!("please specify file or source"), ParseSource::RawSource), ParseSource::FromFile)
         };
 
         match self.sub_command {
@@ -61,6 +61,7 @@ impl Args {
 }
 
 #[derive(Subcommand)]
+#[group(id = "evaluate_source", multiple = false, required = true)]
 pub enum SubCom {
     Repl,
     Execute {
