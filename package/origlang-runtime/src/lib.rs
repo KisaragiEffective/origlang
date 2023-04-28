@@ -1,17 +1,19 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
+mod ir;
+
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
-use derivative::Derivative;
 use derive_more::{Display, From};
 use log::debug;
 use tap::Conv;
 use thiserror::Error;
-use origlang_ast::{Identifier, RootAst, Statement};
+use origlang_ast::{Identifier, RootAst};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_typesystem_model::Type;
+use crate::ir::{IntoVerbatimSequencedIR, Verbatim};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -139,42 +141,6 @@ impl OutputAccumulator for Accumulate {
     }
 }
 
-trait DebuggableTrait: (Fn() -> TypeBox) + Debug {}
-
-impl<T: (Fn() -> TypeBox) + Debug> DebuggableTrait for T {}
-
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub enum EffectDescriptor<'cls> {
-    Output(#[derivative(Debug="ignore")] Box<dyn (Fn() -> TypeBox) + 'cls>),
-    UpdateVariable {
-        ident: Identifier,
-        #[derivative(Debug="ignore")]
-        value: Box<dyn (Fn() -> TypeBox) + 'cls>,
-    },
-    PushScope,
-    PopScope,
-}
-
-impl<'s: 'cls, 'cls> EffectDescriptor<'cls> {
-    pub fn invoke(&'s self, runtime: &Runtime) {
-        match self {
-            EffectDescriptor::Output(e) => {
-                runtime.o.as_ref().borrow_mut().output(e());
-            }
-            EffectDescriptor::UpdateVariable { ident, value } => {
-                runtime.upsert_member_to_current_scope(ident.clone(), value());
-            }
-            EffectDescriptor::PushScope => {
-                runtime.push_scope();
-            }
-            EffectDescriptor::PopScope => {
-                runtime.pop_scope();
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct Runtime {
     scopes: RefCell<VecDeque<Scope>>,
@@ -193,51 +159,15 @@ impl Runtime {
         }
     }
 
+    /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
-    pub fn execute<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o RefCell<dyn OutputAccumulator> {
-        self.what_will_happen(ast).into_iter().for_each(|x| x.invoke(self));
+    pub fn start<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o RefCell<dyn OutputAccumulator> {
+        Verbatim::create(ast).into_iter().for_each(|x| x.invoke(self));
         &self.o
     }
 
-    pub fn what_will_happen(&self, ast: RootAst) -> Vec<EffectDescriptor> {
-        ast.statement.into_iter()
-            .flat_map(|x| self.what_will_happen1(x))
-            .collect::<Vec<EffectDescriptor>>()
-    }
-
-    fn what_will_happen1(&self, statement: Statement) -> Vec<EffectDescriptor> {
-        match statement {
-            Statement::Print { expression } => {
-                vec![
-                    EffectDescriptor::Output(Box::new(move || self.evaluate(&expression).unwrap()))
-                ]
-            }
-            Statement::VariableDeclaration { identifier, expression } => {
-                vec![
-                    EffectDescriptor::UpdateVariable {
-                        ident: identifier,
-                        value: Box::new(move || self.evaluate(&expression).unwrap()),
-                    }
-                ]
-            }
-            Statement::VariableAssignment { identifier, expression } => {
-                vec![
-                    EffectDescriptor::UpdateVariable {
-                        ident: identifier,
-                        value: Box::new(move || self.evaluate(&expression).unwrap()),
-                    }
-                ]
-            }
-            Statement::Block { inner_statements } => {
-                let mut vec = inner_statements.into_iter()
-                    .flat_map(|x| self.what_will_happen1(x))
-                    .collect::<VecDeque<EffectDescriptor>>();
-                vec.push_front(EffectDescriptor::PushScope);
-                vec.push_back(EffectDescriptor::PopScope);
-                vec.into()
-            }
-            Statement::Comment { .. } => vec![],
-        }
+    pub fn execute(&self, ir: Vec<Verbatim>) {
+        ir.into_iter().for_each(|x| x.invoke(self));
     }
 
     /// # Errors
@@ -425,9 +355,7 @@ impl CanBeEvaluated for Expression {
             }
             Self::Block { intermediate_statements, final_expression } => {
                 runtime.push_scope();
-                for s in intermediate_statements {
-                    runtime.what_will_happen1(s.clone()).iter().for_each(|x| x.invoke(runtime));
-                }
+                runtime.execute(intermediate_statements.clone().into_ir());
                 runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)

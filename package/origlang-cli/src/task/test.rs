@@ -49,9 +49,8 @@ impl Test {
         let root_ast = parser.parse()?;
         let acc = Accumulate::default();
         let runtime = Runtime::create(acc);
-        let o = runtime.what_will_happen(root_ast.clone());
+        let o = runtime.start(root_ast);
         println!("{o:?}", o = &o);
-        let o = runtime.execute(root_ast);
         let x = Ok(o.borrow().acc().expect("???"));
         x
     }
