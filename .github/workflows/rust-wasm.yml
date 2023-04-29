@@ -54,7 +54,7 @@ jobs:
           tar xf "$d" "$e"
           chmod +x "$e"
           # Windows' bash does not have "/usr/local/bin"
-          (mv "$e" /usr/local/bin || mv "$e" /usr/bin) && wasm-pack --version
+          (mv "$e" /usr/local/bin || mv "$e" /usr/bin) && ("${e}" --version || true)
           rm "$d"
       - name: Build origlang-interop (pre)
         shell: bash
