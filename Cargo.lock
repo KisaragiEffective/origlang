@@ -969,6 +969,8 @@ dependencies = [
  "js-sys",
  "origlang-compiler",
  "origlang-runtime",
+ "origlang-typesystem-model",
+ "thiserror",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -1004,6 +1006,7 @@ name = "origlang-typesystem-model"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "origlang-ast",
 ]
 
 [[package]]

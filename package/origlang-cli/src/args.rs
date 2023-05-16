@@ -46,7 +46,7 @@ impl Args {
             }
             SubCom::Test => {
                 let task = Test;
-                task.execute(())?;
+                task.execute(()).map_err(TaskExecutionError::from)?;
                 Ok(())
             }
             SubCom::LexerDump { input_file, input_source } => {

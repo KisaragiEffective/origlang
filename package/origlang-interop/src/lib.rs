@@ -2,11 +2,15 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 use js_sys::JsString;
+use thiserror::Error;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::console;
-use origlang_compiler::parser::Parser;
+use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
+use origlang_compiler::type_check::error::TypeCheckError;
+use origlang_compiler::type_check::TypeChecker;
 use origlang_runtime::{OutputAccumulator, Runtime, TypeBox};
+use origlang_typesystem_model::TypedRootAst;
 
 #[wasm_bindgen]
 extern {
@@ -64,6 +68,14 @@ impl<'a> Drop for Timer<'a> {
     }
 }
 
+#[derive(Error, Debug)]
+enum ExecutionError {
+    #[error("parser: {0}")]
+    Parser(#[from] SimpleErrorWithPos),
+    #[error("type: {0}")]
+    Type(#[from] TypeCheckError),
+}
+
 /// # Panics
 /// if [`get_source`] did not return [`JsString`].
 #[wasm_bindgen]
@@ -80,27 +92,36 @@ pub fn run() {
             panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
         },
         |src| {
-            let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
-            let parser = {
-                let _ = Timer::new("parse.construction");
-                Parser::create(&src)
-            };
-            let res = {
-                let _ = Timer::new("parse");
-                parser.parse()
-            };
-            res.map_or_else(
-                |e| set_compile_error(JsString::from(e.to_string())),
-                |ast| {
+            let inner: fn(&JsString) -> Result<(), ExecutionError> = |src| {
+                let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
+                let parser = {
+                    let _ = Timer::new("parse.construction");
+                    Parser::create(&src)
+                };
+                let res = {
+                    let _ = Timer::new("parse");
+                    parser.parse()?
+                };
+                let typed_root: TypedRootAst = {
+                    let _ = Timer::new("typeck");
+                    TypeChecker::new().check(res)?
+                };
+                {
                     let _ = Timer::new("runtime");
                     let runtime = {
                         let _ = Timer::new("runtime.construction");
                         Runtime::create(PseudoStdout)
                     };
                     let _ = Timer::new("runtime.execution");
-                    runtime.start(ast);
+                    runtime.start(typed_root);
                 }
-            );
+
+                Ok(())
+            };
+
+            if let Err(e) = inner(src) {
+                set_compile_error(JsString::from(e.to_string()));
+            }
         }
     );
 }

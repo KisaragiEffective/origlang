@@ -23,7 +23,7 @@ impl Task for Interpret {
         eprintln!("parser.parse: {:?}", i.elapsed());
         let type_checker = TypeChecker::new();
         eprintln!("typeck.ctor: {:?}", i.elapsed());
-        type_checker.check(&root_ast)?;
+        let root_ast = type_checker.check(root_ast)?;
         eprintln!("typeck.check: {:?}", i.elapsed());
         let runtime = Runtime::create(PrintToStdout);
         eprintln!("runtime.ctor: {:?}", i.elapsed());

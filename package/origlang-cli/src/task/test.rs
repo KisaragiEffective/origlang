@@ -2,13 +2,35 @@
 #![allow(clippy::unnecessary_wraps)]
 
 use log::{debug, info};
+use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTuple};
 use crate::task::Task;
 use origlang_ast::{Comment, RootAst, Statement};
 use origlang_ast::after_parse::Expression;
+use origlang_compiler::type_check::error::TypeCheckError;
+use origlang_compiler::type_check::TypeChecker;
+use crate::error::TaskExecutionError;
 
-type Err = SimpleErrorWithPos;
+type Err = TestFailureCause;
+
+#[derive(Error, Debug)]
+pub enum TestFailureCause {
+    #[error("parser failure: {0}")]
+    Parser(#[from] SimpleErrorWithPos),
+    #[error("type checker failure: {0}")]
+    TypeChecker(#[from] TypeCheckError),
+}
+
+impl From<TestFailureCause> for TaskExecutionError {
+    fn from(value: TestFailureCause) -> Self {
+        match value {
+            TestFailureCause::Parser(e) => Self::Generic(e),
+            TestFailureCause::TypeChecker(e) => Self::TypeCheck(e),
+        }
+
+    }
+}
 
 pub struct Test;
 
@@ -49,7 +71,9 @@ impl Test {
         let root_ast = parser.parse()?;
         let acc = Accumulate::default();
         let runtime = Runtime::create(acc);
-        let o = runtime.start(root_ast);
+        let checker = TypeChecker::new();
+        let checked = checker.check(root_ast)?;
+        let o = runtime.start(checked);
         println!("{o:?}", o = &o);
         let x = Ok(o.borrow().acc().expect("???"));
         x
@@ -197,27 +221,27 @@ impl Test {
         Ok(())
     }
 
-    fn test_parenthesised_expression() -> Result<(), SimpleErrorWithPos> {
+    fn test_parenthesised_expression() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print (1 == 2)\n")?, type_boxes![false => Boolean]);
         Ok(())
     }
 
-    fn test_string_literal() -> Result<(), SimpleErrorWithPos> {
+    fn test_string_literal() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print \"123\"\n")?, type_boxes!("123".to_string() => String));
         Ok(())
     }
 
-    fn test_string_concat() -> Result<(), SimpleErrorWithPos> {
+    fn test_string_concat() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print \"123\" + \"456\"\n")?, type_boxes!("123456".to_string() => String));
         Ok(())
     }
 
-    fn test_unit_literal() -> Result<(), SimpleErrorWithPos> {
+    fn test_unit_literal() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print ()\n")?, vec![TypeBox::Unit]);
         Ok(())
     }
 
-    fn test_coerced_int_literal() -> Result<(), SimpleErrorWithPos> {
+    fn test_coerced_int_literal() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print 0i8\n")?, type_boxes![0 => Int8]);
         assert_eq!(Self::evaluated_expressions("print 0i16\n")?, type_boxes![0 => Int16]);
         assert_eq!(Self::evaluated_expressions("print 0i32\n")?, type_boxes![0 => Int32]);
@@ -226,7 +250,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_infix_op_does_not_cause_panic_by_arithmetic_overflow() -> Result<(), SimpleErrorWithPos> {
+    fn test_infix_op_does_not_cause_panic_by_arithmetic_overflow() -> Result<(), Err> {
         // NOTE: this test covers other coerced int types as well, as long as the `f!` macro handles their match and computation.
         assert_eq!(Self::evaluated_expressions("print 16i8 * 16i8\n")?, type_boxes![0 => Int8]);
         assert_eq!(Self::evaluated_expressions("print 127i8 + 127i8 + 2i8\n")?, type_boxes![0 => Int8]);
@@ -236,7 +260,7 @@ impl Test {
         Ok(())
     }
 
-    fn test_overflowed_literal() -> Result<(), SimpleErrorWithPos> {
+    fn test_overflowed_literal() -> Result<(), Err> {
         // TODO: test underflow literal
         macro_rules! gen {
             ($t:ty) => {{
@@ -245,12 +269,16 @@ impl Test {
                 const V: i64 = MAX + 1;
                 let src = format!("print {V}{x}", x = stringify!($t));
                 let e = Self::evaluated_expressions(src.as_str()).expect_err("this operation should fail");
-                assert_eq!(e.kind, ParserError::OverflowedLiteral {
-                    tp: stringify!($t).to_string().into_boxed_str(),
-                    min: <$t>::MIN as i64,
-                    max: MAX,
-                    value: V,
-                });
+                if let TestFailureCause::Parser(e) = e {
+                    assert_eq!(e.kind, ParserError::OverflowedLiteral {
+                        tp: stringify!($t).to_string().into_boxed_str(),
+                        min: <$t>::MIN as i64,
+                        max: MAX,
+                        value: V,
+                    });
+                } else {
+                    panic!("{e:?} is not Parser error: {e}", e = &e);
+                }
             }};
         }
 
@@ -261,13 +289,13 @@ impl Test {
         Ok(())
     }
 
-    fn test_variable_reassign() -> Result<(), SimpleErrorWithPos> {
+    fn test_variable_reassign() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("var a = 1\na = 2\nprint a\n")?, type_boxes![2 => NonCoercedInteger]);
 
         Ok(())
     }
 
-    fn test_block_scope() -> Result<(), SimpleErrorWithPos> {
+    fn test_block_scope() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions(r#"var a = 1
 block
 var a = 2
@@ -302,7 +330,7 @@ end
         Ok(())
     }
 
-    fn test_tuple_type() -> Result<(), SimpleErrorWithPos> {
+    fn test_tuple_type() -> Result<(), Err> {
         info!("test_tuple");
 
         assert_eq!(Self::evaluated_expressions(r#"var a = (1, 2)
@@ -313,7 +341,7 @@ print a
         Ok(())
     }
 
-    fn test_comment() -> Result<(), SimpleErrorWithPos> {
+    fn test_comment() -> Result<(), Err> {
         info!("test_comment");
         assert_eq!(
             Self::ast(r#"//Hello, World!
@@ -362,7 +390,7 @@ print 1
 
 impl Task for Test {
     type Environment = ();
-    type Error = SimpleErrorWithPos;
+    type Error = TestFailureCause;
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         eprintln!("start");

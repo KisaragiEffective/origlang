@@ -8,12 +8,12 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
 use derive_more::{Display, From};
 use log::debug;
-use tap::Conv;
+use tap::{Conv, Pipe};
 use thiserror::Error;
-use origlang_ast::{Identifier, RootAst};
-use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_typesystem_model::Type;
-use crate::ir::{IntoVerbatimSequencedIR, Verbatim};
+use origlang_ast::{Identifier};
+use origlang_ast::after_parse::{BinaryOperatorKind};
+use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst};
+use crate::ir::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition, IntoVerbatimSequencedIR, IR1};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -161,12 +161,15 @@ impl Runtime {
 
     /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
-    pub fn start<'s: 'o, 'o>(&'s self, ast: RootAst) -> &'o RefCell<dyn OutputAccumulator> {
-        Verbatim::create(ast).into_iter().for_each(|x| x.invoke(self));
+    pub fn start<'s: 'o, 'o>(&'s self, ast: TypedRootAst) -> &'o RefCell<dyn OutputAccumulator> {
+        IR1::create(ast)
+            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
+            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize())
+            .into_iter().for_each(|x| x.invoke(self));
         &self.o
     }
 
-    pub fn execute(&self, ir: Vec<Verbatim>) {
+    pub fn execute(&self, ir: Vec<IR1>) {
         ir.into_iter().for_each(|x| x.invoke(self));
     }
 
@@ -274,27 +277,25 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
-impl CanBeEvaluated for Expression {
+impl CanBeEvaluated for TypedExpression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
             #[allow(clippy::cast_possible_truncation)]
-            Self::IntLiteral { value: i, suffix } => suffix.as_ref().map_or_else(
-                || Ok((*i).conv::<NonCoerced>().into()),
-                |suffix| match suffix.as_ref() {
-                    "i8" => Ok(((*i) as i8).into()),
-                    "i16" => Ok(((*i) as i16).into()),
-                    "i32" => Ok(((*i) as i32).into()),
-                    "i64" => Ok((*i).conv::<Coerced>().into()),
-                    _ => unreachable!()
-                }),
+            Self::IntLiteral(int) => match int {
+                TypedIntLiteral::Generic(i) => Ok(NonCoerced(*i).into()),
+                TypedIntLiteral::Bit64(i) => Ok(Coerced(*i).into()),
+                TypedIntLiteral::Bit32(i) => Ok((*i).into()),
+                TypedIntLiteral::Bit16(i) => Ok((*i).into()),
+                TypedIntLiteral::Bit8(i) => Ok((*i).into()),
+            },
             Self::BooleanLiteral(b) => Ok((*b).into()),
             Self::StringLiteral(s) => Ok(s.clone().into()),
             Self::UnitLiteral => Ok(().into()),
-            Self::Variable { ident } => {
+            Self::Variable { ident, tp: _ } => {
                 runtime.search_member(ident)
                     .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone() })
             },
-            Self::BinaryOperator { lhs, rhs, operator } => {
+            Self::BinaryOperator { lhs, rhs, operator, return_type: _ } => {
                 let lhs = lhs.as_ref().evaluate(runtime)?;
                 let rhs = rhs.as_ref().evaluate(runtime)?;
                 if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
@@ -336,7 +337,7 @@ impl CanBeEvaluated for Expression {
                     _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
                 };
             }
-            Self::If { condition, then_clause_value, else_clause_value } => {
+            Self::If { condition, then: then_clause_value, els: else_clause_value, return_type } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
                     runtime.push_scope();
@@ -353,7 +354,7 @@ impl CanBeEvaluated for Expression {
                     indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
             }
-            Self::Block { intermediate_statements, final_expression } => {
+            Self::Block { inner: intermediate_statements, final_expression, return_type: _ } => {
                 runtime.push_scope();
                 runtime.execute(intermediate_statements.clone().into_ir());
                 runtime.pop_scope();
@@ -371,17 +372,5 @@ impl CanBeEvaluated for Expression {
                 }))
             }
         }
-    }
-}
-
-impl CanBeEvaluated for &Expression {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        (*self).evaluate(runtime)
-    }
-}
-
-impl CanBeEvaluated for Box<Expression> {
-    fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
-        self.as_ref().evaluate(runtime)
     }
 }
