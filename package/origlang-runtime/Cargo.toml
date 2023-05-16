@@ -13,3 +13,5 @@ log = "0.4.17"
 tap = "1.0.1"
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ast = { path = "../origlang-ast" }
+origlang-ir = { path = "../origlang-ir" }
+origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }

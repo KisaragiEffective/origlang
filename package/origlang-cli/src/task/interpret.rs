@@ -1,10 +1,10 @@
 use std::time::Instant;
 use origlang_compiler::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
-use crate::task::print_ast::ParseSource;
 use crate::task::Task;
 use crate::error::TaskExecutionError;
 use origlang_compiler::type_check::TypeChecker;
+use crate::args::ParseSource;
 
 pub struct Interpret;
 

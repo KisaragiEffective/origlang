@@ -1,8 +1,6 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-mod ir;
-
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
@@ -12,8 +10,9 @@ use tap::{Conv, Pipe};
 use thiserror::Error;
 use origlang_ast::{Identifier};
 use origlang_ast::after_parse::{BinaryOperatorKind};
+use origlang_ir::{IntoVerbatimSequencedIR, IR1};
+use origlang_ir_optimizer::ir1::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition};
 use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst};
-use crate::ir::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition, IntoVerbatimSequencedIR, IR1};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -165,12 +164,32 @@ impl Runtime {
         IR1::create(ast)
             .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
             .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize())
-            .into_iter().for_each(|x| x.invoke(self));
+            .into_iter().for_each(|x| self.invoke(x));
         &self.o
     }
 
     pub fn execute(&self, ir: Vec<IR1>) {
-        ir.into_iter().for_each(|x| x.invoke(self));
+        ir.into_iter().for_each(|x| self.invoke(x));
+    }
+    
+    pub fn invoke(&self, ir: IR1) {
+        match ir {
+            IR1::Output(e) => {
+                self.o.as_ref().borrow_mut().output(e.evaluate(self).expect("runtime exception"));
+            }
+            IR1::UpdateVariable { ident, value } => {
+                self.upsert_member_to_current_scope(
+                    ident,
+                    value.evaluate(self).expect("self exception")
+                );
+            }
+            IR1::PushScope => {
+                self.push_scope();
+            }
+            IR1::PopScope => {
+                self.pop_scope();
+            }
+        }
     }
 
     /// # Errors
