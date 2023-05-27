@@ -29,6 +29,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
 
                 match (lhs.as_ref(), rhs.as_ref()) {
                     (TypedExpression::IntLiteral(lhs), TypedExpression::IntLiteral(rhs)) => {
+                        // WONTFIX: avoid them
                         macro_rules! checked_boilerplate {
                             ($method:ident) => {
                                 match (lhs, rhs) {
