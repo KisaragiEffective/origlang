@@ -45,37 +45,38 @@ impl Task for UnstableEmit {
                     return Ok(())
                 }
             }
-        } else {
-            let parser = Parser::create(&src);
-            let root = parser.parse()?;
-
-            if self.phase == EmitPhase::Ast {
-                println!("{root:#?}");
-                return Ok(())
-            } else {
-                let checker = TypeChecker::new();
-                let checked = checker.check(root)?;
-
-                if self.phase == EmitPhase::TypedAst {
-                    println!("{checked:#?}");
-                    return Ok(())
-                } else {
-                    use origlang_ir::IntoVerbatimSequencedIR;
-                    let ir_sequence = checked.into_ir();
-
-                    if self.phase == EmitPhase::Ir1 {
-                        println!("{ir_sequence:#?}");
-                        return Ok(())
-                    } else {
-                        let optimized_ir = ir_sequence
-                            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
-                            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize());
-
-                        println!("{optimized_ir:#?}");
-                        Ok(())
-                    }
-                }
-            }
         }
+
+        let parser = Parser::create(&src);
+        let root = parser.parse()?;
+
+        if self.phase == EmitPhase::Ast {
+            println!("{root:#?}");
+            return Ok(())
+        }
+
+        let checker = TypeChecker::new();
+        let checked = checker.check(root)?;
+
+        if self.phase == EmitPhase::TypedAst {
+            println!("{checked:#?}");
+            return Ok(())
+        }
+
+        use origlang_ir::IntoVerbatimSequencedIR;
+        let ir_sequence = checked.into_ir();
+
+        if self.phase == EmitPhase::Ir1 {
+            println!("{ir_sequence:#?}");
+            return Ok(())
+        }
+
+
+        let optimized_ir = ir_sequence
+            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
+            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize());
+
+        println!("{optimized_ir:#?}");
+        Ok(())
     }
 }

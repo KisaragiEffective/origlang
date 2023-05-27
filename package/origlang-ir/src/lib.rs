@@ -66,8 +66,6 @@ impl IntoVerbatimSequencedIR for TypedStatement {
 
 impl IntoVerbatimSequencedIR for TypedRootAst {
     fn into_ir(self) -> Vec<IR1> {
-        let value = self;
-
         pub fn what_will_happen(ast: TypedRootAst) -> Vec<IR1> {
             ast.statements.into_iter()
                 .flat_map(what_will_happen1)
@@ -108,7 +106,7 @@ impl IntoVerbatimSequencedIR for TypedRootAst {
             }
         }
 
-        what_will_happen(value)
+        what_will_happen(self)
     }
 }
 
