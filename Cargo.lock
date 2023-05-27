@@ -1003,6 +1003,7 @@ dependencies = [
  "origlang-ast",
  "origlang-ir",
  "origlang-typesystem-model",
+ "tap",
 ]
 
 [[package]]

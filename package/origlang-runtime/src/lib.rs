@@ -11,7 +11,7 @@ use thiserror::Error;
 use origlang_ast::{Identifier};
 use origlang_ast::after_parse::{BinaryOperatorKind};
 use origlang_ir::{IntoVerbatimSequencedIR, IR1};
-use origlang_ir_optimizer::ir1::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition};
+use origlang_ir_optimizer::preset::{OptimizationPreset, SimpleOptimization};
 use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst};
 
 #[derive(From)]
@@ -161,9 +161,7 @@ impl Runtime {
     /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
     pub fn start<'s: 'o, 'o>(&'s self, ast: TypedRootAst) -> &'o RefCell<dyn OutputAccumulator> {
-        IR1::create(ast)
-            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
-            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize())
+        SimpleOptimization::optimize(IR1::create(ast))
             .into_iter().for_each(|x| self.invoke(x));
         &self.o
     }

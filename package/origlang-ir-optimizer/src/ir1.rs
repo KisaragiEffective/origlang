@@ -181,3 +181,28 @@ impl FoldIfWithConstantCondition {
         }
     }
 }
+
+/// 中間の文がない`block`をインライン化する。
+pub struct InlineSimpleBlock(pub Vec<IR1>);
+
+impl InlineSimpleBlock {
+    pub fn optimize(self) -> Vec<IR1> {
+        self.0.into_iter().map(|x| match x {
+            IR1::Output(x) => IR1::Output(Self::walk_expression(x)),
+            IR1::UpdateVariable { ident, value } => IR1::UpdateVariable { 
+                ident,
+                value: Self::walk_expression(value)
+            },
+            other => other,
+        }).collect()
+    }
+    
+    fn walk_expression(checked: TypedExpression) -> TypedExpression {
+        match checked {
+            TypedExpression::Block { inner, final_expression, return_type: _ } if inner.is_empty() => {
+                *final_expression
+            }
+            other => other,
+        }
+    }
+}

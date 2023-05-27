@@ -9,3 +9,4 @@ edition = "2021"
 origlang-ir = { path = "../origlang-ir" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ast = { path = "../origlang-ast" }
+tap = "1.0.1"

@@ -2,3 +2,4 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 pub mod ir1;
+pub mod preset;
