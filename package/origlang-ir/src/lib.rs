@@ -1,3 +1,6 @@
+#![deny(clippy::all, clippy::panicking_unwrap, clippy::panic)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::collections::VecDeque;
 use origlang_ast::Identifier;
 use origlang_typesystem_model::{TypedExpression, TypedRootAst, TypedStatement};
