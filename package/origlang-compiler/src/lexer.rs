@@ -709,17 +709,11 @@ impl Token {
     }
 
     pub const fn is_error(&self) -> bool {
-        match self {
-            Token::UnexpectedChar { .. } => true,
-            _ => false,
-        }
+        matches!(self, Token::UnexpectedChar { .. })
     }
 
     pub const fn is_end(&self) -> bool {
-        match self {
-            Token::EndOfFile => true,
-            _ => false,
-        }
+        matches!(self, Token::EndOfFile)
     }
 }
 
