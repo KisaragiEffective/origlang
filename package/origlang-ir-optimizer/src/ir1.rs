@@ -6,6 +6,7 @@ use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
 pub struct FoldBinaryOperatorInvocationWithConstant(pub Vec<IR1>);
 
 impl FoldBinaryOperatorInvocationWithConstant {
+    #[must_use = "Dropping return value implies drop optimized IRs"]
     pub fn optimize(self) -> Vec<IR1> {
         self.0.into_iter().map(|ir| {
             match ir {
