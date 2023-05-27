@@ -186,8 +186,22 @@ impl TryIntoTypeCheckedForm for Expression {
                     })
                 }
             }
-            Self::Block { intermediate_statements: _, final_expression } => {
-                checker.check(*final_expression)
+            Self::Block { intermediate_statements, final_expression } => {
+                // Please don't ignore intermediate statements.
+                // TODO: add test for it
+                let mut checked_intermediates = Vec::with_capacity(intermediate_statements.len());
+
+                for is in intermediate_statements {
+                    checked_intermediates.push(checker.check(is)?);
+                }
+
+                let checked_final = checker.check(*final_expression)?;
+
+                Ok(TypedExpression::Block {
+                    inner: checked_intermediates,
+                    return_type: checked_final.actual_type(),
+                    final_expression: Box::new(checked_final),
+                })
             }
             Self::Tuple { expressions } => {
                 let mut checked_expressions = Vec::with_capacity(expressions.len());
