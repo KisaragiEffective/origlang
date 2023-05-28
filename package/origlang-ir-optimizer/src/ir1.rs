@@ -1,6 +1,99 @@
+use std::cmp::Ordering;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
+
+macro_rules! delegate {
+    ($trait_:ident, $implementor:ty, $method:ident) => {
+        impl $trait_<$implementor> for $implementor {
+            fn $method(self, other: $implementor) -> Option<$implementor> {
+                <$implementor>::$method(self, other)
+            }
+        }
+    }
+}
+
+trait CheckedAdd<T> {
+    fn checked_add(self, other: T) -> Option<T>;
+}
+
+delegate!(CheckedAdd, i8, checked_add);
+delegate!(CheckedAdd, i16, checked_add);
+delegate!(CheckedAdd, i32, checked_add);
+delegate!(CheckedAdd, i64, checked_add);
+
+trait CheckedSub<T> {
+    fn checked_sub(self, other: T) -> Option<T>;
+}
+
+delegate!(CheckedSub, i8,  checked_sub);
+delegate!(CheckedSub, i16, checked_sub);
+delegate!(CheckedSub, i32, checked_sub);
+delegate!(CheckedSub, i64, checked_sub);
+
+trait CheckedMul<T> {
+    fn checked_mul(self, other: T) -> Option<T>;
+}
+
+delegate!(CheckedMul, i8,  checked_mul);
+delegate!(CheckedMul, i16, checked_mul);
+delegate!(CheckedMul, i32, checked_mul);
+delegate!(CheckedMul, i64, checked_mul);
+
+trait CheckedDiv<T> {
+    fn checked_div(self, other: T) -> Option<T>;
+}
+
+delegate!(CheckedDiv, i8,  checked_div);
+delegate!(CheckedDiv, i16, checked_div);
+delegate!(CheckedDiv, i32, checked_div);
+delegate!(CheckedDiv, i64, checked_div);
+
+trait OutputCompareResultAsSelf : Sized + PartialOrd + PartialEq {
+    fn compare_self(self, other: Self) -> Option<Self>;
+}
+
+trait CastFrom<T>: Sized {
+    fn cast_from(value: T) -> Self;
+}
+
+macro_rules! gen_cast_from {
+    ($from:ty, $to:ty) => {
+        impl CastFrom<$from> for $to {
+            fn cast_from(value: $from) -> Self {
+                value as _
+            }
+        }
+    };
+}
+
+gen_cast_from!(Ordering, i8);
+gen_cast_from!(Ordering, i16);
+gen_cast_from!(Ordering, i32);
+gen_cast_from!(Ordering, i64);
+
+impl<T: PartialOrd + PartialEq + CastFrom<Ordering>> OutputCompareResultAsSelf for T {
+    fn compare_self(self, other: Self) -> Option<Self> {
+        self.partial_cmp(&other).map(T::cast_from)
+    }
+}
+
+trait Continue<T> {
+    fn continue_value(self) -> Option<T>;
+}
+
+impl<T> Continue<T> for Option<T> {
+    #[allow(clippy::use_self)]
+    fn continue_value(self) -> Option<T> {
+        self
+    }
+}
+
+impl Continue<bool> for bool {
+    fn continue_value(self) -> Option<bool> {
+        self.then_some(true)
+    }
+}
 
 /// 二項演算子についての定数畳み込みを行う。
 pub struct FoldBinaryOperatorInvocationWithConstant(pub Vec<IR1>);
@@ -19,128 +112,95 @@ impl FoldBinaryOperatorInvocationWithConstant {
         }).collect()
     }
 
+    #[allow(clippy::cast_lossless)]
+    #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
-        match expr {
-            TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } => {
-                macro_rules! leave {
-                        () => {
-                            TypedExpression::BinaryOperator { lhs, rhs, operator, return_type }
+        let TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } = expr else {
+            return expr
+        };
+
+        let lhs_ref = lhs.as_ref();
+        let rhs_ref = rhs.as_ref();
+        let operands = (lhs_ref, rhs_ref);
+
+        if let (TypedExpression::IntLiteral(lhs_lit), TypedExpression::IntLiteral(rhs_lit)) = operands {
+            if lhs_lit.actual_type() == rhs_lit.actual_type() {
+                macro_rules! fold {
+                    ($binary_function:expr, $arg1:expr, $arg2:expr, $into:ident) => {
+                        $binary_function($arg1, $arg2).map_or_else(
+                            || TypedExpression::BinaryOperator {
+                                lhs,
+                                rhs,
+                                operator,
+                                return_type
+                            },
+                            |v| TypedExpression::IntLiteral(TypedIntLiteral::$into(v))
+                        )
+                    }
+                }
+
+                macro_rules! gen {
+                    ($method:expr) => {
+                        match (lhs_lit, rhs_lit) {
+                        (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
+                            fold!($method, *lhs, *rhs, Generic)
+                        },
+                        (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
+                            fold!($method, *lhs, *rhs, Bit64)
+                        },
+                        (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
+                            fold!($method, *lhs, *rhs, Bit32)
+                        },
+                        (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
+                            fold!($method, *lhs, *rhs, Bit16)
+                        },
+                        (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
+                            fold!($method, *lhs, *rhs, Bit8)
+                        },
+                        _ => unreachable!(),
                         }
                     }
-
-                match (lhs.as_ref(), rhs.as_ref()) {
-                    (TypedExpression::IntLiteral(lhs), TypedExpression::IntLiteral(rhs)) => {
-                        // WONTFIX: avoid them
-                        macro_rules! checked_boilerplate {
-                            ($method:ident) => {
-                                match (lhs, rhs) {
-                                    (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                                        if let Some(v) = (*lhs).$method(*rhs) {
-                                            TypedExpression::IntLiteral(TypedIntLiteral::Generic(v))
-                                        } else {
-                                            leave!()
-                                        }
-                                    },
-                                    (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                                        if let Some(v) = (*lhs).$method(*rhs) {
-                                            TypedExpression::IntLiteral(TypedIntLiteral::Bit64(v))
-                                        } else {
-                                            leave!()
-                                        }
-                                    },
-                                    (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                                        if let Some(v) = (*lhs).$method(*rhs) {
-                                            TypedExpression::IntLiteral(TypedIntLiteral::Bit32(v))
-                                        } else {
-                                            leave!()
-                                        }
-                                    },
-                                    (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                                        if let Some(v) = (*lhs).$method(*rhs) {
-                                            TypedExpression::IntLiteral(TypedIntLiteral::Bit16(v))
-                                        } else {
-                                            leave!()
-                                        }
-                                    },
-                                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                                        if let Some(v) = (*lhs).$method(*rhs) {
-                                            TypedExpression::IntLiteral(TypedIntLiteral::Bit8(v))
-                                        } else {
-                                            leave!()
-                                        }
-                                    },
-                                    _ => leave!(),
-                                }
-                            };
-                        }
-
-                        macro_rules! compare_boilerplate {
-                            ($compare_bin_op:tt) => {
-                                match (lhs, rhs) {
-                                    (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                                        TypedExpression::BooleanLiteral(lhs $compare_bin_op rhs)
-                                    },
-                                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                                        TypedExpression::BooleanLiteral(lhs $compare_bin_op rhs)
-                                    },
-                                    (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                                        TypedExpression::BooleanLiteral(lhs $compare_bin_op rhs)
-                                    },
-                                    (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                                        TypedExpression::BooleanLiteral(lhs $compare_bin_op rhs)
-                                    },
-                                    (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                                        TypedExpression::BooleanLiteral(lhs $compare_bin_op rhs)
-                                    },
-                                    _ => leave!()
-                                }
-                            };
-                        }
-
-                        match operator {
-                            BinaryOperatorKind::Plus => checked_boilerplate!(checked_add),
-                            BinaryOperatorKind::Minus => checked_boilerplate!(checked_sub),
-                            BinaryOperatorKind::Multiply => checked_boilerplate!(checked_mul),
-                            BinaryOperatorKind::Divide => checked_boilerplate!(checked_div),
-                            BinaryOperatorKind::More => compare_boilerplate!(>),
-                            BinaryOperatorKind::MoreEqual => compare_boilerplate!(>=),
-                            BinaryOperatorKind::Less => compare_boilerplate!(<),
-                            BinaryOperatorKind::LessEqual => compare_boilerplate!(<=),
-                            BinaryOperatorKind::ThreeWay => {
-                                match (lhs, rhs) {
-                                    (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                                        TypedExpression::IntLiteral(TypedIntLiteral::Generic(lhs.cmp(rhs) as i64))
-                                    },
-                                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                                        TypedExpression::IntLiteral(TypedIntLiteral::Bit8(lhs.cmp(rhs) as i8))
-                                    },
-                                    (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                                        TypedExpression::IntLiteral(TypedIntLiteral::Bit16(lhs.cmp(rhs) as i16))
-                                    },
-                                    (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                                        TypedExpression::IntLiteral(TypedIntLiteral::Bit32(lhs.cmp(rhs) as i32))
-                                    },
-                                    (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                                        TypedExpression::IntLiteral(TypedIntLiteral::Bit64(lhs.cmp(rhs) as i64))
-                                    },
-                                    _ => leave!()
-                                }
-                            },
-                            BinaryOperatorKind::Equal => compare_boilerplate!(==),
-                            BinaryOperatorKind::NotEqual => compare_boilerplate!(!=),
-                        }
-                    },
-                    (TypedExpression::BooleanLiteral(lhs), TypedExpression::BooleanLiteral(rhs)) => {
-                        match operator {
-                            BinaryOperatorKind::Equal => TypedExpression::BooleanLiteral(lhs == rhs),
-                            BinaryOperatorKind::NotEqual => TypedExpression::BooleanLiteral(lhs != rhs),
-                            _ => leave!(),
-                        }
-                    },
-                    _ => leave!()
                 }
-            },
-            other => other,
+
+                match operator {
+                    BinaryOperatorKind::Plus => gen!(CheckedAdd::checked_add),
+                    BinaryOperatorKind::Minus => gen!(CheckedSub::checked_sub),
+                    BinaryOperatorKind::Multiply => gen!(CheckedMul::checked_mul),
+                    BinaryOperatorKind::Divide => gen!(CheckedDiv::checked_div),
+                    BinaryOperatorKind::More => gen!(|a, b| Some((a > b) as _)),
+                    BinaryOperatorKind::MoreEqual => gen!(|a, b| Some((a >= b) as _)),
+                    BinaryOperatorKind::Less => gen!(|a, b| Some((a < b) as _)),
+                    BinaryOperatorKind::LessEqual => gen!(|a, b| Some((a <= b) as _)),
+                    BinaryOperatorKind::ThreeWay => gen!(OutputCompareResultAsSelf::compare_self),
+                    BinaryOperatorKind::Equal => gen!(|a, b| Some((a == b) as _)),
+                    BinaryOperatorKind::NotEqual => gen!(|a, b| Some((a != b) as _)),
+                }
+            } else {
+                TypedExpression::BinaryOperator {
+                    lhs,
+                    rhs,
+                    operator,
+                    return_type
+                }
+            }
+        } else if let (TypedExpression::BooleanLiteral(lhs_lit), TypedExpression::BooleanLiteral(rhs_lit)) = operands {
+            match operator {
+                BinaryOperatorKind::Equal => TypedExpression::BooleanLiteral(lhs_lit == rhs_lit),
+                BinaryOperatorKind::NotEqual => TypedExpression::BooleanLiteral(lhs_lit != rhs_lit),
+                _ => TypedExpression::BinaryOperator {
+                    lhs,
+                    rhs,
+                    operator,
+                    return_type
+                },
+            }
+        } else {
+            TypedExpression::BinaryOperator {
+                lhs,
+                rhs,
+                operator,
+                return_type
+            }
         }
     }
 }
