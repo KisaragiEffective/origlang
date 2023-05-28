@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use origlang_ast::Identifier;
 use origlang_typesystem_model::{TypedExpression, TypedRootAst, TypedStatement};
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum IR1 {
     Output(TypedExpression),
     UpdateVariable {

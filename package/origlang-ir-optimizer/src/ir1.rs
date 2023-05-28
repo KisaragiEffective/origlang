@@ -1,9 +1,11 @@
+#[cfg(test)]
+mod tests;
+
 use std::cmp::Ordering;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
 
-// TODO: those implementations are not recursive
 macro_rules! delegate {
     ($trait_:ident, $implementor:ty, $method:ident) => {
         impl $trait_<$implementor> for $implementor {
@@ -141,6 +143,12 @@ impl FoldBinaryOperatorInvocationWithConstant {
                 return other
             }
         };
+
+        // handle recursively
+        let lhs = Self::walk_expression(*lhs);
+        let lhs = Box::new(lhs);
+        let rhs = Self::walk_expression(*rhs);
+        let rhs = Box::new(rhs);
 
         let lhs_ref = lhs.as_ref();
         let rhs_ref = rhs.as_ref();
