@@ -125,7 +125,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
 
         if let (TypedExpression::IntLiteral(lhs_lit), TypedExpression::IntLiteral(rhs_lit)) = operands {
             if lhs_lit.actual_type() == rhs_lit.actual_type() {
-                macro_rules! fold {
+                macro_rules! fold_opt_to_discriminator {
                     ($binary_function:expr, $arg1:expr, $arg2:expr, $into:ident) => {
                         $binary_function($arg1, $arg2).map_or_else(
                             || TypedExpression::BinaryOperator {
@@ -139,23 +139,23 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     }
                 }
 
-                macro_rules! gen {
+                macro_rules! fold_int_literals {
                     ($method:expr) => {
                         match (lhs_lit, rhs_lit) {
                         (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                            fold!($method, *lhs, *rhs, Generic)
+                            fold_opt_to_discriminator!($method, *lhs, *rhs, Generic)
                         },
                         (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                            fold!($method, *lhs, *rhs, Bit64)
+                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit64)
                         },
                         (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                            fold!($method, *lhs, *rhs, Bit32)
+                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit32)
                         },
                         (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                            fold!($method, *lhs, *rhs, Bit16)
+                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit16)
                         },
                         (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                            fold!($method, *lhs, *rhs, Bit8)
+                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit8)
                         },
                         _ => unreachable!(),
                         }
@@ -163,17 +163,19 @@ impl FoldBinaryOperatorInvocationWithConstant {
                 }
 
                 match operator {
-                    BinaryOperatorKind::Plus => gen!(CheckedAdd::checked_add),
-                    BinaryOperatorKind::Minus => gen!(CheckedSub::checked_sub),
-                    BinaryOperatorKind::Multiply => gen!(CheckedMul::checked_mul),
-                    BinaryOperatorKind::Divide => gen!(CheckedDiv::checked_div),
-                    BinaryOperatorKind::More => gen!(|a, b| Some((a > b) as _)),
-                    BinaryOperatorKind::MoreEqual => gen!(|a, b| Some((a >= b) as _)),
-                    BinaryOperatorKind::Less => gen!(|a, b| Some((a < b) as _)),
-                    BinaryOperatorKind::LessEqual => gen!(|a, b| Some((a <= b) as _)),
-                    BinaryOperatorKind::ThreeWay => gen!(OutputCompareResultAsSelf::compare_self),
-                    BinaryOperatorKind::Equal => gen!(|a, b| Some((a == b) as _)),
-                    BinaryOperatorKind::NotEqual => gen!(|a, b| Some((a != b) as _)),
+                    // If overflowed, exit constant propagation (the behavior is unspecified, but results in a runtime error)
+                    BinaryOperatorKind::Plus => fold_int_literals!(CheckedAdd::checked_add),
+                    BinaryOperatorKind::Minus => fold_int_literals!(CheckedSub::checked_sub),
+                    BinaryOperatorKind::Multiply => fold_int_literals!(CheckedMul::checked_mul),
+                    BinaryOperatorKind::Divide => fold_int_literals!(CheckedDiv::checked_div),
+                    //
+                    BinaryOperatorKind::More => fold_int_literals!(|a, b| Some((a > b) as _)),
+                    BinaryOperatorKind::MoreEqual => fold_int_literals!(|a, b| Some((a >= b) as _)),
+                    BinaryOperatorKind::Less => fold_int_literals!(|a, b| Some((a < b) as _)),
+                    BinaryOperatorKind::LessEqual => fold_int_literals!(|a, b| Some((a <= b) as _)),
+                    BinaryOperatorKind::ThreeWay => fold_int_literals!(OutputCompareResultAsSelf::compare_self),
+                    BinaryOperatorKind::Equal => fold_int_literals!(|a, b| Some((a == b) as _)),
+                    BinaryOperatorKind::NotEqual => fold_int_literals!(|a, b| Some((a != b) as _)),
                 }
             } else {
                 TypedExpression::BinaryOperator {
