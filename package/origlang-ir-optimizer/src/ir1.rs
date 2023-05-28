@@ -116,8 +116,30 @@ impl FoldBinaryOperatorInvocationWithConstant {
     #[allow(clippy::cast_lossless)]
     #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
-        let TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } = expr else {
-            return expr
+        let (lhs, rhs, operator, return_type) = match expr {
+            TypedExpression::If { condition, then, els, return_type } => {
+                return TypedExpression::If {
+                    condition: Box::new(Self::walk_expression(*condition)),
+                    then: Box::new(Self::walk_expression(*then)),
+                    els: Box::new(Self::walk_expression(*els)),
+                    return_type
+                }
+            }
+            TypedExpression::Block { inner, final_expression, return_type } => {
+                return TypedExpression::Block {
+                    inner,
+                    final_expression: Box::new(Self::walk_expression(*final_expression)),
+                    return_type
+                }
+            }
+            TypedExpression::Tuple { expressions } => {
+                return TypedExpression::Tuple { expressions: expressions.into_iter().map(Self::walk_expression).collect() }
+            }
+            TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } => (lhs, rhs, operator, return_type),
+            // these expressions are optimal for this path
+            other => {
+                return other
+            }
         };
 
         let lhs_ref = lhs.as_ref();
@@ -143,33 +165,32 @@ impl FoldBinaryOperatorInvocationWithConstant {
                 macro_rules! fold_int_literals {
                     ($method:expr) => {
                         match (lhs_lit, rhs_lit) {
-                        (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                            fold_opt_to_discriminator!($method, *lhs, *rhs, Generic)
-                        },
-                        (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit64)
-                        },
-                        (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit32)
-                        },
-                        (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit16)
-                        },
-                        (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                            fold_opt_to_discriminator!($method, *lhs, *rhs, Bit8)
-                        },
-                        _ => unreachable!(),
+                            (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
+                                fold_opt_to_discriminator!($method, *lhs, *rhs, Generic)
+                            },
+                            (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
+                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit64)
+                            },
+                            (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
+                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit32)
+                            },
+                            (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
+                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit16)
+                            },
+                            (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
+                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit8)
+                            },
+                            _ => unreachable!(),
                         }
                     }
                 }
 
                 match operator {
-                    // If overflowed, exit constant propagation (the behavior is unspecified, but results in a runtime error)
+                    // If overflowed, exit constant propagation (the behavior is unspecified, but results in a runtime error for now)
                     BinaryOperatorKind::Plus => fold_int_literals!(CheckedAdd::checked_add),
                     BinaryOperatorKind::Minus => fold_int_literals!(CheckedSub::checked_sub),
                     BinaryOperatorKind::Multiply => fold_int_literals!(CheckedMul::checked_mul),
                     BinaryOperatorKind::Divide => fold_int_literals!(CheckedDiv::checked_div),
-                    //
                     BinaryOperatorKind::More => fold_int_literals!(|a, b| Some((a > b) as _)),
                     BinaryOperatorKind::MoreEqual => fold_int_literals!(|a, b| Some((a >= b) as _)),
                     BinaryOperatorKind::Less => fold_int_literals!(|a, b| Some((a < b) as _)),
