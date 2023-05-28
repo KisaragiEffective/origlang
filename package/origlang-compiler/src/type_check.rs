@@ -8,8 +8,8 @@ use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRoo
 
 use crate::type_check::error::TypeCheckError;
 
-pub trait TryIntoTypeCheckedForm {
-    type Success: Sized;
+pub trait TryIntoTypeCheckedForm<'expr> {
+    type Success: Sized + 'expr;
     type Err: Sized;
 
     /// # Errors
@@ -17,8 +17,8 @@ pub trait TryIntoTypeCheckedForm {
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err>;
 }
 
-impl TryIntoTypeCheckedForm for Expression {
-    type Success = TypedExpression;
+impl<'expr> TryIntoTypeCheckedForm<'expr> for Expression {
+    type Success = TypedExpression<'expr>;
     type Err = TypeCheckError;
 
     #[allow(clippy::too_many_lines)]
@@ -56,20 +56,20 @@ impl TryIntoTypeCheckedForm for Expression {
                     BinaryOperatorKind::Plus => {
                         match (lhs_type, rhs_type) {
                             (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
-                                lhs: Box::new(lhs_expr),
-                                rhs: Box::new(rhs_expr),
+                                lhs: &lhs_expr,
+                                rhs: &rhs_expr,
                                 operator,
                                 return_type: Type::GenericInteger,
                             }),
                             (Type::String, Type::String) => Ok(TypedExpression::BinaryOperator {
-                                lhs: Box::new(lhs_expr),
-                                rhs: Box::new(rhs_expr),
+                                lhs: &lhs_expr,
+                                rhs: &rhs_expr,
                                 operator,
                                 return_type: Type::String
                             }),
                             (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
-                                lhs: Box::new(lhs_expr),
-                                rhs: Box::new(rhs_expr),
+                                lhs: &lhs_expr,
+                                rhs: &rhs_expr,
                                 operator,
                                 return_type: x
                             }),
@@ -84,14 +84,14 @@ impl TryIntoTypeCheckedForm for Expression {
                         {
                             match (&lhs_type, &rhs_type) {
                                 (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
+                                    lhs: &lhs_expr,
+                                    rhs: &rhs_expr,
                                     operator,
                                     return_type: Type::GenericInteger,
                                 }),
                                 (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
+                                    lhs: &lhs_expr,
+                                    rhs: &rhs_expr,
                                     operator,
                                     // it is effectively Copy
                                     return_type: x.clone(),
@@ -107,14 +107,14 @@ impl TryIntoTypeCheckedForm for Expression {
                         {
                             match (&lhs_type, &rhs_type) {
                                 (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
+                                    lhs: &lhs_expr,
+                                    rhs: &rhs_expr,
                                     operator,
                                     return_type: Type::GenericInteger,
                                 }),
                                 (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
+                                    lhs: &lhs_expr,
+                                    rhs: &rhs_expr,
                                     operator,
                                     return_type: x.clone()
                                 }),
@@ -125,8 +125,8 @@ impl TryIntoTypeCheckedForm for Expression {
                     BinaryOperatorKind::Equal => {
                         if lhs_type == rhs_type {
                             Ok(TypedExpression::BinaryOperator {
-                                lhs: Box::new(lhs_expr),
-                                rhs: Box::new(rhs_expr),
+                                lhs: &lhs_expr,
+                                rhs: &rhs_expr,
                                 operator,
                                 return_type: Type::Boolean,
                             })
@@ -141,8 +141,8 @@ impl TryIntoTypeCheckedForm for Expression {
                     BinaryOperatorKind::NotEqual => {
                         if lhs_type == rhs_type {
                             Ok(TypedExpression::BinaryOperator {
-                                lhs: Box::new(lhs_expr),
-                                rhs: Box::new(rhs_expr),
+                                lhs: &lhs_expr,
+                                rhs: &rhs_expr,
                                 operator,
                                 return_type: Type::Boolean,
                             })
@@ -167,9 +167,9 @@ impl TryIntoTypeCheckedForm for Expression {
                 if cond_type == Type::Boolean {
                     if then_type == else_type {
                         Ok(TypedExpression::If {
-                            condition: Box::new(cond_expr),
-                            then: Box::new(then_expr),
-                            els: Box::new(else_expr),
+                            condition: &(cond_expr),
+                            then: &(then_expr),
+                            els: &(else_expr),
                             return_type: then_type,
                         })
                     } else {
@@ -200,7 +200,7 @@ impl TryIntoTypeCheckedForm for Expression {
                 Ok(TypedExpression::Block {
                     inner: checked_intermediates,
                     return_type: checked_final.actual_type(),
-                    final_expression: Box::new(checked_final),
+                    final_expression: &checked_final,
                 })
             }
             Self::Tuple { expressions } => {
@@ -209,14 +209,14 @@ impl TryIntoTypeCheckedForm for Expression {
                     checked_expressions.push(checker.check(expr)?);
                 }
 
-                Ok(TypedExpression::Tuple { expressions: checked_expressions })
+                Ok(TypedExpression::Tuple { expressions: &checked_expressions })
             }
         }
     }
 }
 
-impl TryIntoTypeCheckedForm for Statement {
-    type Success = TypedStatement;
+impl<'statement> TryIntoTypeCheckedForm for Statement {
+    type Success = TypedStatement<'statement>;
     type Err = TypeCheckError;
 
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
@@ -263,8 +263,8 @@ impl TryIntoTypeCheckedForm for Statement {
     }
 }
 
-impl TryIntoTypeCheckedForm for RootAst {
-    type Success = TypedRootAst;
+impl<'root> TryIntoTypeCheckedForm for RootAst {
+    type Success = TypedRootAst<'root>;
     type Err = TypeCheckError;
 
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
@@ -275,7 +275,7 @@ impl TryIntoTypeCheckedForm for RootAst {
         }
 
         Ok(TypedRootAst {
-            statements: vec,
+            statements: &vec,
         })
     }
 }

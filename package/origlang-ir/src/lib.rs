@@ -6,28 +6,28 @@ use origlang_ast::Identifier;
 use origlang_typesystem_model::{TypedExpression, TypedRootAst, TypedStatement};
 
 #[derive(Debug)]
-pub enum IR1 {
-    Output(TypedExpression),
+pub enum IR1<'expr> {
+    Output(&'expr TypedExpression<'expr>),
     UpdateVariable {
-        ident: Identifier,
-        value: TypedExpression,
+        ident: &'expr Identifier,
+        value: &'expr TypedExpression<'expr>,
     },
     PushScope,
     PopScope,
 }
 
-impl IR1 {
-    pub fn create<T: IntoVerbatimSequencedIR>(from: T) -> Vec<Self> {
+impl<'expr> IR1<'expr> {
+    pub fn create<T: IntoVerbatimSequencedIR<'expr>>(from: T) -> Vec<Self> {
         from.into_ir()
     }
 }
 
-pub trait IntoVerbatimSequencedIR {
-    fn into_ir(self) -> Vec<IR1>;
+pub trait IntoVerbatimSequencedIR<'i> {
+    fn into_ir(&self) -> &[IR1<'i>];
 }
 
-impl IntoVerbatimSequencedIR for TypedStatement {
-    fn into_ir(self) -> Vec<IR1> {
+impl<'ir1> IntoVerbatimSequencedIR<'ir1> for TypedStatement<'ir1> {
+    fn into_ir(&self) -> &[IR1<'ir1>] {
         let statement = self;
 
         match statement {
@@ -39,16 +39,16 @@ impl IntoVerbatimSequencedIR for TypedStatement {
             Self::VariableDeclaration { identifier, expression } => {
                 vec![
                     IR1::UpdateVariable {
-                        ident: identifier,
-                        value: expression,
+                        ident: &identifier,
+                        value: &expression,
                     }
                 ]
             }
             Self::VariableAssignment { identifier, expression } => {
                 vec![
                     IR1::UpdateVariable {
-                        ident: identifier,
-                        value: expression,
+                        ident: &identifier,
+                        value: &expression,
                     }
                 ]
             }
@@ -64,15 +64,16 @@ impl IntoVerbatimSequencedIR for TypedStatement {
     }
 }
 
-impl IntoVerbatimSequencedIR for TypedRootAst {
-    fn into_ir(self) -> Vec<IR1> {
+impl<'ir1> IntoVerbatimSequencedIR<'ir1> for TypedRootAst<'ir1> {
+    fn into_ir(&self) -> &[IR1<'ir1>] {
         pub fn what_will_happen(ast: TypedRootAst) -> Vec<IR1> {
-            ast.statements.into_iter()
+            ast.statements
+                .into_iter()
                 .flat_map(what_will_happen1)
                 .collect()
         }
 
-        fn what_will_happen1(statement: TypedStatement) -> Vec<IR1> {
+        fn what_will_happen1<'expr>(statement: &'expr TypedStatement<'expr>) -> Vec<IR1<'expr>> {
             match statement {
                 TypedStatement::Print { expression } => {
                     vec![
@@ -110,8 +111,8 @@ impl IntoVerbatimSequencedIR for TypedRootAst {
     }
 }
 
-impl<T: IntoVerbatimSequencedIR> IntoVerbatimSequencedIR for Vec<T> {
-    fn into_ir(self) -> Vec<IR1> {
+impl<'ir1, T: IntoVerbatimSequencedIR<'ir1>> IntoVerbatimSequencedIR<'ir1> for Vec<T> {
+    fn into_ir(&self) -> &[IR1<'ir1>] {
         self.into_iter().flat_map(|x| x.into_ir()).collect()
     }
 }

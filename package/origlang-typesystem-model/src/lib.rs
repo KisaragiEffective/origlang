@@ -55,22 +55,22 @@ impl Type {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct TypedRootAst {
-    pub statements: Vec<TypedStatement>
+pub struct TypedRootAst<'expr> {
+    pub statements: &'expr [TypedStatement<'expr>]
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum TypedStatement {
+pub enum TypedStatement<'expr> {
     Print {
-        expression: TypedExpression,
+        expression: TypedExpression<'expr>,
     },
     VariableDeclaration {
         identifier: Identifier,
-        expression: TypedExpression,
+        expression: TypedExpression<'expr>,
     },
     VariableAssignment {
         identifier: Identifier,
-        expression: TypedExpression,
+        expression: TypedExpression<'expr>,
     },
     Block {
         inner_statements: Vec<Self>
@@ -78,7 +78,7 @@ pub enum TypedStatement {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum TypedExpression {
+pub enum TypedExpression<'child> {
     IntLiteral(TypedIntLiteral),
     BooleanLiteral(bool),
     StringLiteral(String),
@@ -88,28 +88,28 @@ pub enum TypedExpression {
         tp: Type,
     },
     BinaryOperator {
-        lhs: Box<Self>,
-        rhs: Box<Self>,
+        lhs: &'child Self,
+        rhs: &'child Self,
         operator: BinaryOperatorKind,
         return_type: Type,
     },
     If {
-        condition: Box<Self>,
-        then: Box<Self>,
-        els: Box<Self>,
+        condition: &'child Self,
+        then: &'child Self,
+        els: &'child Self,
         return_type: Type
     },
     Block {
-        inner: Vec<TypedStatement>,
-        final_expression: Box<Self>,
+        inner: Vec<TypedStatement<'child>>,
+        final_expression: &'child Self,
         return_type: Type,
     },
     Tuple {
-        expressions: Vec<Self>
+        expressions: &'child [Self]
     }
 }
 
-impl TypedExpression {
+impl<'child> TypedExpression<'child> {
     pub fn actual_type(&self) -> Type {
         match self {
             TypedExpression::IntLiteral(i) => i.actual_type(),
