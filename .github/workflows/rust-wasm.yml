@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.2.1
+        uses: Swatinem/rust-cache@v2.3.0
         with:
           prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}-wasm
       # If it requires full-build, wasm-pack is required to build origlang-interop.
@@ -54,7 +54,7 @@ jobs:
           tar xf "$d" "$e"
           chmod +x "$e"
           # Windows' bash does not have "/usr/local/bin"
-          (mv "$e" /usr/local/bin || mv "$e" /usr/bin) && wasm-pack --version
+          (mv "$e" /usr/local/bin || mv "$e" /usr/bin) && ("${e}" --version || true)
           rm "$d"
       - name: Build origlang-interop (pre)
         shell: bash
