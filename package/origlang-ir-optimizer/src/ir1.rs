@@ -101,7 +101,23 @@ impl Continue<bool> for bool {
 /// 二項演算子についての定数畳み込みを行う。
 // TODO: 左端以外に畳み込みが行える定数項があっても、それらの項が畳み込まれない。
 //       すなわち、オーバーフローがないものとして`a * 2 / 2`を最適化するとき、`a`に最適化出来ない。
-//       これは`egg`クレートを導入することで解決することができるが、書き換えのコストがどれぐらいかかるのか検証が必要である。
+//       これは`egg`クレートを導入することで解決することができる。しかし、現状の`IR1`の構成ではそれができない。
+//       `egg::EGraph`を構築するためには`egg::Language`トレイトを`TypedExpression` (または、その親戚であるところの`IR1`) へ実装しなければならない。
+//       しかし、`egg::Language`トレイトは`Ord`を要求する。`egg::SymbolLang`を見てみると、`Symbol` (私達で言うところの`Identifier`
+//       だが、すべてのスコープを通じて一意な識別子を持つ) の内部表現が`usize`であることから、`Ord`がderiveされていた。
+//       また、二項演算子においても、その両辺がノードのIDとして参照されていた。これは現状の`IR1`や`TypedExpression`では達成できない。
+//       なぜならば、`IR1`と`TypedExpression`は`TypedExpression`をネストした形で保持するからだ。これはフラットな参照と相性が悪く、
+//       追加の"lowering"を必要とする。
+//       よって、そのケースにおける定数畳み込みを実装できるまでの間、ユーザーにはワークアラウンドとして、以下のことを要求する：
+//       ```
+//       print a * 2 / 2
+//       ```
+//       と書く代わりに、
+//       ```
+//       var x = 2 / 2
+//       print a * x
+//       ```
+//       と書いて現状の不完全な実装においても同様の実装が得られるということを期待したい。
 pub struct FoldBinaryOperatorInvocationWithConstant(pub Vec<IR1>);
 
 impl FoldBinaryOperatorInvocationWithConstant {
