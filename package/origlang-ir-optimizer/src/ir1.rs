@@ -99,6 +99,9 @@ impl Continue<bool> for bool {
 }
 
 /// 二項演算子についての定数畳み込みを行う。
+// TODO: 左端以外に畳み込みが行える定数項があっても、それらの項が畳み込まれない。
+//       すなわち、オーバーフローがないものとして`a * 2 / 2`を最適化するとき、`a`に最適化出来ない。
+//       これは`egg`クレートを導入することで解決することができるが、書き換えのコストがどれぐらいかかるのか検証が必要である。
 pub struct FoldBinaryOperatorInvocationWithConstant(pub Vec<IR1>);
 
 impl FoldBinaryOperatorInvocationWithConstant {
