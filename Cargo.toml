@@ -5,6 +5,8 @@ members = [
     "package/origlang-compiler",
     "package/origlang-interop",
     "package/origlang-interop-frontend-webserver",
+    "package/origlang-ir",
+    "package/origlang-ir-optimizer",
     "package/origlang-runtime",
     "package/origlang-typesystem-model",
     "package/origlang-platform",

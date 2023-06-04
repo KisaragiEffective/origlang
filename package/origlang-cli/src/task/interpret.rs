@@ -1,10 +1,10 @@
 use std::time::Instant;
 use origlang_compiler::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
-use crate::task::print_ast::ParseSource;
 use crate::task::Task;
 use crate::error::TaskExecutionError;
 use origlang_compiler::type_check::TypeChecker;
+use crate::args::ParseSource;
 
 pub struct Interpret;
 
@@ -23,7 +23,7 @@ impl Task for Interpret {
         eprintln!("parser.parse: {:?}", i.elapsed());
         let type_checker = TypeChecker::new();
         eprintln!("typeck.ctor: {:?}", i.elapsed());
-        type_checker.check(&root_ast)?;
+        let root_ast = type_checker.check(root_ast)?;
         eprintln!("typeck.check: {:?}", i.elapsed());
         let runtime = Runtime::create(PrintToStdout);
         eprintln!("runtime.ctor: {:?}", i.elapsed());

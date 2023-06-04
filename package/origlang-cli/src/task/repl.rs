@@ -67,7 +67,7 @@ impl Task for Repl {
             let parser = Parser::create(line.as_str());
             match parser.parse() {
                 Ok(ast) => {
-                    checker.check(&ast)?;
+                    let ast = checker.check(ast)?;
                     runtime.start(ast);
                 }
                 Err(error_message) => {
@@ -79,8 +79,8 @@ impl Task for Repl {
                             if let PartiallyParseFixCandidate::InsertBefore { tokens } = &hint[0] {
                                 if tokens.len() == 1 && tokens[0] == Token::KeywordPrint && intermediate_state.len() == 1 {
                                     let IntermediateStateCandidate::Expression(expression) = &intermediate_state[0];
-                                    checker.check(expression)?;
-                                    let value = runtime.evaluate(expression)?;
+                                    let expression = checker.check(expression.clone())?;
+                                    let value = runtime.evaluate(&expression)?;
 
                                     println!(
                                         "=> {value} : {t}",
