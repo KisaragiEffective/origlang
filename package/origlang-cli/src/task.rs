@@ -1,8 +1,7 @@
 pub mod test;
-pub mod print_ast;
 pub mod interpret;
 pub mod repl;
-pub mod lexer_dump;
+pub mod emit;
 
 pub trait Task {
     type Environment;

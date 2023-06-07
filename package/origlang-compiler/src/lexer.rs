@@ -707,6 +707,14 @@ impl Token {
             Self::Reserved { .. } => "reserved_token",
         }
     }
+
+    pub const fn is_error(&self) -> bool {
+        matches!(self, Token::UnexpectedChar { .. })
+    }
+
+    pub const fn is_end(&self) -> bool {
+        matches!(self, Token::EndOfFile)
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]

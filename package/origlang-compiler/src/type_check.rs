@@ -4,87 +4,132 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_ast::{Identifier, RootAst, Statement};
-use origlang_typesystem_model::{TupleDisplay, Type};
+use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
 use crate::type_check::error::TypeCheckError;
 
-pub trait Target {
-    type Ok: Sized;
+pub trait TryIntoTypeCheckedForm {
+    type Success: Sized;
     type Err: Sized;
 
     /// # Errors
     /// 型チェックにしっぱいした場合はErr
-    fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err>;
+    fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err>;
 }
 
-impl Target for Expression {
-    type Ok = Type;
+impl TryIntoTypeCheckedForm for Expression {
+    type Success = TypedExpression;
     type Err = TypeCheckError;
 
     #[allow(clippy::too_many_lines)]
-    fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
+    fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
-            Self::IntLiteral { suffix, .. } => suffix.as_ref().map_or_else(
-                || Ok(Type::GenericInteger),
-                |s| match s.as_ref() {
-                    "i8"  => Ok(Type::Int8),
-                    "i16" => Ok(Type::Int16),
-                    "i32" => Ok(Type::Int32),
-                    "i64" => Ok(Type::Int64),
-                    _ => unreachable!()
-                }
-            ),
-            Self::BooleanLiteral(_) => Ok(Type::Boolean),
-            Self::StringLiteral(_) => Ok(Type::String),
-            Self::UnitLiteral => Ok(Type::Unit),
+            Self::IntLiteral { value, suffix } => {
+                let lit = suffix.as_ref().map_or_else(
+                    || TypedIntLiteral::Generic(value),
+                    |s| match &**s {
+                        "i8"  => TypedIntLiteral::Bit8(value as i8),
+                        "i16" => TypedIntLiteral::Bit16(value as i16),
+                        "i32" => TypedIntLiteral::Bit32(value as i32),
+                        "i64" => TypedIntLiteral::Bit64(value),
+                        _ => unreachable!()
+                    }
+                );
+
+                Ok(TypedExpression::IntLiteral(lit))
+            },
+            Self::BooleanLiteral(v) => Ok(TypedExpression::BooleanLiteral(v)),
+            Self::StringLiteral(v) => Ok(TypedExpression::StringLiteral(v)),
+            Self::UnitLiteral => Ok(TypedExpression::UnitLiteral),
             Self::Variable { ident } => {
-                checker.ctx.borrow().lookup_variable_type(ident)
+                let tp = checker.ctx.borrow().lookup_variable_type(&ident)?;
+                Ok(TypedExpression::Variable { ident, tp })
             },
             Self::BinaryOperator { lhs, rhs, operator } => {
                 // <---
-                let lhs_type = checker.check(lhs.as_ref())?;
-                let rhs_type = checker.check(rhs.as_ref())?;
-
-                // TODO: these match can be performed byval instead of byref
-
-                let match_inner = || {
-                    match (&lhs_type, &rhs_type) {
-                        (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                        (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
-                        (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
-                    }
-                };
-                
-                let match_inner_2 = || {
-                    match (&lhs_type, &rhs_type) {
-                        (Type::GenericInteger, Type::GenericInteger) => Ok(Type::Boolean),
-                        (x, y) if x == y && x.is_int_family() => Ok(Type::Boolean),
-                        (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
-                    }
-                };
+                let lhs_expr = checker.check(*lhs)?;
+                let rhs_expr = checker.check(*rhs)?;
+                let lhs_type = lhs_expr.actual_type();
+                let rhs_type = rhs_expr.actual_type();
 
                 match operator {
                     BinaryOperatorKind::Plus => {
-                        match (&lhs_type, &rhs_type) {
-                            (Type::GenericInteger, Type::GenericInteger) => Ok(Type::GenericInteger),
-                            (Type::String, Type::String) => Ok(Type::String),
-                            (x, y) if x == y && x.is_int_family() => Ok(x.clone()),
-                            (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, *operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
+                        match (lhs_type, rhs_type) {
+                            (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: Type::GenericInteger,
+                            }),
+                            (Type::String, Type::String) => Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: Type::String
+                            }),
+                            (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: x
+                            }),
+                            (other_lhs, other_rhs) =>
+                                Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, operator, Type::GenericInteger, other_lhs, other_rhs))
                         }
                     }
                     | BinaryOperatorKind::Minus
                     | BinaryOperatorKind::Multiply
                     | BinaryOperatorKind::Divide
                     | BinaryOperatorKind::ThreeWay => {
-                        match_inner()
+                        {
+                            match (&lhs_type, &rhs_type) {
+                                (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
+                                    lhs: Box::new(lhs_expr),
+                                    rhs: Box::new(rhs_expr),
+                                    operator,
+                                    return_type: Type::GenericInteger,
+                                }),
+                                (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
+                                    lhs: Box::new(lhs_expr),
+                                    rhs: Box::new(rhs_expr),
+                                    operator,
+                                    // it is effectively Copy
+                                    return_type: x.clone(),
+                                }),
+                                (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
+                            }
+                        }
                     }
                     | BinaryOperatorKind::More
                     | BinaryOperatorKind::MoreEqual
                     | BinaryOperatorKind::Less
-                    | BinaryOperatorKind::LessEqual => { match_inner_2() }
+                    | BinaryOperatorKind::LessEqual => {
+                        {
+                            match (&lhs_type, &rhs_type) {
+                                (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
+                                    lhs: Box::new(lhs_expr),
+                                    rhs: Box::new(rhs_expr),
+                                    operator,
+                                    return_type: Type::GenericInteger,
+                                }),
+                                (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
+                                    lhs: Box::new(lhs_expr),
+                                    rhs: Box::new(rhs_expr),
+                                    operator,
+                                    return_type: x.clone()
+                                }),
+                                (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
+                            }
+                        }
+                    }
                     BinaryOperatorKind::Equal => {
                         if lhs_type == rhs_type {
-                            Ok(Type::Boolean)
+                            Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: Type::Boolean,
+                            })
                         } else {
                             Err(TypeCheckError::UnableToUnifyEqualityQuery {
                                 operator: BinaryOperatorKind::Equal,
@@ -95,7 +140,12 @@ impl Target for Expression {
                     }
                     BinaryOperatorKind::NotEqual => {
                         if lhs_type == rhs_type {
-                            Ok(Type::Boolean)
+                            Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: Type::Boolean,
+                            })
                         } else {
                             Err(TypeCheckError::UnableToUnifyEqualityQuery {
                                 operator: BinaryOperatorKind::NotEqual,
@@ -107,13 +157,21 @@ impl Target for Expression {
                 }
             }
             Self::If { condition, then_clause_value, else_clause_value } => {
-                let cond_type = checker.check(condition.as_ref())?;
-                let then_type = checker.check(then_clause_value.as_ref())?;
-                let else_type = checker.check(else_clause_value.as_ref())?;
+                let cond_expr = checker.check(*condition)?;
+                let then_expr = checker.check(*then_clause_value)?;
+                let else_expr = checker.check(*else_clause_value)?;
+                let cond_type = cond_expr.actual_type();
+                let then_type = then_expr.actual_type();
+                let else_type = else_expr.actual_type();
 
                 if cond_type == Type::Boolean {
                     if then_type == else_type {
-                        Ok(then_type)
+                        Ok(TypedExpression::If {
+                            condition: Box::new(cond_expr),
+                            then: Box::new(then_expr),
+                            els: Box::new(else_expr),
+                            return_type: then_type,
+                        })
                     } else {
                         Err(TypeCheckError::UnableToUnityIfExpression {
                             then_clause_type: then_type,
@@ -128,63 +186,97 @@ impl Target for Expression {
                     })
                 }
             }
-            Self::Block { intermediate_statements: _, final_expression } => {
-                checker.check(final_expression.as_ref())
-            }
-            Self::Tuple { expressions } => {
-                let mut buf = Vec::with_capacity(expressions.len());
-                for expr in expressions {
-                    buf.push(checker.check(expr)?);
+            Self::Block { intermediate_statements, final_expression } => {
+                // Please don't ignore intermediate statements.
+                // TODO: add test for it
+                let mut checked_intermediates = Vec::with_capacity(intermediate_statements.len());
+
+                for is in intermediate_statements {
+                    checked_intermediates.push(checker.check(is)?);
                 }
 
-                Ok(Type::Tuple(TupleDisplay(buf)))
+                let checked_final = checker.check(*final_expression)?;
+
+                Ok(TypedExpression::Block {
+                    inner: checked_intermediates,
+                    return_type: checked_final.actual_type(),
+                    final_expression: Box::new(checked_final),
+                })
+            }
+            Self::Tuple { expressions } => {
+                let mut checked_expressions = Vec::with_capacity(expressions.len());
+                for expr in expressions {
+                    checked_expressions.push(checker.check(expr)?);
+                }
+
+                Ok(TypedExpression::Tuple { expressions: checked_expressions })
             }
         }
     }
 }
 
-impl Target for Statement {
-    type Ok = ();
+impl TryIntoTypeCheckedForm for Statement {
+    type Success = TypedStatement;
     type Err = TypeCheckError;
 
-    fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
+    fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
-            Self::Print { expression } => checker.check(expression).map(|_| ()),
+            Self::Print { expression } => checker.check(expression).map(|e| TypedStatement::Print { expression: e }),
             Self::VariableDeclaration { identifier, expression } => {
-                let tp = checker.check(expression)?;
-                checker.ctx.borrow_mut().add_variable_type(identifier.clone(), tp);
-                Ok(())
+                let checked = checker.check(expression)?;
+                checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                Ok(TypedStatement::VariableDeclaration {
+                    identifier,
+                    expression: checked,
+                })
             }
             Self::VariableAssignment { identifier, expression } => {
-                let actual_type = checker.check(expression)?;
-                let expected_type = checker.ctx.borrow().lookup_variable_type(identifier)?;
-                if actual_type == expected_type {
-                    Ok(())
+                let checked = checker.check(expression)?;
+                let expected_type = checker.ctx.borrow().lookup_variable_type(&identifier)?;
+                if checked.actual_type() == expected_type {
+                    Ok(TypedStatement::VariableAssignment {
+                        identifier,
+                        expression: checked,
+                    })
                 } else {
                     Err(TypeCheckError::GenericTypeMismatch {
                         context: "variable assignment".to_string(),
                         expected_type,
-                        actual_type,
+                        actual_type: checked.actual_type(),
                     })
                 }
             }
-            Self::Block { inner_statements: _ } => {
-                Ok(())
+            Self::Block { inner_statements } => {
+                let mut checked = Vec::with_capacity(inner_statements.len());
+                for inner_statement in inner_statements {
+                    checked.push(checker.check(inner_statement)?);
+                }
+
+                Ok(TypedStatement::Block {
+                    inner_statements: checked,
+                })
             }
-            Self::Comment { .. } => Ok(()),
+            Self::Comment { .. } => Ok(TypedStatement::Block {
+                inner_statements: vec![]
+            }),
         }
     }
 }
 
-impl Target for RootAst {
-    type Ok = ();
+impl TryIntoTypeCheckedForm for RootAst {
+    type Success = TypedRootAst;
     type Err = TypeCheckError;
 
-    fn check(&self, checker: &TypeChecker) -> Result<Self::Ok, Self::Err> {
-        for x in &self.statement {
-            checker.check(x)?;
+    fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
+        let mut vec = Vec::with_capacity(self.statement.len());
+
+        for x in self.statement {
+            vec.push(checker.check(x)?);
         }
-        Ok(())
+
+        Ok(TypedRootAst {
+            statements: vec,
+        })
     }
 }
 
@@ -212,8 +304,8 @@ impl TypeChecker {
 
     /// # Errors
     /// 型チェックが失敗した場合はErr
-    pub fn check<T: Target>(&self, t: &T) -> Result<T::Ok, T::Err> {
-        t.check(self)
+    pub fn check<T: TryIntoTypeCheckedForm>(&self, t: T) -> Result<T::Success, T::Err> {
+        t.type_check(self)
     }
 }
 
