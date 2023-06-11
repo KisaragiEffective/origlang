@@ -9,7 +9,7 @@ edition = "2021"
 thiserror = "1.0.40"
 derivative = "2.2.0"
 derive_more = "0.99.17"
-log = "0.4.17"
+log = "0.4.19"
 tap = "1.0.1"
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ast = { path = "../origlang-ast" }
