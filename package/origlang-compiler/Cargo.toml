@@ -12,3 +12,6 @@ derive_more = "0.99.17"
 log = "0.4.17"
 thiserror = "1.0.40"
 origlang-platform = { path = "../origlang-platform" }
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = ["min_const_gen"] }

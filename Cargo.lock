@@ -962,6 +962,7 @@ dependencies = [
  "origlang-ast",
  "origlang-platform",
  "origlang-typesystem-model",
+ "rand",
  "thiserror",
 ]
 

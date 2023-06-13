@@ -1,5 +1,7 @@
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 #[allow(clippy::module_name_repetitions)]
+/// Contains "sorted" values. Unlike [std::collections::BTreeSet], this collection has vector internally,
+/// for performance optimization.
 pub struct OccurrenceSet<T>(Vec<T>);
 
 fn is_sorted<T: Ord>(slice: &[T]) -> bool {
@@ -43,6 +45,8 @@ impl<T: Ord> OccurrenceSet<T> {
         if values.len() >= 6400 {
             // if values are too many to being cached in L1 storage,
             // switch strategy to binary_search.
+            // This operation always return correct value, as underlying source
+            // is guaranteed to be sorted in ascending order.
             return values.binary_search(upper).map_or_else(|x| x, |x| x);
         } else if values.len() >= 8 {
             while i < values.len() - 8 {
@@ -184,4 +188,148 @@ mod tests {
         let set = OccurrenceSet::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&10), 9);
     }
+
+    use std::collections::{BinaryHeap, BTreeSet};
+    use std::ops::Deref;
+    use std::time::{Instant};
+    use rand::distributions::{Distribution, Standard};
+    use rand::Rng;
+    use crate::chars::occurrence::OccurrenceSet;
+
+    #[test]
+    fn bench() {
+        const N: usize = 16384;
+
+        // avoids stack overflow in debug mode.
+        struct OnHeap<T, const N: usize>(Box<[T; N]>);
+
+        impl<T, const N: usize> Distribution<OnHeap<T, N>> for Standard where Standard: Distribution<T> {
+            fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> OnHeap<T, N> {
+                OnHeap(Box::new(rng.gen::<[T; N]>()))
+            }
+        }
+
+        impl<T, const N: usize> Deref for OnHeap<T, N> {
+            type Target = [T; N];
+
+            fn deref(&self) -> &Self::Target {
+                self.0.as_ref()
+            }
+        }
+
+        impl<T, const N: usize> IntoIterator for OnHeap<T, N> {
+            type Item = T;
+            type IntoIter = core::array::IntoIter<T, N>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.into_iter()
+            }
+        }
+
+        impl<'a, T: 'a, const N: usize> IntoIterator for &'a OnHeap<T, N> {
+            type Item = &'a T;
+            type IntoIter = core::slice::Iter<'a, T>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.iter()
+            }
+        }
+
+        let haystack = rand::random::<OnHeap<usize, N>>();
+        let find = rand::random::<OnHeap<usize, N>>();
+        println!("1");
+        let occ_time = {
+            let now = Instant::now();
+            let mut x = haystack.to_vec();
+            x.sort();
+
+            let mut buf = Vec::with_capacity(N);
+
+            // let now = Instant::now();
+            let occ = OccurrenceSet::new(x).expect("it is not empty");
+            for f in &find {
+                buf.push(occ.count_lowers_exclusive(f));
+            }
+
+            (buf, now.elapsed())
+        };
+        println!("1");
+
+        let bt_time = {
+            let mut buf = Vec::with_capacity(N);
+
+            let now = Instant::now();
+            let mut occ: BTreeSet<usize> = BTreeSet::new();
+            occ.extend(&haystack);
+
+            for upper in &find {
+                buf.push(occ.iter().filter(|x| *x < upper).count());
+            }
+
+            (buf, now.elapsed())
+        };
+        println!("1");
+
+        let bh_time = {
+            let mut buf = Vec::with_capacity(N);
+
+            let now = Instant::now();
+            let mut occ: BinaryHeap<usize> = BinaryHeap::new();
+            occ.extend(&haystack);
+
+            for upper in &find {
+                buf.push(occ.iter().filter(|x| *x < upper).count());
+            }
+
+            (buf, now.elapsed())
+        };
+        println!("1");
+
+        let vec_time = {
+            let mut buf = Vec::with_capacity(N);
+
+            let now = Instant::now();
+            let mut occ: Vec<usize> = Vec::with_capacity(N);
+            occ.extend(&haystack);
+
+            for upper in &find {
+                buf.push(occ.iter().filter(|x| *x < upper).count());
+            }
+
+            (buf, now.elapsed())
+        };
+
+
+        let vec_ni_time = {
+            let mut buf = Vec::with_capacity(N);
+
+            let now = Instant::now();
+            let mut occ: Vec<usize> = Vec::with_capacity(N);
+            occ.extend(&haystack);
+
+            for upper in find {
+                let mut count = 0usize;
+                for x in &occ {
+                    if *x < upper {
+                        count += 1;
+                    }
+                }
+
+                buf.push(count);
+            }
+
+            (buf, now.elapsed())
+        };
+
+        println!("1");
+
+        // let vec_ni_time = (vec![1], Duration::new(0, 0));
+        assert_eq!(occ_time.0, bt_time.0);
+        assert_eq!(bh_time.0, bt_time.0);
+        assert_eq!(vec_time.0, bt_time.0);
+        assert_eq!(vec_ni_time.0, bt_time.0);
+
+        println!("impl: {o:?} | bin tree:{b:?} | bin heap: {bh:?} | vec_iter: {v:?} | vec: {vi:?}", o = occ_time.1, b = bt_time.1, bh = bh_time.1, v = vec_time.1, vi = vec_ni_time.1);
+    }
+
 }
