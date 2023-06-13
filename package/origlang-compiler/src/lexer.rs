@@ -446,7 +446,7 @@ impl Lexer {
         // trace!("set index to: {future_index}");
         let SourcePos { line, column } =
             LineComputation::compute(
-                (future_index.stride(Utf8CharStride::try_from(b'\n').expect("oops"))),
+                future_index.stride(Utf8CharStride::from('\n')),
                 &self.newline_codepoint_nth_index
             )?;
 

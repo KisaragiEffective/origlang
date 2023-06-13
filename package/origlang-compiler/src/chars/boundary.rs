@@ -1,3 +1,6 @@
+use std::hint::unreachable_unchecked;
+use thiserror::Error;
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
 #[repr(transparent)]
 pub struct Utf8CharBoundaryStartByte(usize);
@@ -37,16 +40,25 @@ impl From<Utf8CharStride> for u8 {
     }
 }
 
-impl TryFrom<u8> for Utf8CharStride {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::One),
-            2 => Ok(Self::Two),
-            3 => Ok(Self::Three),
-            4 => Ok(Self::Four),
-            _ => Err(())
+/// Convert any unicode codepoint into its stride.
+impl From<char> for Utf8CharStride {
+    fn from(value: char) -> Self {
+        // SAFETY: len_utf8 value is in 1..=4, fits u8.
+        let res = unsafe { u8::try_from(value.len_utf8()).unwrap_unchecked() };
+        // SAFETY: <Self as TryFrom<u8>>::try_from never returns error if the given value is in 1..=4.
+        match res {
+            1 => Self::One,
+            2 => Self::Two,
+            3 => Self::Three,
+            4 => Self::Four,
+            // SAFETY: this branch is actually not reachable because of res' range.
+            _ => unsafe { unreachable_unchecked() }
         }
     }
+}
+
+#[derive(Error, Debug)]
+#[error("invalid value for UTF-8 codepoint stride: {given_value}")]
+pub struct InvalidUtf8CharStrideError {
+    given_value: u8
 }
