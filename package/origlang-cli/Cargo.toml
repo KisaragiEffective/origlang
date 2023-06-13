@@ -13,7 +13,7 @@ thiserror = "1.0.40"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-runtime = { path = "../origlang-runtime" }
-ariadne = "0.2.0"
+ariadne = "0.3.0"
 origlang-platform = { path = "../origlang-platform" }
 origlang-ast = { path = "../origlang-ast" }
 strum = { version = "0.24.1", features = ["derive"] }
