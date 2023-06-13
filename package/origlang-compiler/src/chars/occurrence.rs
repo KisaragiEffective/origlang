@@ -194,7 +194,6 @@ mod tests {
     use std::time::{Instant};
     use rand::distributions::{Distribution, Standard};
     use rand::Rng;
-    use crate::chars::occurrence::OccurrenceSet;
 
     #[test]
     fn bench() {

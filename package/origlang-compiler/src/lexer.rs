@@ -66,6 +66,9 @@ impl Lexer {
         let newline_codepoint_nth_index = src.bytes().enumerate()
             .filter(|(_, x)| *x == b'\n')
             .map(|(i, _)| Utf8CharBoundaryStartByte::new(i))
+            // we can't use try_collect because it requires nightly compiler.
+            // we also can't have FromIterator<T> for OccurrenceSet<T> where T: Ord because doing so may
+            // break invariant of OccurrenceSet (i.e. the underlying iterator was not sorted.)
             .collect::<Vec<_>>();
 
         // SAFETY: inner value has sorted, because:
@@ -443,7 +446,7 @@ impl Lexer {
         // trace!("set index to: {future_index}");
         let SourcePos { line, column } =
             LineComputation::compute(
-                Utf8CharBoundaryStartByte::new(future_index.as_usize() + 1),
+                (future_index.stride(Utf8CharStride::try_from(b'\n').expect("oops"))),
                 &self.newline_codepoint_nth_index
             )?;
 
@@ -544,7 +547,7 @@ impl Lexer {
 
     fn advance(&self) {
         trace!("lexer:advance");
-        let new = Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + self.current_char_stride().unwrap().as_usize());
+        let new = self.source_bytes_nth.get().stride(self.current_char_stride().unwrap());
         self.set_current_index(new).map_err(|e| {
             warn!("discarding error: {e}");
         }).unwrap_or_default();

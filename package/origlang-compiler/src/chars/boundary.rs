@@ -10,6 +10,10 @@ impl Utf8CharBoundaryStartByte {
     pub const fn as_usize(self) -> usize {
         self.0
     }
+
+    pub const fn stride(self, stride: Utf8CharStride) -> Utf8CharBoundaryStartByte {
+        Self::new(self.as_usize() + stride.as_usize())
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
