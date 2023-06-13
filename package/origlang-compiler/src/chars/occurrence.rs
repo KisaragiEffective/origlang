@@ -127,7 +127,7 @@ impl<T> Default for OccurrenceSet<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::chars::occurrence::is_sorted;
+    use crate::chars::occurrence::{is_sorted, OccurrenceSet};
 
     #[test]
     fn sorted_empty() {
@@ -147,5 +147,41 @@ mod tests {
     #[test]
     fn sorted_double_negative() {
         assert!(!is_sorted(&[2, 1]));
+    }
+
+    #[test]
+    fn occurrence_empty() {
+        let set = OccurrenceSet::<usize>::new(vec![]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&0), 0);
+    }
+
+    #[test]
+    fn occurrence_single_less() {
+        let set = OccurrenceSet::<usize>::new(vec![0]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&1), 1);
+    }
+
+    #[test]
+    fn occurrence_single_eq() {
+        let set = OccurrenceSet::<usize>::new(vec![0]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&0), 0);
+    }
+
+    #[test]
+    fn occurrence_single_more() {
+        let set = OccurrenceSet::<usize>::new(vec![1]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&0), 0);
+    }
+
+    #[test]
+    fn occurrence_8() {
+        let set = OccurrenceSet::new(vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&10), 8);
+    }
+
+    #[test]
+    fn occurrence_9() {
+        let set = OccurrenceSet::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&10), 9);
     }
 }
