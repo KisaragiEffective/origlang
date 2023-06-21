@@ -135,6 +135,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
     }
 
     #[allow(clippy::cast_lossless)]
+    #[deny(clippy::as_underscore)]
     #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
         let (lhs, rhs, operator, return_type) = match expr {
@@ -218,13 +219,8 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     BinaryOperatorKind::Minus => fold_int_literals!(CheckedSub::checked_sub),
                     BinaryOperatorKind::Multiply => fold_int_literals!(CheckedMul::checked_mul),
                     BinaryOperatorKind::Divide => fold_int_literals!(CheckedDiv::checked_div),
-                    BinaryOperatorKind::More => fold_int_literals!(|a, b| Some((a > b) as _)),
-                    BinaryOperatorKind::MoreEqual => fold_int_literals!(|a, b| Some((a >= b) as _)),
-                    BinaryOperatorKind::Less => fold_int_literals!(|a, b| Some((a < b) as _)),
-                    BinaryOperatorKind::LessEqual => fold_int_literals!(|a, b| Some((a <= b) as _)),
                     BinaryOperatorKind::ThreeWay => fold_int_literals!(OutputCompareResultAsSelf::compare_self),
-                    BinaryOperatorKind::Equal => fold_int_literals!(|a, b| Some((a == b) as _)),
-                    BinaryOperatorKind::NotEqual => fold_int_literals!(|a, b| Some((a != b) as _)),
+                    compare => Self::fold_compare_into_bool_literal(lhs_lit, rhs_lit, compare),
                 }
             } else {
                 TypedExpression::BinaryOperator {
@@ -252,6 +248,43 @@ impl FoldBinaryOperatorInvocationWithConstant {
                 operator,
                 return_type
             }
+        }
+    }
+
+    fn fold_compare_into_bool_literal(lhs: &TypedIntLiteral, rhs: &TypedIntLiteral, compare: BinaryOperatorKind) -> TypedExpression {
+        // [T, O] =>> (T, T) => O
+        macro_rules! poly_input_lambda {
+            ($closure:expr) => {
+                match (lhs, rhs) {
+                    (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
+                        $closure(lhs, rhs)
+                    },
+                    (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
+                        $closure(lhs, rhs)
+                    },
+                    (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
+                        $closure(lhs, rhs)
+                    },
+                    (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
+                        $closure(lhs, rhs)
+                    },
+                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
+                        $closure(lhs, rhs)
+                    },
+                    _ => unreachable!(),
+                }
+            };
+        }
+
+        match compare {
+            BinaryOperatorKind::More => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs > rhs)),
+            BinaryOperatorKind::MoreEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs >= rhs)),
+            BinaryOperatorKind::Less => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs < rhs)),
+            BinaryOperatorKind::LessEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs <= rhs)),
+            BinaryOperatorKind::Equal => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs == rhs)),
+            BinaryOperatorKind::NotEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs != rhs)),
+            #[allow(clippy::panic)]
+            other => panic!("operator {other} is not supported by this function"),
         }
     }
 }

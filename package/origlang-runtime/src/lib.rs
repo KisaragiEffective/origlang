@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter, Write};
 use derive_more::{Display, From};
-use log::debug;
+use log::{debug, info};
 use tap::{Conv, Pipe};
 use thiserror::Error;
 use origlang_ast::{Identifier};
@@ -185,7 +185,10 @@ impl Runtime {
     /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
     pub fn start<'s: 'o, 'o>(&'s self, ast: TypedRootAst) -> &'o RefCell<dyn OutputAccumulator> {
-        SimpleOptimization::optimize(IR1::create(ast))
+        // info!("{ast:?}", ast = &ast);
+        let x = SimpleOptimization::optimize(IR1::create(ast));
+        // info!("{x:?}", x = &x);
+        x
             .into_iter().for_each(|x| self.invoke(x));
         &self.o
     }

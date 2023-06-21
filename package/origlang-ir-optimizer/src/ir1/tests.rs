@@ -25,6 +25,21 @@ fn fold_binary_operator_is_recursive() {
 }
 
 #[test]
+fn fold_comparison_between_integrals_into_boolean_literal() {
+    // TODO: test all comparison operator
+    let opt_output = FoldBinaryOperatorInvocationWithConstant(vec![
+        IR1::Output(TypedExpression::BinaryOperator {
+            lhs: Box::new(TypedExpression::IntLiteral(TypedIntLiteral::Generic(2))),
+            rhs: Box::new(TypedExpression::IntLiteral(TypedIntLiteral::Generic(3))),
+            operator: BinaryOperatorKind::Less,
+            return_type: Type::Boolean,
+        })
+    ]).optimize();
+
+    assert_eq!(opt_output, [IR1::Output(TypedExpression::BooleanLiteral(true))])
+}
+
+#[test]
 fn fold_if_with_constant_condition() {
     let opt_output = FoldIfWithConstantCondition(vec![
         IR1::Output(TypedExpression::If {
