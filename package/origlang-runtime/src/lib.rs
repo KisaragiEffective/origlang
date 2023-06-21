@@ -3,7 +3,7 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter, Write};
 use derive_more::{Display, From};
 use log::debug;
 use tap::{Conv, Pipe};
@@ -12,7 +12,7 @@ use origlang_ast::{Identifier};
 use origlang_ast::after_parse::{BinaryOperatorKind};
 use origlang_ir::{IntoVerbatimSequencedIR, IR1};
 use origlang_ir_optimizer::preset::{OptimizationPreset, SimpleOptimization};
-use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst};
+use origlang_typesystem_model::{DisplayRecordType, Type, TypedExpression, TypedIntLiteral, TypedRootAst};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -37,14 +37,29 @@ pub enum TypeBoxUnwrapError {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct DisplayTuple {
+pub struct DisplayTupleValue {
     pub boxes: Vec<TypeBox>
 }
 
-impl Display for DisplayTuple {
+impl Display for DisplayTupleValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = self.boxes.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         let s = format!("({s})");
+        f.write_str(&s)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct DisplayRecordValue {
+    pub name: Identifier,
+    pub values: Vec<TypeBox>,
+}
+
+impl Display for DisplayRecordValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = self.values.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let name = &self.name;
+        let s = format!("{name} {{{s}}}");
         f.write_str(&s)
     }
 }
@@ -75,7 +90,10 @@ pub enum TypeBox {
     Unit,
     #[display(fmt = "{_0}")]
     #[from]
-    Tuple(DisplayTuple)
+    Tuple(DisplayTupleValue),
+    #[display(fmt = "{_0}")]
+    #[from]
+    Record(DisplayRecordValue),
 }
 
 impl TypeBox {
@@ -90,7 +108,13 @@ impl TypeBox {
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,
             Self::Int64(_) => Type::Int64,
-            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(Self::get_type).collect::<Vec<_>>().into())
+            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(Self::get_type).collect::<Vec<_>>().into()),
+            Self::Record(r) => Type::Record(
+                DisplayRecordType::new(
+                    r.name.clone(),
+                    r.values.iter().map(Self::get_type).collect::<Vec<_>>()
+                )
+            ),
         }
     }
 }
@@ -384,7 +408,7 @@ impl CanBeEvaluated for TypedExpression {
                     res.push(e.evaluate(runtime)?);
                 }
 
-                Ok(TypeBox::Tuple(DisplayTuple {
+                Ok(TypeBox::Tuple(DisplayTupleValue {
                     boxes: res
                 }))
             }

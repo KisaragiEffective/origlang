@@ -38,6 +38,12 @@ impl Repl {
                 let elements = tp.boxes.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
                 format!("({elements})")
             }
+            TypeBox::Record(r) => {
+                let elements = r.values.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
+                let identifier = r.name.clone();
+
+                format!("{identifier} {{{elements}}}")
+            }
         }
     }
 }
