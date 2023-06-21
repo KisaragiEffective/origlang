@@ -41,6 +41,7 @@ impl OutputAccumulator for PseudoStdout {
             TypeBox::String(s) => s,
             TypeBox::Unit => "()".to_string(),
             TypeBox::Tuple(t) => t.to_string(),
+            TypeBox::Record(r) => r.to_string(),
         };
 
         echo(JsString::from(s));

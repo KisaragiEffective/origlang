@@ -5,9 +5,9 @@ use origlang_ast::Identifier;
 
 // TODO: this is implementation detail, should be unreachable.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct TupleDisplay(pub Vec<Type>);
+pub struct DisplayTupleType(pub Vec<Type>);
 
-impl Display for TupleDisplay {
+impl Display for DisplayTupleType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let content = self.0.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         let output = format!("({content})");
@@ -16,9 +16,33 @@ impl Display for TupleDisplay {
     }
 }
 
-impl From<Vec<Type>> for TupleDisplay {
+impl From<Vec<Type>> for DisplayTupleType {
     fn from(value: Vec<Type>) -> Self {
         Self(value)
+    }
+}
+
+// TODO: this is implementation detail, should be unreachable.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct DisplayRecordType {
+    identifier: Identifier,
+    components: Vec<Type>,
+}
+
+impl DisplayRecordType {
+    pub fn new(identifier: Identifier, components: Vec<Type>) -> Self {
+        Self {
+            identifier, components
+        }
+    }
+}
+impl Display for DisplayRecordType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let serialized_component = self.components.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let identifier = &self.identifier;
+        let output = format!("{identifier} {{{serialized_component}}}");
+
+        f.write_str(&output)
     }
 }
 
@@ -41,7 +65,9 @@ pub enum Type {
     #[display(fmt = "Int64")]
     Int64,
     #[display(fmt = "{_0}")]
-    Tuple(TupleDisplay),
+    Tuple(DisplayTupleType),
+    #[display(fmt = "{_0}")]
+    Record(DisplayRecordType),
 }
 
 impl Type {
@@ -50,7 +76,7 @@ impl Type {
     }
 
     pub fn tuple(tuple_elements: Vec<Type>) -> Self {
-        Self::Tuple(TupleDisplay(tuple_elements))
+        Self::Tuple(DisplayTupleType(tuple_elements))
     }
 }
 

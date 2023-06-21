@@ -4,7 +4,7 @@
 use log::{debug, info};
 use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
-use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTuple};
+use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use crate::task::Task;
 use origlang_ast::{Comment, RootAst, Statement};
 use origlang_ast::after_parse::Expression;
@@ -336,7 +336,7 @@ end
         assert_eq!(Self::evaluated_expressions(r#"var a = (1, 2)
 var b = (3, 4)
 print a
-"#)?, &[TypeBox::Tuple(DisplayTuple { boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]})]);
+"#)?, &[TypeBox::Tuple(DisplayTupleValue { boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]})]);
 
         Ok(())
     }
