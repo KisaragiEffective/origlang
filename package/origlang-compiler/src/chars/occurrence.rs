@@ -4,6 +4,9 @@
 /// for performance optimization.
 pub struct OccurrenceSet<T>(Vec<T>);
 
+// TODO(nightly):
+//   once the nightly feature called `is_sorted` become stable, replace call to this function
+//   with stabilized one.
 fn is_sorted<T: Ord>(slice: &[T]) -> bool {
     if slice.len() <= 1 {
         true
