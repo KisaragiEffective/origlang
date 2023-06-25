@@ -144,6 +144,7 @@ impl Test {
         Self::test_block_scope()?;
         Self::test_tuple_type()?;
         Self::test_comment()?;
+        Self::test_exit()?;
 
         Ok(())
     }
@@ -383,6 +384,14 @@ print 1
                 ]
             }
         );
+
+        Ok(())
+    }
+
+    fn test_exit() -> Result<(), Err> {
+        assert_eq!(Self::ast("exit\n")?.statement, [ Statement::Exit ]);
+        assert_eq!(Self::evaluated_expressions("exit\n")?, []);
+        assert_eq!(Self::evaluated_expressions("exit\nprint 1\n")?, []);
 
         Ok(())
     }

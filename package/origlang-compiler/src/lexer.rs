@@ -251,6 +251,7 @@ impl Lexer {
                                     "print" => Token::KeywordPrint,
                                     "block" => Token::KeywordBlock,
                                     "end" => Token::KeywordEnd,
+                                    "exit" => Token::KeywordExit,
                                     other => Token::Reserved {
                                         matched: other.to_string(),
                                     }
@@ -654,6 +655,8 @@ pub enum Token {
     SymComma,
     /// `//`
     PartSlashSlash,
+    /// `exit`
+    KeywordExit,
     Comment {
         content: Comment,
     },
@@ -707,6 +710,7 @@ impl Token {
             Self::PartSlashSlash => "part:slash_slash",
             Self::Comment { .. } => "comment",
             Self::StringLiteral(_) => "literal:string",
+            Self::KeywordExit => "keyword:exit",
             Self::Reserved { .. } => "reserved_token",
         }
     }

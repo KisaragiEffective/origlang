@@ -176,6 +176,10 @@ impl Parser {
                 self.lexer.next();
                 Statement::Comment { content }
             }
+            Token::KeywordExit => {
+                self.lexer.next();
+                Statement::Exit
+            }
             x => {
                 return Err(SimpleErrorWithPos {
                     kind: ParserError::UnexpectedToken {

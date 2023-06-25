@@ -5,6 +5,7 @@ use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir_optimizer::ir1::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition};
+use origlang_ir_optimizer::lower::{LowerStep, LowerToIR1};
 use crate::args::{EmitPhase, ParseSource};
 use crate::error::TaskExecutionError;
 use crate::task::Task;
@@ -66,17 +67,21 @@ impl Task for UnstableEmit {
         use origlang_ir::IntoVerbatimSequencedIR;
         let ir_sequence = checked.into_ir();
 
-        if self.phase == EmitPhase::Ir1 {
+        if self.phase == EmitPhase::Ir0 {
             println!("{ir_sequence:#?}");
             return Ok(())
         }
 
+        let ir_sequence = LowerToIR1::lower(ir_sequence);
+        if self.phase == EmitPhase::OptimizedIr1 {
+            let optimized_ir = ir_sequence
+                .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
+                .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize());
+            println!("{optimized_ir:#?}");
+        } else {
+            println!("{ir_sequence:#?}");
+        }
 
-        let optimized_ir = ir_sequence
-            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
-            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize());
-
-        println!("{optimized_ir:#?}");
         Ok(())
     }
 }
