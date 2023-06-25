@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
+mod invoke_once;
+
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter, Write};
@@ -10,9 +12,10 @@ use tap::{Conv, Pipe};
 use thiserror::Error;
 use origlang_ast::{Identifier};
 use origlang_ast::after_parse::{BinaryOperatorKind};
-use origlang_ir::{IntoVerbatimSequencedIR, IR1};
+use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1};
 use origlang_ir_optimizer::preset::{OptimizationPreset, SimpleOptimization};
 use origlang_typesystem_model::{DisplayRecordType, Type, TypedExpression, TypedIntLiteral, TypedRootAst};
+use crate::invoke_once::InvokeOnce;
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -164,10 +167,15 @@ impl OutputAccumulator for Accumulate {
     }
 }
 
+pub trait ExitSignalReceiver: Debug {
+    fn on_exit(&self);
+}
+
 #[derive(Debug)]
 pub struct Runtime {
     scopes: RefCell<VecDeque<Scope>>,
     o: Box<RefCell<dyn OutputAccumulator>>,
+    on_exit: Option<InvokeOnce<Box<dyn ExitSignalReceiver>>>,
 }
 
 impl Runtime {
@@ -178,7 +186,8 @@ impl Runtime {
         let o = Box::new(RefCell::new(t));
         Self {
             scopes,
-            o
+            o,
+            on_exit: None
         }
     }
 
@@ -186,11 +195,15 @@ impl Runtime {
     #[allow(dead_code)]
     pub fn start<'s: 'o, 'o>(&'s self, ast: TypedRootAst) -> &'o RefCell<dyn OutputAccumulator> {
         // info!("{ast:?}", ast = &ast);
-        let x = SimpleOptimization::optimize(IR1::create(ast));
+        let x = self.compile(IR0::create(ast));
         // info!("{x:?}", x = &x);
         x
             .into_iter().for_each(|x| self.invoke(x));
         &self.o
+    }
+
+    pub fn compile(&self, ir: Vec<IR0>) -> Vec<IR1> {
+        SimpleOptimization::optimize(ir)
     }
 
     pub fn execute(&self, ir: Vec<IR1>) {
@@ -213,6 +226,9 @@ impl Runtime {
             }
             IR1::PopScope => {
                 self.pop_scope();
+            }
+            IR1::Exit => {
+                self.on_exit.as_ref().map(|x| x.try_get().expect("exit receiver is already called!").on_exit());
             }
         }
     }
@@ -400,7 +416,7 @@ impl CanBeEvaluated for TypedExpression {
             }
             Self::Block { inner: intermediate_statements, final_expression, return_type: _ } => {
                 runtime.push_scope();
-                runtime.execute(intermediate_statements.clone().into_ir());
+                runtime.execute(runtime.compile(intermediate_statements.clone().into_ir()));
                 runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)

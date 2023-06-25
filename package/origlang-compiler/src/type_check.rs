@@ -259,6 +259,7 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::Comment { .. } => Ok(TypedStatement::Block {
                 inner_statements: vec![]
             }),
+            Self::Exit => Ok(TypedStatement::Exit)
         }
     }
 }

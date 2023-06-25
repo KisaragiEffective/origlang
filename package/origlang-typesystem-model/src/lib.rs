@@ -101,6 +101,7 @@ pub enum TypedStatement {
     Block {
         inner_statements: Vec<Self>
     },
+    Exit,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

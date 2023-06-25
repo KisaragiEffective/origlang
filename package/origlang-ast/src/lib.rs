@@ -72,6 +72,7 @@ pub enum Statement {
     Comment {
         content: Comment,
     },
+    Exit,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
