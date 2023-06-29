@@ -9,6 +9,7 @@ members = [
     "package/origlang-ir",
     "package/origlang-ir-optimizer",
     "package/origlang-runtime",
+    "package/origlang-source-span",
     "package/origlang-typesystem-model",
     "package/origlang-platform",
 ]

@@ -15,43 +15,6 @@ pub struct RootAst {
     pub statement: Vec<Statement>
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Ord, PartialOrd, Display)]
-#[display(fmt = "{line}:{column}")]
-pub struct SourcePos {
-    pub line: NonZeroUsize,
-    pub column: NonZeroUsize,
-}
-
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub struct WithPosition<T> {
-    pub position: SourcePos,
-    pub data: T,
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::SourcePos;
-
-    #[test]
-    fn source_pos_order() {
-        // 辞書式順序の理解があっているかどうか
-        assert!(SourcePos {
-            line: 1.try_into().unwrap(),
-            column: 1.try_into().unwrap(),
-        } < SourcePos {
-            line: 1.try_into().unwrap(),
-            column: 2.try_into().unwrap(),
-        });
-        assert!(SourcePos {
-            line: 1.try_into().unwrap(),
-            column: usize::MAX.try_into().unwrap(),
-        } < SourcePos {
-            line: 2.try_into().unwrap(),
-            column: 1.try_into().unwrap(),
-        });
-    }
-}
-
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Statement {
     /// <int_literal> <new_line>

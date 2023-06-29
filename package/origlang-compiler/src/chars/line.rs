@@ -1,5 +1,5 @@
 use thiserror::Error;
-use origlang_ast::SourcePos;
+use origlang_source_span::{SourcePosition as SourcePos};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::chars::occurrence::OccurrenceSet;
 
@@ -45,7 +45,7 @@ pub enum LineComputationError {
 
 #[cfg(test)]
 mod tests {
-    use origlang_ast::SourcePos;
+    use origlang_source_span::{SourcePosition as SourcePos};
     use crate::chars::boundary::Utf8CharBoundaryStartByte;
     use crate::chars::line::LineComputation;
     use crate::chars::occurrence::OccurrenceSet;

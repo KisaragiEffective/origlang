@@ -958,9 +958,17 @@ dependencies = [
  "log",
  "origlang-ast",
  "origlang-platform",
+ "origlang-source-span",
  "origlang-typesystem-model",
  "rand",
  "thiserror",
+]
+
+[[package]]
+name = "origlang-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "origlang-source-span",
 ]
 
 [[package]]
@@ -1022,6 +1030,10 @@ dependencies = [
  "tap",
  "thiserror",
 ]
+
+[[package]]
+name = "origlang-source-span"
+version = "0.1.0"
 
 [[package]]
 name = "origlang-typesystem-model"

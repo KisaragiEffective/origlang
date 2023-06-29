@@ -1,5 +1,6 @@
 use std::num::ParseIntError;
-use origlang_ast::{RootAst, SourcePos, Statement, WithPosition};
+use origlang_ast::{RootAst, Statement};
+use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::lexer::{DisplayToken, Lexer, LexerError, Token};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
