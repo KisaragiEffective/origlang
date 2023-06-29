@@ -13,6 +13,24 @@ pub trait Diagnostic {
     fn span(&self) -> Option<CanonicalSourceSpan>;
 }
 
+impl<D: Diagnostic + ?Sized> Diagnostic for Box<D> {
+    fn human_readable_message(&self) -> &str {
+        self.as_ref().human_readable_message()
+    }
+
+    fn cause(&self) -> &[CauseTree] {
+        self.as_ref().cause()
+    }
+
+    fn severity(&self) -> DiagnosticSeverity {
+        self.as_ref().severity()
+    }
+
+    fn span(&self) -> Option<CanonicalSourceSpan> {
+        self.as_ref().span()
+    }
+}
+
 pub enum CauseTree {
     Branch {
         reason: Box<dyn Diagnostic>,
@@ -32,5 +50,5 @@ pub enum DiagnosticSeverity {
 }
 
 pub trait DiagnosticSink {
-    fn emit_diagnostics<D: Diagnostic>(&self, diagnostics: D);
+    fn handle_diagnostic(&self, diagnostics: &dyn Diagnostic);
 }

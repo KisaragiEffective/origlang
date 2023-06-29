@@ -13,6 +13,9 @@ log = "0.4.19"
 thiserror = "1.0.40"
 origlang-platform = { path = "../origlang-platform" }
 origlang-source-span = { path = "../origlang-source-span" }
+origlang-diagnostics = { path = "../origlang-diagnostics" }
+origlang-ir = { path = "../origlang-ir" }
+origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["min_const_gen"] }

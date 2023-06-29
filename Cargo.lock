@@ -957,11 +957,25 @@ dependencies = [
  "derive_more",
  "log",
  "origlang-ast",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
  "origlang-platform",
  "origlang-source-span",
  "origlang-typesystem-model",
  "rand",
  "thiserror",
+]
+
+[[package]]
+name = "origlang-compiler-scanner-example"
+version = "0.1.0"
+dependencies = [
+ "origlang-compiler",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
+ "origlang-source-span",
 ]
 
 [[package]]

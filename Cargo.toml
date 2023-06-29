@@ -4,6 +4,7 @@ members = [
     "package/origlang-ast",
     "package/origlang-cli",
     "package/origlang-compiler",
+    "package/origlang-compiler-scanner-example",
     "package/origlang-diagnostics",
     "package/origlang-interop",
     "package/origlang-interop-frontend-webserver",
