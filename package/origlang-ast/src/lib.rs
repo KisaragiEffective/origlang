@@ -61,6 +61,8 @@ pub enum Statement {
     VariableDeclaration {
         identifier: Identifier,
         expression: Expression,
+        // TODO: in this form, type must be named
+        type_annotation: Option<Identifier>,
     },
     VariableAssignment {
         identifier: Identifier,

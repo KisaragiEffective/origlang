@@ -32,5 +32,14 @@ pub enum TypeCheckError {
         context: String,
         expected_type: Type,
         actual_type: Type,
+    },
+    #[error("value of {from} cannot be assigned to {to}")]
+    UnassignableType {
+        from: Type,
+        to: Type,
+    },
+    #[error("type {name} is not defined")]
+    UnknownType {
+        name: Identifier,
     }
 }
