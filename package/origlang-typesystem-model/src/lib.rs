@@ -78,6 +78,23 @@ impl Type {
     pub fn tuple(tuple_elements: Vec<Type>) -> Self {
         Self::Tuple(DisplayTupleType(tuple_elements))
     }
+    
+    pub fn is_assignable(&self, from: &Self) -> AssignableQueryAnswer {
+        if self.is_int_family() && from == &Self::GenericInteger {
+            AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly
+        } else if self == from {
+            AssignableQueryAnswer::Yes
+        } else {
+            AssignableQueryAnswer::No
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Copy, Clone)]
+pub enum AssignableQueryAnswer {
+    Yes,
+    PossibleIfCoerceSourceImplicitly,
+    No,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

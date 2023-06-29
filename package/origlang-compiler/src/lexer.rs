@@ -2,10 +2,12 @@ use std::borrow::Cow;
 use std::cell::Cell;
 use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
+use std::ops::ControlFlow;
+use std::panic::RefUnwindSafe;
 use log::{debug, trace, warn};
 use thiserror::Error;
 use origlang_ast::{Comment, Identifier, SourcePos, WithPosition};
-use crate::char_list::{ASCII_LOWERS, ASCII_NUMERIC_CHARS};
+use crate::char_list::ASCII_NUMERIC_CHARS;
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
@@ -233,38 +235,54 @@ impl Lexer {
                     None
                 )
             )
-            .or_else(|| {
+            .or_else(||
                 fold!(
-                    self.try_any(&ASCII_LOWERS).expect("huh?"),
-                    {
-                        let v = {
-                            let scan_result = self.scan_lowers().expect("oops");
-                            let is_keyword = KEYWORDS.contains(&scan_result.as_str());
-                            if is_keyword {
-                                match scan_result.as_str() {
-                                    "var" => Token::VarKeyword,
-                                    "true" => Token::KeywordTrue,
-                                    "false" => Token::KeywordFalse,
-                                    "if" => Token::KeywordIf,
-                                    "then" => Token::KeywordThen,
-                                    "else" => Token::KeywordElse,
-                                    "print" => Token::KeywordPrint,
-                                    "block" => Token::KeywordBlock,
-                                    "end" => Token::KeywordEnd,
-                                    "exit" => Token::KeywordExit,
-                                    other => Token::Reserved {
-                                        matched: other.to_string(),
-                                    }
-                                }
-                            } else {
-                                Token::Identifier { inner: Identifier::new(scan_result) }
-                            }
-                        };
-
-                        Some(v)
-                    },
+                    self.try_char(':').expect("huh?"),
+                    Some(Token::SymColon),
                     None
                 )
+            )
+            .or_else(|| {
+                self.one_or_many_accumulator(
+                    String::new(),
+                    true,
+                    |x, first| {
+                        let b = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
+
+                        if b {
+                            ControlFlow::Continue(false)
+                        } else {
+                            ControlFlow::Break(())
+                        }
+                    },
+                    |x, identifier| {
+                        identifier.push(x);
+                        debug!("identifier: {identifier:?}");
+                    }
+                )
+                    .ok()
+                    .map(|scanned| {
+                        let is_keyword = KEYWORDS.contains(&scanned.as_str());
+                        if is_keyword {
+                            match scanned.as_str() {
+                                "var" => Token::VarKeyword,
+                                "true" => Token::KeywordTrue,
+                                "false" => Token::KeywordFalse,
+                                "if" => Token::KeywordIf,
+                                "then" => Token::KeywordThen,
+                                "else" => Token::KeywordElse,
+                                "print" => Token::KeywordPrint,
+                                "block" => Token::KeywordBlock,
+                                "end" => Token::KeywordEnd,
+                                "exit" => Token::KeywordExit,
+                                other => Token::Reserved {
+                                    matched: other.to_string(),
+                                }
+                            }
+                        } else {
+                            Token::Identifier { inner: Identifier::new(scanned) }
+                        }
+                    })
             })
             // dont eager evaluate
             .unwrap_or_else(|| Token::UnexpectedChar {
@@ -276,16 +294,18 @@ impl Lexer {
     }
 
     pub fn next(&self) -> WithPosition<Token> {
-        debug!("lexer:next");
         self.drain_space();
         
         if self.reached_end() {
             return Token::EndOfFile.with_pos(self)
         }
 
-        self.next_inner()
+        let r = self.next_inner()
             .expect("Lexer phase error")
-            .with_pos(self)
+            .with_pos(self);
+
+        debug!("next: {r:?}", r = &r);
+        r
     }
 
     fn current_pos(&self) -> SourcePos {
@@ -295,7 +315,7 @@ impl Lexer {
         }
     }
 
-    fn scan_by_predicate(&self, scan_while: impl Fn(char) -> bool, drop_on_exit: bool) -> Result<String, LexerError> {
+    fn one_or_many(&self, scan_while: impl Fn(char) -> bool, ignore_trailing_char_on_exit: bool) -> Result<String, LexerError> {
         let mut buf = String::new();
         loop {
             if self.reached_end() {
@@ -304,7 +324,7 @@ impl Lexer {
 
             let c = self.current_char()?;
             if !scan_while(c) {
-                if drop_on_exit {
+                if ignore_trailing_char_on_exit {
                     self.consume_char()?;
                 }
 
@@ -316,6 +336,39 @@ impl Lexer {
         }
 
         Ok(buf)
+    }
+
+    fn one_or_many_accumulator<Acc, R: RefUnwindSafe>(
+        &self,
+        scan_sequence_accumulator: Acc,
+        registers: R,
+        judge: impl Fn(char, R) -> ControlFlow<(), R>,
+        accumulate: impl Fn(char, &mut Acc)
+    ) -> Result<Acc, LexerError> {
+        let mut acc = scan_sequence_accumulator;
+        let mut registers = registers;
+
+        loop {
+            if self.reached_end() {
+                break
+            }
+
+            let c = self.current_char()?;
+            let cf = judge(c, registers);
+            match cf {
+                ControlFlow::Continue(c) => {
+                    registers = c;
+                    self.consume_char()?;
+                }
+                ControlFlow::Break(b) => {
+                    break
+                }
+            }
+
+            accumulate(c, &mut acc);
+        }
+
+        Ok(acc)
     }
 
     fn scan_digit_suffix_opt(&self) -> Result<Option<Box<str>>, LexerError> {
@@ -360,19 +413,13 @@ impl Lexer {
 
     fn scan_digits(&self) -> Result<Token, LexerError> {
         debug!("lexer:digit");
-        let buf = self.scan_by_predicate(|c| ASCII_NUMERIC_CHARS.contains(&c), false)?;
+        let buf = self.one_or_many(|c| ASCII_NUMERIC_CHARS.contains(&c), false)?;
         let builtin_suffix = self.scan_digit_suffix_opt()?;
 
         Ok(Token::Digits {
             sequence: buf,
             suffix: builtin_suffix,
         })
-    }
-
-    fn scan_lowers(&self) -> Result<String, LexerError> {
-        debug!("lexer:lower");
-        let buf = self.scan_by_predicate(|c| ASCII_LOWERS.contains(&c), false)?;
-        Ok(buf)
     }
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
@@ -460,7 +507,7 @@ impl Lexer {
     }
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
-        let content = self.scan_by_predicate(|c| c != '\n', false)?;
+        let content = self.one_or_many(|c| c != '\n', false)?;
 
         Ok(Token::Comment {
             content: Comment {
@@ -657,6 +704,8 @@ pub enum Token {
     PartSlashSlash,
     /// `exit`
     KeywordExit,
+    /// `:`
+    SymColon,
     Comment {
         content: Comment,
     },
@@ -711,6 +760,7 @@ impl Token {
             Self::Comment { .. } => "comment",
             Self::StringLiteral(_) => "literal:string",
             Self::KeywordExit => "keyword:exit",
+            Self::SymColon => "sym:colon",
             Self::Reserved { .. } => "reserved_token",
         }
     }

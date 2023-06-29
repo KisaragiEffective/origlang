@@ -576,11 +576,30 @@ impl Parser {
                 }
             })
         };
+        // optionally, allow type annotation
+        let type_annotation = self.lexer.parse_fallible(|| {
+            match self.lexer.next().data {
+                Token::SymColon => {},
+                _ => return Err(())
+            }
+
+            let maybe_tp = self.lexer.next().data;
+            let ident = match maybe_tp {
+                Token::Identifier { inner } => inner,
+                _ => return Err(())
+            };
+
+            Ok(ident)
+        }).ok();
+
+        debug!("type annotation: {type_annotation:?}");
+
         self.assert_token_eq_with_consumed(&Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableDeclaration {
             identifier: name,
-            expression
+            expression,
+            type_annotation,
         })
     }
 

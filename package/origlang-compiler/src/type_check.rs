@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_ast::{Identifier, RootAst, Statement};
-use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
+use origlang_typesystem_model::{AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
 use crate::type_check::error::TypeCheckError;
 
@@ -222,13 +222,45 @@ impl TryIntoTypeCheckedForm for Statement {
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::Print { expression } => checker.check(expression).map(|e| TypedStatement::Print { expression: e }),
-            Self::VariableDeclaration { identifier, expression } => {
+            Self::VariableDeclaration { identifier, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
-                checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
-                Ok(TypedStatement::VariableDeclaration {
-                    identifier,
-                    expression: checked,
-                })
+                return if let Some(type_name) = type_annotation {
+                    if let Ok(dest) = checker.lookup(&type_name) {
+                        match dest.is_assignable(&checked.actual_type()) {
+                            AssignableQueryAnswer::Yes => {
+                                checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                                Ok(TypedStatement::VariableDeclaration {
+                                    identifier,
+                                    expression: checked,
+                                })
+                            },
+                            AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
+
+                                Err(TypeCheckError::UnassignableType {
+                                    from: checked.actual_type(),
+                                    to: dest,
+                                })
+                            }
+                            AssignableQueryAnswer::No => {
+                                Err(TypeCheckError::UnassignableType {
+                                    from: checked.actual_type(),
+                                    to: dest,
+                                })
+                            }
+                        }
+                    } else {
+                        Err(TypeCheckError::UnknownType {
+                            name: type_name
+                        })
+                    }
+                } else {
+                    // no annotations, just set its type (type-inference) from the expr
+                    checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                    Ok(TypedStatement::VariableDeclaration {
+                        identifier,
+                        expression: checked,
+                    })
+                }
             }
             Self::VariableAssignment { identifier, expression } => {
                 let checked = checker.check(expression)?;
@@ -286,6 +318,21 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+    pub(crate) fn lookup(&self, p0: &Identifier) -> Result<Type, ()> {
+        match p0.as_name() {
+            "Bool" => Ok(Type::Boolean),
+            "String" => Ok(Type::String),
+            "Unit" => Ok(Type::Unit),
+            "Int8" => Ok(Type::Int8),
+            "Int16" => Ok(Type::Int16),
+            "Int32" => Ok(Type::Int32),
+            "Int64" => Ok(Type::Int64),
+            _ => Err(())
+        }
+    }
+}
+
+impl TypeChecker {
     const fn invalid_combination_for_binary_operator(accepted_lhs: Type, operator: BinaryOperatorKind, accepted_rhs: Type, got_lhs: Type, got_rhs: Type) -> TypeCheckError {
         TypeCheckError::InvalidCombinationForBinaryOperator {
             accepted_lhs,
@@ -308,6 +355,7 @@ impl TypeChecker {
     pub fn check<T: TryIntoTypeCheckedForm>(&self, t: T) -> Result<T::Success, T::Err> {
         t.type_check(self)
     }
+
 }
 
 pub struct Context {
