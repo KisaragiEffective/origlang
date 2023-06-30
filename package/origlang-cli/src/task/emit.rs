@@ -1,12 +1,12 @@
-use tap::Pipe;
 use thiserror::Error;
 use origlang_compiler::lexer::Lexer;
 use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
-use origlang_ir_optimizer::ir1::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition};
-use origlang_ir_optimizer::lower::{LowerStep, LowerToIR1};
-use crate::args::{EmitPhase, ParseSource};
+use origlang_ir::{IR1, IR2};
+use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
+use crate::args::{EmitPhase, OptimizeLevel, ParseSource};
 use crate::error::TaskExecutionError;
 use crate::task::Task;
 
@@ -32,10 +32,10 @@ impl From<EmitError> for TaskExecutionError {
 }
 
 impl Task for UnstableEmit {
-    type Environment = ParseSource;
+    type Environment = (ParseSource, OptimizeLevel);
     type Error = EmitError;
 
-    fn execute(&self, environment: Self::Environment) -> Result<(), Self::Error> {
+    fn execute(&self, (environment, optimize_level): Self::Environment) -> Result<(), Self::Error> {
         let src = environment.source();
         if self.phase == EmitPhase::LexerToken {
             let lexer = Lexer::create(&src);
@@ -67,20 +67,36 @@ impl Task for UnstableEmit {
         use origlang_ir::IntoVerbatimSequencedIR;
         let ir_sequence = checked.into_ir();
 
+        let optimizer = match optimize_level {
+            OptimizeLevel::None => &NoOptimization as &dyn EachStep,
+            OptimizeLevel::Basic => &SimpleOptimization as &dyn EachStep,
+        };
+
+        let the_lower = TheTranspiler::new(optimizer);
+
         if self.phase == EmitPhase::Ir0 {
+            let ir_sequence = the_lower.optimizer().optimize(ir_sequence);
+
             println!("{ir_sequence:#?}");
             return Ok(())
         }
 
-        let ir_sequence = LowerToIR1::lower(ir_sequence);
-        if self.phase == EmitPhase::OptimizedIr1 {
-            let optimized_ir = ir_sequence
-                .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
-                .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize());
-            println!("{optimized_ir:#?}");
-        } else {
+        let ir_sequence = the_lower.lower(ir_sequence);
+
+        if self.phase == EmitPhase::Ir1 {
+            let ir_sequence: Vec<IR1> = the_lower.optimizer().optimize(ir_sequence);
+
             println!("{ir_sequence:#?}");
+            return Ok(())
         }
+
+        let ir_sequence = the_lower.lower(ir_sequence);
+
+        assert_eq!(self.phase, EmitPhase::Ir2);
+
+        let ir_sequence: Vec<IR2> = the_lower.optimizer().optimize(ir_sequence);
+
+        println!("{ir_sequence:#?}");
 
         Ok(())
     }
