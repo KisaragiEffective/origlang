@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::any::{Any, type_name, TypeId};
 use std::ops::Deref;
 use log::debug;
