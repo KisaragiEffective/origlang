@@ -2,6 +2,7 @@ use origlang_ir::{CompiledTypedExpression, IntoVerbatimSequencedIR, IR0, IR1, IR
 use origlang_typesystem_model::{TypedExpression, TypedStatement};
 use crate::preset::OptimizationPreset;
 
+// TODO: 最適化と診断の送信とloweringを一手に担う高レベルなAPIを用意する
 pub struct TheTranspiler<'t> {
     pub optimization_preset: &'t dyn EachStep
 }

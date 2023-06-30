@@ -11,8 +11,8 @@ use origlang_ast::after_parse::Expression;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
-use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
-use origlang_ir_optimizer::preset::NoOptimization;
+use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
 use crate::error::TaskExecutionError;
 
 type Err = TestFailureCause;
@@ -67,6 +67,10 @@ macro_rules! type_boxes {
 
 impl Test {
     fn evaluated_expressions(src: &str) -> Result<Vec<TypeBox>, Err> {
+        Self::evaluated_expressions_with_optimization_preset(src, &NoOptimization)
+    }
+
+    fn evaluated_expressions_with_optimization_preset(src: &str, preset: &dyn EachStep) -> Result<Vec<TypeBox>, Err> {
         use origlang_compiler::parser::Parser;
         debug!("src:\n{}", src);
         let source = src;
@@ -76,9 +80,11 @@ impl Test {
         let runtime = Runtime::create(acc);
         let checker = TypeChecker::new();
         let checked = checker.check(root_ast)?;
-        let transpiler = TheTranspiler::new(&NoOptimization);
+        let transpiler = TheTranspiler::new(preset);
         let ir = checked.into_ir();
+        let ir = transpiler.optimizer().optimize(ir);
         let ir = transpiler.lower(ir);
+        let ir = transpiler.optimizer().optimize(ir);
         let ir = transpiler.lower(ir);
         let o = runtime.start(ir);
         println!("{o:?}", o = &o);
@@ -398,7 +404,7 @@ print 1
     fn test_exit() -> Result<(), Err> {
         assert_eq!(Self::ast("exit\n")?.statement, [ Statement::Exit ]);
         assert_eq!(Self::evaluated_expressions("exit\n")?, []);
-        assert_eq!(Self::evaluated_expressions("exit\nprint 1\n")?, []);
+        assert_eq!(Self::evaluated_expressions_with_optimization_preset("exit\nprint 1\n", &SimpleOptimization)?, []);
 
         Ok(())
     }
