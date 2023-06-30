@@ -968,10 +968,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "origlang-compiler-entrypoint"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-compiler",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
+ "thiserror",
+]
+
+[[package]]
 name = "origlang-compiler-scanner-example"
 version = "0.1.0"
 dependencies = [
  "origlang-compiler",
+ "origlang-compiler-entrypoint",
  "origlang-diagnostics",
  "origlang-ir",
  "origlang-ir-optimizer",

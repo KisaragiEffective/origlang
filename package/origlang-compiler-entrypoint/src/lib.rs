@@ -3,6 +3,9 @@ use std::ops::Deref;
 use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
+use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
+use origlang_compiler::type_check::error::TypeCheckError;
+use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
 use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
@@ -48,7 +51,7 @@ impl TheCompiler {
         self
     }
 
-    pub fn compile(self, source: String) -> Result<Vec<IR1>, PartialCompilation> {
+    pub fn compile(&self, source: String) -> Result<Vec<IR1>, PartialCompilation> {
         let x = Parser::create(&source);
         let root = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;

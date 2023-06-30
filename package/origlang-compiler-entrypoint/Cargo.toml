@@ -1,0 +1,15 @@
+[package]
+name = "origlang-compiler-entrypoint"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = { version = "0.4.19" }
+origlang-ast = { path = "../origlang-ast" }
+origlang-compiler = { path = "../origlang-compiler" }
+origlang-diagnostics = { path = "../origlang-diagnostics" }
+origlang-ir = { path = "../origlang-ir" }
+origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
+thiserror = { version = "1.0.40" }

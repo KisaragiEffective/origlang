@@ -12,7 +12,7 @@ use tap::{Conv, Pipe};
 use thiserror::Error;
 use origlang_ast::{Identifier};
 use origlang_ast::after_parse::{BinaryOperatorKind};
-use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1};
+use origlang_ir::{CompiledTypedExpression, IntoVerbatimSequencedIR, IR0, IR1, IR2};
 use origlang_ir_optimizer::preset::{OptimizationPreset, SimpleOptimization};
 use origlang_typesystem_model::{DisplayRecordType, Type, TypedExpression, TypedIntLiteral, TypedRootAst};
 use crate::invoke_once::InvokeOnce;
@@ -193,42 +193,40 @@ impl Runtime {
 
     /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
-    pub fn start<'s: 'o, 'o>(&'s self, ast: TypedRootAst) -> &'o RefCell<dyn OutputAccumulator> {
+    pub fn start<'s: 'o, 'o>(&'s self, seq: Vec<IR2>) -> &'o RefCell<dyn OutputAccumulator> {
         // info!("{ast:?}", ast = &ast);
-        let x = self.compile(IR0::create(ast));
+        let x = seq;
         // info!("{x:?}", x = &x);
         x
             .into_iter().for_each(|x| self.invoke(x));
         &self.o
     }
 
-    pub fn compile(&self, ir: Vec<IR0>) -> Vec<IR1> {
-        SimpleOptimization::optimize(ir)
-    }
-
-    pub fn execute(&self, ir: Vec<IR1>) {
+    pub fn execute(&self, ir: Vec<IR2>) {
         ir.into_iter().for_each(|x| self.invoke(x));
     }
     
-    pub fn invoke(&self, ir: IR1) {
+    pub fn invoke(&self, ir: IR2) {
         match ir {
-            IR1::Output(e) => {
+            IR2::Output(e) => {
                 self.o.as_ref().borrow_mut().output(e.evaluate(self).expect("runtime exception"));
             }
-            IR1::UpdateVariable { ident, value } => {
+            IR2::UpdateVariable { ident, value } => {
                 self.upsert_member_to_current_scope(
                     ident,
                     value.evaluate(self).expect("self exception")
                 );
             }
-            IR1::PushScope => {
+            IR2::PushScope => {
                 self.push_scope();
             }
-            IR1::PopScope => {
+            IR2::PopScope => {
                 self.pop_scope();
             }
-            IR1::Exit => {
-                self.on_exit.as_ref().map(|x| x.try_get().expect("exit receiver is already called!").on_exit());
+            IR2::Exit => {
+                if let Some(x) = self.on_exit.as_ref() {
+                    x.try_get().expect("exit receiver is already called!").on_exit()
+                }
             }
         }
     }
@@ -337,7 +335,7 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
-impl CanBeEvaluated for TypedExpression {
+impl CanBeEvaluated for CompiledTypedExpression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
             #[allow(clippy::cast_possible_truncation)]
@@ -397,7 +395,7 @@ impl CanBeEvaluated for TypedExpression {
                     _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
                 };
             }
-            Self::If { condition, then: then_clause_value, els: else_clause_value, return_type } => {
+            Self::If { condition, then: then_clause_value, els: else_clause_value, return_type: _ } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
                     runtime.push_scope();
@@ -416,7 +414,7 @@ impl CanBeEvaluated for TypedExpression {
             }
             Self::Block { inner: intermediate_statements, final_expression, return_type: _ } => {
                 runtime.push_scope();
-                runtime.execute(runtime.compile(intermediate_statements.clone().into_ir()));
+                runtime.execute(intermediate_statements.clone());
                 runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)
