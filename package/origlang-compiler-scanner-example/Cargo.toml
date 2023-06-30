@@ -1,0 +1,14 @@
+[package]
+name = "origlang-compiler-scanner-example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+origlang-compiler = { path = "../origlang-compiler" }
+origlang-compiler-entrypoint = { path = "../origlang-compiler-entrypoint" }
+origlang-diagnostics = { path = "../origlang-diagnostics" }
+origlang-ir = { path = "../origlang-ir" }
+origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
+origlang-source-span = { path = "../origlang-source-span" }
