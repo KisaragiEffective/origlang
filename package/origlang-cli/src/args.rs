@@ -58,11 +58,11 @@ impl Args {
                 task.execute(source)?;
                 Ok(())
             }
-            SubCom::Emit { emit, input_file, input_source } => {
+            SubCom::Emit { emit, input_file, input_source, optimize_level } => {
                 let task = UnstableEmit { phase: emit };
                 let source = load_either(input_file, input_source);
 
-                task.execute(source)?;
+                task.execute((source, optimize_level))?;
                 Ok(())
             }
             SubCom::Test => {
@@ -88,6 +88,8 @@ pub enum SubCom {
     Emit {
         #[clap(long)]
         emit: EmitPhase,
+        #[clap(long)]
+        optimize_level: OptimizeLevel,
         #[clap(long, group = "evaluate_source")]
         input_file: Option<PathBuf>,
         #[clap(long, group = "evaluate_source")]
@@ -105,5 +107,13 @@ pub enum EmitPhase {
     TypedAst,
     Ir0,
     Ir1,
-    OptimizedIr1,
+    Ir2,
+}
+
+#[derive(EnumString)]
+#[strum(serialize_all = "snake_case")]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum OptimizeLevel {
+    None,
+    Basic,
 }

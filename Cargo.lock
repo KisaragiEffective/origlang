@@ -957,10 +957,46 @@ dependencies = [
  "derive_more",
  "log",
  "origlang-ast",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
  "origlang-platform",
+ "origlang-source-span",
  "origlang-typesystem-model",
  "rand",
  "thiserror",
+]
+
+[[package]]
+name = "origlang-compiler-entrypoint"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-compiler",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
+ "thiserror",
+]
+
+[[package]]
+name = "origlang-compiler-scanner-example"
+version = "0.1.0"
+dependencies = [
+ "origlang-compiler",
+ "origlang-compiler-entrypoint",
+ "origlang-diagnostics",
+ "origlang-ir",
+ "origlang-ir-optimizer",
+ "origlang-source-span",
+]
+
+[[package]]
+name = "origlang-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "origlang-source-span",
 ]
 
 [[package]]
@@ -970,6 +1006,8 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "origlang-compiler",
+ "origlang-ir",
+ "origlang-ir-optimizer",
  "origlang-runtime",
  "origlang-typesystem-model",
  "thiserror",
@@ -1022,6 +1060,10 @@ dependencies = [
  "tap",
  "thiserror",
 ]
+
+[[package]]
+name = "origlang-source-span"
+version = "0.1.0"
 
 [[package]]
 name = "origlang-typesystem-model"

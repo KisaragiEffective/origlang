@@ -13,6 +13,8 @@ wasm-bindgen = "0.2.87"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-runtime = { path = "../origlang-runtime" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
+origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
+origlang-ir = { path = "../origlang-ir" }
 js-sys = "0.3.64"
 console_error_panic_hook = "0.1.7"
 web-sys = { version = "0.3.64", features = ["console"] }

@@ -9,6 +9,10 @@ use origlang_platform::CTRL_D_NL;
 use origlang_compiler::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
 use origlang_runtime::{PrintToStdout, Runtime, TypeBox};
 use origlang_compiler::type_check::TypeChecker;
+use origlang_ir::{IntoVerbatimSequencedIR, IR2};
+use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::NoOptimization;
+use origlang_typesystem_model::TypedRootAst;
 
 struct Dummy((), Source);
 
@@ -46,6 +50,15 @@ impl Repl {
             }
         }
     }
+
+    fn naive_lower(tra: TypedRootAst) -> Vec<IR2> {
+        let ir = tra.into_ir();
+        let trans = TheTranspiler::new(&NoOptimization);
+        let ir = trans.lower(ir);
+        let ir = trans.lower(ir);
+
+        ir
+    }
 }
 
 impl Task for Repl {
@@ -74,13 +87,15 @@ impl Task for Repl {
             match parser.parse() {
                 Ok(ast) => {
                     let ast = checker.check(ast)?;
-                    runtime.start(ast);
+                    runtime.start(Self::naive_lower(ast));
                 }
                 Err(error_message) => {
                     let error = error_message.kind;
                     let mut handled = false;
                     if let ParserError::PartiallyParsed { hint, intermediate_state } = &error {
                         // TODO: insta-expression eval
+                        // TODO: revisit this
+                        /*
                         if hint.len() == 1 {
                             if let PartiallyParseFixCandidate::InsertBefore { tokens } = &hint[0] {
                                 if tokens.len() == 1 && tokens[0] == Token::KeywordPrint && intermediate_state.len() == 1 {
@@ -96,6 +111,7 @@ impl Task for Repl {
                                 }
                             }
                         }
+                        */
                     }
 
                     if !handled {

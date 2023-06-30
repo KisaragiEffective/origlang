@@ -1,21 +1,15 @@
 [package]
-name = "origlang-compiler"
+name = "origlang-compiler-entrypoint"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+log = { version = "0.4.19" }
 origlang-ast = { path = "../origlang-ast" }
-origlang-typesystem-model = { path = "../origlang-typesystem-model" }
-derive_more = "0.99.17"
-log = "0.4.19"
-thiserror = "1.0.40"
-origlang-platform = { path = "../origlang-platform" }
-origlang-source-span = { path = "../origlang-source-span" }
+origlang-compiler = { path = "../origlang-compiler" }
 origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
-
-[dev-dependencies]
-rand = { version = "0.8.5", features = ["min_const_gen"] }
+thiserror = { version = "1.0.40" }

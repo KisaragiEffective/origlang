@@ -2,8 +2,9 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 use std::collections::VecDeque;
+use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
-use origlang_typesystem_model::{TypedExpression, TypedRootAst, TypedStatement};
+use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
 /// The initial form of IR. This IR defines [`Self::Exit`] operation that aborts current execution.
 /// However, IR commands after it is cut-down when lowering to [`IR1`].
@@ -86,4 +87,49 @@ pub enum IR1 {
     PushScope,
     PopScope,
     Exit,
+}
+
+/// Same as [`IR1`], except that statements in blocks are lowered to this type.
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum IR2 {
+    Output(CompiledTypedExpression),
+    UpdateVariable {
+        ident: Identifier,
+        value: CompiledTypedExpression,
+    },
+    PushScope,
+    PopScope,
+    Exit,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum CompiledTypedExpression {
+    IntLiteral(TypedIntLiteral),
+    BooleanLiteral(bool),
+    StringLiteral(String),
+    UnitLiteral,
+    Variable {
+        ident: Identifier,
+        tp: Type,
+    },
+    BinaryOperator {
+        lhs: Box<Self>,
+        rhs: Box<Self>,
+        operator: BinaryOperatorKind,
+        return_type: Type,
+    },
+    If {
+        condition: Box<Self>,
+        then: Box<Self>,
+        els: Box<Self>,
+        return_type: Type
+    },
+    Block {
+        inner: Vec<IR2>,
+        final_expression: Box<Self>,
+        return_type: Type,
+    },
+    Tuple {
+        expressions: Vec<Self>
+    }
 }
