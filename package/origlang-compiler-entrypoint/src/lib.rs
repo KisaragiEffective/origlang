@@ -11,18 +11,19 @@ use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
-use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1};
+use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1, IR2};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
 
 pub struct TheCompiler {
-    /// The linter, built-in diagnostics, etc...
+    /// The linter, built-in diagnostics, etc... See [`ScannerRegistry`].
     scanner: ScannerRegistry,
     optimization_preset: OptimizationPresetCollection,
     diagnostic_receivers: Vec<Box<dyn DiagnosticSink>>,
 }
 
 impl TheCompiler {
+    /// Creates new instance without any optimization, scanner, nor diagnostic receiver.
     pub fn new() -> Self {
         Self {
             scanner: ScannerRegistry::default(),
@@ -56,10 +57,13 @@ impl TheCompiler {
         let root = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();
-        let optimized = self.optimization_preset.ir0.optimize(ir0_seq);
-        let ir1_seq: Vec<IR1> = TheTranspiler.lower(optimized);
+        let the_transpiler = TheTranspiler {
+            optimization_preset: &self.optimization_preset
+        };
+
+        let ir1_seq = the_transpiler.lower(ir0_seq);
         let (pre, post): (Vec<_>, Vec<_>) =
-            self.scanner.ir1_scanner.into_iter().partition(|x| matches!(x, PreOrPost::Pre(..)));
+            self.scanner.ir1_scanner.iter().partition(|x| matches!(x, PreOrPost::Pre(..)));
 
         for s in pre {
             if let PreOrPost::Pre(s) = s {
@@ -136,6 +140,7 @@ pub trait Scanner<T> {
 pub struct OptimizationPresetCollection {
     pub ir0: Box<dyn OptimizationPreset<IR0>>,
     pub ir1: Box<dyn OptimizationPreset<IR1>>,
+    pub ir2: Box<dyn OptimizationPreset<IR2>>,
 }
 
 impl OptimizationPresetCollection {
@@ -143,6 +148,21 @@ impl OptimizationPresetCollection {
         OptimizationPresetCollection {
             ir0: Box::new(NoOptimization) as Box<_>,
             ir1: Box::new(NoOptimization) as Box<_>,
+            ir2: Box::new(NoOptimization) as Box<_>,
         }
     }
 }
+
+macro_rules! delegate_optimization_to_field {
+    ($field:ident, $step:ty) => {
+        impl OptimizationPreset<$step> for OptimizationPresetCollection {
+            fn optimize(&self, seq: Vec<$step>) -> Vec<$step> {
+                self.$field.optimize(seq)
+            }
+        }
+    };
+}
+
+delegate_optimization_to_field!(ir0, IR0);
+delegate_optimization_to_field!(ir1, IR1);
+delegate_optimization_to_field!(ir2, IR2);

@@ -2,15 +2,27 @@ use origlang_ir::{CompiledTypedExpression, IntoVerbatimSequencedIR, IR0, IR1, IR
 use origlang_typesystem_model::{TypedExpression, TypedStatement};
 use crate::preset::OptimizationPreset;
 
-pub struct TheTranspiler {
-    optimization_preset: Box<dyn R>
+pub struct TheTranspiler<'t> {
+    pub optimization_preset: &'t dyn EachStep
 }
 
-trait R : OptimizationPreset<IR0> + OptimizationPreset<IR1> + OptimizationPreset<IR2> {}
+impl<'t> TheTranspiler<'t> {
+    pub fn new(preset: &'t dyn EachStep) -> Self {
+        Self {
+            optimization_preset: preset,
+        }
+    }
 
-impl<T: OptimizationPreset<IR0> + OptimizationPreset<IR1> + OptimizationPreset<IR2>> R for T {}
+    pub fn optimizer(&self) -> &'t dyn EachStep {
+        self.optimization_preset
+    }
+}
 
-impl TheTranspiler {
+pub trait EachStep: OptimizationPreset<IR0> + OptimizationPreset<IR1> + OptimizationPreset<IR2> {}
+
+impl<T: OptimizationPreset<IR0> + OptimizationPreset<IR1> + OptimizationPreset<IR2> + ?Sized> EachStep for T {}
+
+impl TheTranspiler<'_> {
     fn compile_typed_expression(&self, te: TypedExpression) -> CompiledTypedExpression {
         match te {
             TypedExpression::IntLiteral(v) => CompiledTypedExpression::IntLiteral(v),
@@ -46,11 +58,10 @@ impl TheTranspiler {
     fn compile_typed_statement(&self, ts: TypedStatement) -> Vec<IR2> {
         let opt_ir0 = self.optimization_preset.optimize(ts.into_ir());
         let ir1 = self.lower(opt_ir0);
-        let opt_ir1 = OptimizationPreset::<IR1>::optimize(self.optimization_preset.as_ref(), ir1);
+        let opt_ir1 = OptimizationPreset::<IR1>::optimize(self.optimization_preset, ir1);
         let ir2 = self.lower(opt_ir1);
-        let opt_ir2 = OptimizationPreset::<IR2>::optimize(self.optimization_preset.as_ref(), ir2);
 
-        opt_ir2
+        OptimizationPreset::<IR2>::optimize(self.optimization_preset, ir2)
     }
 }
 
@@ -58,7 +69,7 @@ pub trait LowerStep<From, To> {
     fn lower(&self, ir: Vec<From>) -> Vec<To>;
 }
 
-impl LowerStep<IR0, IR1> for TheTranspiler {
+impl LowerStep<IR0, IR1> for TheTranspiler<'_> {
     fn lower(&self, ir: Vec<IR0>) -> Vec<IR1> {
         // TODO: this sequence is always terminated by IR0::Exit. Should be reflected on the type.
         ir.into_iter().map(|x| match x {
@@ -68,7 +79,7 @@ impl LowerStep<IR0, IR1> for TheTranspiler {
     }
 }
 
-impl LowerStep<IR1, IR2> for TheTranspiler {
+impl LowerStep<IR1, IR2> for TheTranspiler<'_> {
     fn lower(&self, ir: Vec<IR1>) -> Vec<IR2> {
         ir.into_iter().map(|x| match x {
             IR1::Output(expr) => IR2::Output(self.compile_typed_expression(expr)),
