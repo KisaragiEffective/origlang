@@ -3,6 +3,7 @@ use std::ops::Deref;
 use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
+use origlang_compiler::lexer::{Token as LexerToken};
 use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
@@ -10,10 +11,6 @@ use origlang_diagnostics::{Diagnostic, DiagnosticSink};
 use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
-use crate::lexer::{Token as LexerToken};
-use crate::parser::{Parser, SimpleErrorWithPos};
-use crate::type_check::error::TypeCheckError;
-use crate::type_check::TypeChecker;
 
 pub struct TheCompiler {
     /// The linter, built-in diagnostics, etc...
