@@ -1006,6 +1006,8 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "origlang-compiler",
+ "origlang-ir",
+ "origlang-ir-optimizer",
  "origlang-runtime",
  "origlang-typesystem-model",
  "thiserror",

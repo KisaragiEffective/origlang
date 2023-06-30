@@ -10,6 +10,9 @@ use origlang_ast::{Comment, RootAst, Statement};
 use origlang_ast::after_parse::Expression;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
+use origlang_ir::IntoVerbatimSequencedIR;
+use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::NoOptimization;
 use crate::error::TaskExecutionError;
 
 type Err = TestFailureCause;
@@ -73,7 +76,11 @@ impl Test {
         let runtime = Runtime::create(acc);
         let checker = TypeChecker::new();
         let checked = checker.check(root_ast)?;
-        let o = runtime.start(checked);
+        let transpiler = TheTranspiler::new(&NoOptimization);
+        let ir = checked.into_ir();
+        let ir = transpiler.lower(ir);
+        let ir = transpiler.lower(ir);
+        let o = runtime.start(ir);
         println!("{o:?}", o = &o);
         let x = Ok(o.borrow().acc().expect("???"));
         x

@@ -9,6 +9,9 @@ use web_sys::console;
 use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
+use origlang_ir::IntoVerbatimSequencedIR;
+use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::NoOptimization;
 use origlang_runtime::{OutputAccumulator, Runtime, TypeBox};
 use origlang_typesystem_model::TypedRootAst;
 
@@ -113,8 +116,14 @@ pub fn run() {
                         let _ = Timer::new("runtime.construction");
                         Runtime::create(PseudoStdout)
                     };
-                    let _ = Timer::new("runtime.execution");
-                    runtime.start(typed_root);
+                    let _ = Timer::new("runtime.ir");
+                    let transpiler = TheTranspiler::new(&NoOptimization);
+                    let lower = typed_root.into_ir();
+                    let _ = Timer::new("runtime.ir.lower");
+                    let lower = transpiler.lower(lower);
+                    let lower = transpiler.lower(lower);
+                    let _ = Timer::new("runtime.start");
+                    runtime.start(lower);
                 }
 
                 Ok(())

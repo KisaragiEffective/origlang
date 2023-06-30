@@ -4,6 +4,9 @@ use origlang_runtime::{PrintToStdout, Runtime};
 use crate::task::Task;
 use crate::error::TaskExecutionError;
 use origlang_compiler::type_check::TypeChecker;
+use origlang_ir::IntoVerbatimSequencedIR;
+use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::NoOptimization;
 use crate::args::ParseSource;
 
 pub struct Interpret;
@@ -27,7 +30,11 @@ impl Task for Interpret {
         eprintln!("typeck.check: {:?}", i.elapsed());
         let runtime = Runtime::create(PrintToStdout);
         eprintln!("runtime.ctor: {:?}", i.elapsed());
-        runtime.start(root_ast);
+        let transpiler = TheTranspiler::new(&NoOptimization);
+        let ir = root_ast.into_ir();
+        let ir = transpiler.lower(ir);
+        let ir = transpiler.lower(ir);
+        runtime.start(ir);
         eprintln!("runtime.run: {:?}", i.elapsed());
         Ok(())
     }
