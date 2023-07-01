@@ -495,27 +495,41 @@ impl Lexer {
         if future_index == self.source_bytes_nth.get() {
             // no computation is needed
             Ok(())
-        } else if future_index == self.source_bytes_nth.get().stride(Utf8CharStride::One) && self.current_char() != Ok('\n') && self.current_char_stride() == Ok(Utf8CharStride::One) {
-            // advance to the next, and current is in ASCII and is not a LF;
-            // in this case, call to LineComputation is not needed.
-            self.source_bytes_nth.set(self.source_bytes_nth.get().stride(Utf8CharStride::One));
-            self.current_column.set(NonZeroUsize::new(self.current_column.get().get() + 1).expect("we do not support this"));
-            Ok(())
         } else {
-            // trace!("set index to: {future_index}");
-            let SourcePos { line, column } =
-                LineComputation::compute(
-                    future_index.stride(Utf8CharStride::from('\n')),
-                    &self.newline_codepoint_nth_index
-                )?;
+            let b = self.source_bytes_nth.get().stride(Utf8CharStride::One);
+            if future_index == b && self.current_char_stride() == Ok(Utf8CharStride::One) {
+                return if let Ok(c) = self.current_char() {
+                    self.source_bytes_nth.set(b);
+                    if c == '\n' {
+                        // new line, setting $(L + 1):C.
+                        self.current_line.set(NonZeroUsize::new(self.current_line.get().get() + 1).expect("we do not support this"));
+                        // SAFETY: 1 != 0
+                        self.current_column.set(unsafe { NonZeroUsize::new_unchecked(1) });
+                    } else {
+                        // not new line, setting L:$(C + 1).
+                        self.current_column.set(NonZeroUsize::new(self.current_column.get().get() + 1).expect("we do not support this"));
+                    }
+                    Ok(())
+                } else {
+                    // ?
+                    Err(LineComputationError::OutOfRange)
+                }
+            } else {
+                // trace!("set index to: {future_index}");
+                let SourcePos { line, column } =
+                    LineComputation::compute(
+                        future_index.stride(Utf8CharStride::from('\n')),
+                        &self.newline_codepoint_nth_index
+                    )?;
 
-            trace!("compute: {line}:{column}");
-            self.source_bytes_nth.set(future_index);
-            self.current_line.set(line);
-            self.current_column.set(column);
+                trace!("compute: {line}:{column}");
+                self.source_bytes_nth.set(future_index);
+                self.current_line.set(line);
+                self.current_column.set(column);
 
-            Ok(())
-            // full computation
+                Ok(())
+                // full computation
+            }
         }
     }
 
@@ -584,7 +598,10 @@ impl Lexer {
         let index = current_boundary.as_usize();
         let stride = self.current_char_stride()?;
 
-        let c = self.source[index..(index + stride.as_usize())].chars().next().ok_or(LexerError::OutOfRange {
+
+        let s = unsafe { self.source.get_unchecked(index..(index + stride.as_usize())) };
+
+        let c = s.chars().next().ok_or(LexerError::OutOfRange {
             current: current_boundary,
             // bytes in UTF-8
             max: self.source.len(),
