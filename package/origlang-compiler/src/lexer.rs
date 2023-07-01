@@ -492,19 +492,31 @@ impl Lexer {
 
     #[inline(never)]
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
-        // trace!("set index to: {future_index}");
-        let SourcePos { line, column } =
-            LineComputation::compute(
-                future_index.stride(Utf8CharStride::from('\n')),
-                &self.newline_codepoint_nth_index
-            )?;
+        if future_index == self.source_bytes_nth.get() {
+            // no computation is needed
+            Ok(())
+        } else if future_index == self.source_bytes_nth.get().stride(Utf8CharStride::One) && self.current_char() != Ok('\n') && self.current_char_stride() == Ok(Utf8CharStride::One) {
+            // advance to the next, and current is in ASCII and is not a LF;
+            // in this case, call to LineComputation is not needed.
+            self.source_bytes_nth.set(self.source_bytes_nth.get().stride(Utf8CharStride::One));
+            self.current_column.set(NonZeroUsize::new(self.current_column.get().get() + 1).expect("we do not support this"));
+            Ok(())
+        } else {
+            // trace!("set index to: {future_index}");
+            let SourcePos { line, column } =
+                LineComputation::compute(
+                    future_index.stride(Utf8CharStride::from('\n')),
+                    &self.newline_codepoint_nth_index
+                )?;
 
-        trace!("compute: {line}:{column}");
-        self.source_bytes_nth.set(future_index);
-        self.current_line.set(line);
-        self.current_column.set(column);
+            trace!("compute: {line}:{column}");
+            self.source_bytes_nth.set(future_index);
+            self.current_line.set(line);
+            self.current_column.set(column);
 
-        Ok(())
+            Ok(())
+            // full computation
+        }
     }
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
