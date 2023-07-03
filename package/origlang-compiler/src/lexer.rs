@@ -1,7 +1,7 @@
-mod error;
+pub(crate) mod error;
 #[cfg(test)]
 mod tests;
-mod token;
+pub mod token;
 
 use std::borrow::Cow;
 use std::cell::Cell;

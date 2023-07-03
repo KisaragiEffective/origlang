@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 use origlang_ast::{Comment, Identifier};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::lexer::Lexer;
+use crate::lexer::token::internal::DisplayToken;
 
 pub struct TemporalLexerUnwindToken {
     unwind_index: Utf8CharBoundaryStartByte,
@@ -157,11 +158,15 @@ impl Token {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct DisplayToken(&'static str);
+pub(crate) mod internal {
+    use std::fmt::{Display, Formatter};
 
-impl Display for DisplayToken {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct DisplayToken(pub(super) &'static str);
+
+    impl Display for DisplayToken {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
+        }
     }
 }

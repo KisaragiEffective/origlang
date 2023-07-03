@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::chars::boundary::Utf8CharBoundaryStartByte;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]

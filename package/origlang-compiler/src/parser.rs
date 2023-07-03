@@ -1,13 +1,16 @@
 use std::num::ParseIntError;
 use origlang_ast::{RootAst, Statement, TypeSignature};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
-use crate::lexer::{DisplayToken, Lexer, LexerError, Token};
+use crate::lexer::Lexer;
+use crate::lexer::error::LexerError;
+use crate::lexer::token::Token;
+use crate::lexer::token::internal::DisplayToken;
+
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use thiserror::{Error as ThisError};
-use origlang_ast::TypeSignature::Simple;
 use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
 

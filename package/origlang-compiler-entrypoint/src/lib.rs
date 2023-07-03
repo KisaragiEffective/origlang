@@ -6,7 +6,7 @@ use std::ops::Deref;
 use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
-use origlang_compiler::lexer::{Token as LexerToken};
+use origlang_compiler::lexer::token::{Token as LexerToken};
 use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
