@@ -1,6 +1,6 @@
 use thiserror::Error;
 use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ast::Identifier;
+use origlang_ast::{Identifier, TypeSignature};
 use crate::type_check::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
@@ -40,6 +40,6 @@ pub enum TypeCheckError {
     },
     #[error("type {name} is not defined")]
     UnknownType {
-        name: Identifier,
+        name: TypeSignature,
     }
 }
