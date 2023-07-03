@@ -41,6 +41,8 @@ pub enum LineComputationError {
     LineIsZero,
     #[error("column number is zero")]
     ColumnIsZero,
+    #[error("out of range")]
+    OutOfRange,
 }
 
 #[cfg(test)]
