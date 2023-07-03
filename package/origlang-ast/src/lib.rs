@@ -25,7 +25,7 @@ pub enum Statement {
         identifier: Identifier,
         expression: Expression,
         // TODO: in this form, type must be named
-        type_annotation: Option<Identifier>,
+        type_annotation: Option<TypeSignature>,
     },
     VariableAssignment {
         identifier: Identifier,
@@ -65,8 +65,36 @@ impl Identifier {
         &self.0
     }
 }
+
 impl Display for Identifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum TypeSignature {
+    Simple(Identifier),
+    Tuple(Vec<Self>),
+}
+
+impl From<Identifier> for TypeSignature {
+    fn from(value: Identifier) -> Self {
+        Self::Simple(value)
+    }
+}
+
+impl Display for TypeSignature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeSignature::Simple(x) => <Identifier as Display>::fmt(x, f),
+            TypeSignature::Tuple(v) => {
+                for x in v {
+                    <Self as Display>::fmt(x, f)?;
+                }
+
+                Ok(())
+            }
+        }
     }
 }

@@ -1,12 +1,13 @@
 use std::num::ParseIntError;
-use origlang_ast::{RootAst, Statement};
+use origlang_ast::{RootAst, Statement, TypeSignature};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::lexer::{DisplayToken, Lexer, LexerError, Token};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
-use log::debug;
+use log::{debug, warn};
 use thiserror::{Error as ThisError};
+use origlang_ast::TypeSignature::Simple;
 use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
 
@@ -109,7 +110,15 @@ pub enum TokenKind {
     #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
     Statement,
     #[display(fmt = "{_0}")]
-    Only(DisplayToken)
+    Only(DisplayToken),
+    #[display(fmt = "`(` or identifier")]
+    StartOfTypeSignature,
+}
+
+impl TokenKind {
+    fn only(token: Token) -> Self {
+        Self::Only(token.display())
+    }
 }
 
 pub struct Parser {
@@ -564,6 +573,70 @@ impl Parser {
         assert_eq!(&token, rhs, "expected: {rhs:?}, got: {token:?}");
     }
 
+    fn parse_type(&self) -> Result<TypeSignature, SimpleErrorWithPos> {
+        let WithPosition { position, data: maybe_tp } = self.lexer.next();
+
+        match maybe_tp {
+            Token::Identifier { inner } => Ok(inner.into()),
+            Token::SymLeftPar => {
+                debug!("type:tuple");
+                self.lexer.parse_fallible(|| {
+                    let mut vec = vec![];
+
+                    loop {
+                        let x = self.parse_type()?;
+                        debug!("`- {x:?}");
+                        vec.push(x);
+                        debug!("{:?}", self.lexer.peek().data);
+                        if self.lexer.peek().data != Token::SymComma {
+                            break
+                        } else {
+                            self.lexer.next();
+                        }
+                    }
+
+                    debug!("type:tuple:accumulator = {vec:?}");
+
+                    match self.lexer.next() {
+                        WithPosition { data: Token::SymRightPar, .. } => {},
+                        WithPosition { data: other_token, position } => {
+                            warn!("type:tuple = error ({other_token:?})");
+                            return Err(SimpleErrorWithPos {
+                                kind: ParserError::UnexpectedToken {
+                                    pat: TokenKind::only(Token::SymRightPar),
+                                    unmatch: other_token,
+                                },
+                                position,
+                            })
+                        }
+                    }
+
+                    if vec.len() < 2 {
+                        let l = vec.len();
+                        warn!("type:tuple = error (not enough length = {l})");
+                        Err(SimpleErrorWithPos {
+                            kind: ParserError::InsufficientElementsForTupleLiteral(match l {
+                                0 => UnexpectedTupleLiteralElementCount::Zero,
+                                1 => UnexpectedTupleLiteralElementCount::One,
+                                _ => unreachable!(),
+                            }),
+                            position,
+                        })
+                    } else {
+                        Ok(TypeSignature::Tuple(vec))
+                    }
+                })
+            }
+            other_token => return Err(SimpleErrorWithPos {
+                kind: ParserError::UnexpectedToken {
+                    pat: TokenKind::StartOfTypeSignature,
+                    unmatch: other_token,
+                },
+                position,
+            })
+        }
+    }
+
     fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("decl:var");
         self.assert_token_eq_with_consumed(&Token::VarKeyword);
@@ -584,13 +657,12 @@ impl Parser {
                 _ => return Err(())
             }
 
-            let maybe_tp = self.lexer.next().data;
-            let ident = match maybe_tp {
-                Token::Identifier { inner } => inner,
-                _ => return Err(())
-            };
+            // FIXME: discarding error
+            let x = self.parse_type().map_err(|e| {
+                warn!("{e:?}");
+            })?;
 
-            Ok(ident)
+            Ok(x)
         }).ok();
 
         debug!("type annotation: {type_annotation:?}");

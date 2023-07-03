@@ -6,13 +6,14 @@ use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use crate::task::Task;
-use origlang_ast::{Comment, RootAst, Statement};
+use origlang_ast::{Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::Expression;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
+use origlang_typesystem_model::Type;
 use crate::error::TaskExecutionError;
 
 type Err = TestFailureCause;
@@ -352,6 +353,28 @@ var b = (3, 4)
 print a
 "#)?, &[TypeBox::Tuple(DisplayTupleValue { boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]})]);
 
+        assert_eq!(Self::ast(r#"var a: (Int32, Int32) = (1i32, 2i32)
+"#)?.statement, [Statement::VariableDeclaration {
+            identifier: Identifier::new("a".to_string()),
+            expression: Expression::Tuple {
+                expressions: vec![
+                    Expression::IntLiteral {
+                        value: 1,
+                        suffix: Some("i32".to_string().into_boxed_str()),
+                    },
+                    Expression::IntLiteral {
+                        value: 2,
+                        suffix: Some("i32".to_string().into_boxed_str())
+                    }
+                ],
+            },
+            type_annotation: Some(
+                TypeSignature::Tuple(vec![
+                    TypeSignature::Simple(Identifier::new("Int32".to_string())),
+                    TypeSignature::Simple(Identifier::new("Int32".to_string())),
+                ])
+            ),
+        }]);
         Ok(())
     }
 

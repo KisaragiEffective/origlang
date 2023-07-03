@@ -3,7 +3,7 @@ pub mod error;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_ast::{Identifier, RootAst, Statement};
+use origlang_ast::{Identifier, RootAst, Statement, TypeSignature};
 use origlang_typesystem_model::{AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
 use crate::type_check::error::TypeCheckError;
@@ -318,16 +318,28 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    pub(crate) fn lookup(&self, p0: &Identifier) -> Result<Type, ()> {
-        match p0.as_name() {
-            "Bool" => Ok(Type::Boolean),
-            "String" => Ok(Type::String),
-            "Unit" => Ok(Type::Unit),
-            "Int8" => Ok(Type::Int8),
-            "Int16" => Ok(Type::Int16),
-            "Int32" => Ok(Type::Int32),
-            "Int64" => Ok(Type::Int64),
-            _ => Err(())
+    pub(crate) fn lookup(&self, p0: &TypeSignature) -> Result<Type, ()> {
+        match p0 {
+            TypeSignature::Simple(ident) => {
+                match ident.as_name() {
+                    "Bool" => Ok(Type::Boolean),
+                    "String" => Ok(Type::String),
+                    "Unit" => Ok(Type::Unit),
+                    "Int8" => Ok(Type::Int8),
+                    "Int16" => Ok(Type::Int16),
+                    "Int32" => Ok(Type::Int32),
+                    "Int64" => Ok(Type::Int64),
+                    _ => Err(())
+                }
+            }
+            TypeSignature::Tuple(x) => {
+                let mut types = Vec::with_capacity(x.capacity());
+                for ts in x {
+                    types.push(self.lookup(ts)?);
+                }
+
+                Ok(Type::tuple(types))
+            }
         }
     }
 }
