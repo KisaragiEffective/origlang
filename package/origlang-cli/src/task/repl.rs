@@ -4,7 +4,7 @@ use std::ops::Range;
 use ariadne::{Report, ReportKind, Source};
 use crate::task::Task;
 use crate::error::TaskExecutionError;
-use origlang_compiler::lexer::Token;
+use origlang_compiler::lexer::token::Token;
 use origlang_platform::CTRL_D_NL;
 use origlang_compiler::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
 use origlang_runtime::{PrintToStdout, Runtime, TypeBox};
