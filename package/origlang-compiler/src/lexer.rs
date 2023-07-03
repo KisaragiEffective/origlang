@@ -1,3 +1,8 @@
+mod error;
+#[cfg(test)]
+mod tests;
+mod token;
+
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::fmt::{Display, Formatter};
@@ -5,34 +10,17 @@ use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::panic::RefUnwindSafe;
 use log::{debug, trace, warn};
-use thiserror::Error;
+use self::error::LexerError;
 use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::char_list::ASCII_NUMERIC_CHARS;
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
+use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 
 static KEYWORDS: [&str; 10] =
     ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end"];
-
-#[derive(Error, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
-pub enum LexerError {
-    #[error("Invalid suffix for integer literal. Supported suffixes are [`i8`, `i16`, `i32`, `i64`]")]
-    InvalidSuffix,
-    #[error("Internal compiler error: lexer index overflow: {current:?} > {max}")]
-    OutOfRange {
-        current: Utf8CharBoundaryStartByte,
-        max: usize,
-    },
-    #[error("Unclosed string literal was found")]
-    UnclosedStringLiteral,
-    #[error("Input is malformed UTF-8")]
-    MalformedAsUtf8 {
-        boundary: Utf8CharBoundaryStartByte,
-    },
-}
 
 trait AssociateWithPos {
     fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
@@ -650,263 +638,6 @@ impl Lexer {
 
     #[must_use = "Dropping token do nothing"]
     fn create_reset_token(&self) -> TemporalLexerUnwindToken {
-        TemporalLexerUnwindToken {
-            unwind_index: self.source_bytes_nth.get()
-        }
-    }
-}
-
-struct TemporalLexerUnwindToken {
-    unwind_index: Utf8CharBoundaryStartByte,
-}
-
-impl TemporalLexerUnwindToken {
-    fn reset(self, lexer: &Lexer) {
-        lexer.source_bytes_nth.set(self.unwind_index);
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Token {
-    Identifier {
-        inner: Identifier,
-    },
-    Digits {
-        sequence: String,
-        suffix: Option<Box<str>>
-    },
-    UnexpectedChar {
-        index: Utf8CharBoundaryStartByte,
-        char: char,
-    },
-    EndOfFile,
-    /// `"\n"`
-    NewLine,
-    /// `"var"`
-    VarKeyword,
-    KeywordTrue,
-    KeywordFalse,
-    /// `print $expr`
-    KeywordPrint,
-    KeywordBlock,
-    KeywordEnd,
-    /// `"="`
-    SymEq,
-    /// `"+"`
-    SymPlus,
-    /// `"-"`
-    SymMinus,
-    /// `*`
-    SymAsterisk,
-    /// `/`
-    SymSlash,
-    /// `"("`
-    SymLeftPar,
-    /// `")"`
-    SymRightPar,
-    /// `>`
-    SymMore,
-    /// `<`
-    SymLess,
-    /// `!`
-    SymBang,
-    /// `==`
-    PartEqEq,
-    /// `!=`
-    PartBangEq,
-    /// `<=`
-    PartLessEq,
-    /// `>=`
-    PartMoreEq,
-    /// `<=>`
-    PartLessEqMore,
-    /// `if`
-    KeywordIf,
-    /// `then`
-    KeywordThen,
-    /// `else`
-    KeywordElse,
-    /// `"`
-    SymDoubleQuote,
-    /// `,`
-    SymComma,
-    /// `//`
-    PartSlashSlash,
-    /// `exit`
-    KeywordExit,
-    /// `:`
-    SymColon,
-    Comment {
-        content: Comment,
-    },
-    StringLiteral(String),
-    /// reserved for future use.
-    Reserved {
-        matched: String,
-    },
-
-}
-
-impl Token {
-    #[must_use = "You'd like to call its Display impl"]
-    pub const fn display(&self) -> DisplayToken {
-        DisplayToken(self.kind0())
-    }
-
-    const fn kind0(&self) -> &'static str {
-        match self {
-            Self::Identifier { .. } => "identifier",
-            Self::Digits { .. } => "literal:int",
-            Self::UnexpectedChar { .. } => "unexpected_char",
-            Self::EndOfFile => "EOF",
-            Self::NewLine => "new_line",
-            Self::VarKeyword => "keyword:var",
-            Self::KeywordTrue => "keyword:true",
-            Self::KeywordFalse => "keyword:false",
-            Self::KeywordPrint => "keyword:print",
-            Self::KeywordBlock => "keyword:block",
-            Self::KeywordEnd => "keyword:end",
-            Self::SymEq => "sym:eq",
-            Self::SymPlus => "sym:plus",
-            Self::SymMinus => "sym:minus",
-            Self::SymAsterisk => "sym:asterisk",
-            Self::SymSlash => "sym:slash",
-            Self::SymLeftPar => "sym:left_par",
-            Self::SymRightPar => "sym:right_par",
-            Self::SymMore => "sym:more",
-            Self::SymLess => "sym:less",
-            Self::SymBang => "sym:bang",
-            Self::PartEqEq => "part:eq_eq",
-            Self::PartBangEq => "part:bang_eq",
-            Self::PartLessEq => "part:less_eq",
-            Self::PartMoreEq => "part:more_eq",
-            Self::PartLessEqMore => "part:less_eq_more",
-            Self::KeywordIf => "keyword:if",
-            Self::KeywordThen => "keyword:then",
-            Self::KeywordElse => "keyword:else",
-            Self::SymDoubleQuote => "sym:double_quote",
-            Self::SymComma => "sym:comma",
-            Self::PartSlashSlash => "part:slash_slash",
-            Self::Comment { .. } => "comment",
-            Self::StringLiteral(_) => "literal:string",
-            Self::KeywordExit => "keyword:exit",
-            Self::SymColon => "sym:colon",
-            Self::Reserved { .. } => "reserved_token",
-        }
-    }
-
-    pub const fn is_error(&self) -> bool {
-        matches!(self, Token::UnexpectedChar { .. })
-    }
-
-    pub const fn is_end(&self) -> bool {
-        matches!(self, Token::EndOfFile)
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct DisplayToken(&'static str);
-
-impl Display for DisplayToken {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use origlang_ast::Identifier;
-    use crate::lexer::{Lexer, Token};
-
-    fn test(str_lit: &str) {
-        let src = format!("var x = \"{str_lit}\"\n");
-        let p = Lexer::create(&src);
-
-        assert_eq!(p.next().data, Token::VarKeyword);
-        assert_eq!(p.next().data, Token::Identifier {
-            inner: Identifier::new("x".to_string()),
-        });
-        assert_eq!(p.next().data, Token::SymEq);
-        assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string()));
-    }
-
-    #[test]
-    fn parse_string_literal_ascii() {
-        test("123456")
-    }
-
-    #[test]
-    fn parse_string_literal_empty() {
-        test("")
-    }
-
-    #[test]
-    fn parse_string_literal_two_bytes() {
-        test("\u{80}")
-    }
-
-    #[test]
-    fn parse_string_literal_three_bytes() {
-        test("\u{800}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_1_2() {
-        test("1\u{80}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_1_3() {
-        test("1あ")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_1_4() {
-        test("1\u{10000}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_2_1() {
-        test("\u{80}1")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_2_3() {
-        test("\u{80}あ")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_2_4() {
-        test("\u{80}\u{10000}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_3_1() {
-        test("あ1")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_3_2() {
-        test("あ\u{80}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_3_4() {
-        test("あ\u{10000}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_4_1() {
-        test("\u{10000}1")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_4_2() {
-        test("\u{10000}\u{80}")
-    }
-
-    #[test]
-    fn parse_string_literal_mixed_4_3() {
-        test("\u{10000}あ")
+        TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 }
