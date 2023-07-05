@@ -10,7 +10,7 @@ origlang-ast = { path = "../origlang-ast" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 derive_more = "0.99.17"
 log = "0.4.19"
-thiserror = "1.0.40"
+thiserror = "1.0.41"
 origlang-platform = { path = "../origlang-platform" }
 origlang-source-span = { path = "../origlang-source-span" }
 origlang-diagnostics = { path = "../origlang-diagnostics" }
