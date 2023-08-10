@@ -166,31 +166,31 @@ impl Test {
     }
 
     fn run_all() -> Result<(), Err> {
-        Self::print_literal()?;
-        Self::simple_variable_assignment()?;
-        Self::op_plus()?;
-        Self::op_minus()?;
-        Self::expr_parenthesised()?;
-        Self::op_multiply()?;
-        Self::literal_bool()?;
-        Self::test_less()?;
-        Self::test_more()?;
-        Self::test_spaceship()?;
-        Self::test_equality_operator()?;
-        Self::test_if_expression()?;
-        Self::test_parenthesised_expression()?;
-        Self::test_string_literal()?;
-        Self::test_string_concat()?;
-        Self::test_unit_literal()?;
-        Self::test_coerced_int_literal()?;
-        Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
-        Self::test_overflowed_literal()?;
-        Self::test_variable_reassign()?;
-        Self::test_block_scope()?;
-        Self::test_tuple_type()?;
-        Self::test_comment()?;
-        Self::test_exit()?;
-        Self::test_underscore_discard()?;
+        Self::print_literal().expect("print literal");
+        Self::simple_variable_assignment().expect("simple");
+        Self::op_plus().expect("plus");
+        Self::op_minus().expect("minus");
+        Self::expr_parenthesised().expect("paren-expr");
+        Self::op_multiply().expect("mult");
+        Self::literal_bool().expect("lit");
+        Self::test_less().expect("less");
+        Self::test_more().expect("more");
+        Self::test_spaceship().expect("spaceship");
+        Self::test_equality_operator().expect("equality");
+        Self::test_if_expression().expect("if");
+        Self::test_parenthesised_expression().expect("paren-expr:2");
+        Self::test_string_literal().expect("string_literal");
+        Self::test_string_concat().expect("string_concat");
+        Self::test_unit_literal().expect("unit literal");
+        Self::test_coerced_int_literal().expect("int coerced");
+        Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow().expect("overflow?");
+        Self::test_overflowed_literal().expect("overflow literal");
+        Self::test_variable_reassign().expect("variable reassign");
+        Self::test_block_scope().expect("block");
+        Self::test_tuple_type().expect("tuple");
+        Self::test_comment().expect("comment");
+        Self::test_exit().expect("exit");
+        Self::test_underscore_discard().expect("underscore_discard");
 
         Ok(())
     }
@@ -466,7 +466,8 @@ print 1
 
     fn test_underscore_discard() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("var _ = 1\n")?, []);
-        assert_eq!(Self::evaluated_expressions("var _ = block\n  print 1\nend\n")?, type_boxes![ 1 => NonCoercedInteger ]);
+        assert_eq!(Self::evaluated_expressions("var a = block\n  print 1\n()\nend\n").expect("FATAL: shouldn't fail"), type_boxes![ 1 => NonCoercedInteger ]);
+        assert_eq!(Self::evaluated_expressions("var _ = block\n  print 1\n()\nend\n")?, type_boxes![ 1 => NonCoercedInteger ]);
 
         Ok(())
     }
