@@ -103,32 +103,48 @@ impl Test {
     }
 
     #[allow(clippy::unreadable_literal)]
-    fn expression_equality_test() -> Result<(), Err> {
+    fn print_literal() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print 123456\n")?, type_boxes![123456 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("print 1\nprint 2\n")?, type_boxes![1 => NonCoercedInteger, 2 => NonCoercedInteger]);
+        Ok(())
+    }
+
+    fn simple_variable_assignment() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("var x = 1\nprint x\n")?, type_boxes![1 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = x\nprint y\n")?, type_boxes![1 => NonCoercedInteger]);
-        // plus operator test (binary)
+        Ok(())
+    }
+
+    fn op_plus() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print 1 + 2\n")?, type_boxes![3 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nprint 1 + x\n")?, type_boxes![2 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nprint x + y\n")?, type_boxes![4 => NonCoercedInteger]);
 
-        // plus operator test (more than twice)
         assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nprint x + y + z\n")?, type_boxes![6 => NonCoercedInteger]);
 
-        // minus operator test (binary)
+        Ok(())
+    }
+
+    fn op_minus() -> Result<(), Err> {
         assert_eq!(Self::evaluated_expressions("print 1 - 2\n")?, type_boxes![-1 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nprint 1 - x\n")?, type_boxes![0 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 3\nprint x - y\n")?, type_boxes![-2 => NonCoercedInteger]);
 
-        // minus operator test (more than twice)
         assert_eq!(Self::evaluated_expressions("var x = 1\nvar y = 2\nvar z = 3\nprint z - x - y\n")?, type_boxes![0 => NonCoercedInteger]);
 
+        Ok(())
+    }
+
+    fn expr_parenthesised() -> Result<(), Err> {
         // paren test
         assert_eq!(Self::evaluated_expressions("print (1)\n")?, type_boxes![1 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("print 3 - (2 - 1)\n")?, type_boxes![2 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("print (3 - 2) - 1\n")?, type_boxes![0 => NonCoercedInteger]);
 
+        Ok(())
+    }
+
+    fn op_multiply() -> Result<(), Err> {
         // multiply test
         assert_eq!(Self::evaluated_expressions("print 3 * 2\n")?, type_boxes![6 => NonCoercedInteger]);
         assert_eq!(Self::evaluated_expressions("print 3 * 2 + 1\n")?, type_boxes![7 => NonCoercedInteger]);
@@ -136,12 +152,27 @@ impl Test {
         assert_eq!(Self::evaluated_expressions("print 3 * (2 + 1)\n")?, type_boxes![9 => NonCoercedInteger]);
         assert_ne!(Self::evaluated_expressions("print 3 * (2 + 1)\n")?, type_boxes![7 => NonCoercedInteger]);
 
+        Ok(())
+    }
+
+    fn literal_bool() -> Result<(), Err> {
         // boolean literal test
         assert_eq!(Self::evaluated_expressions("print true\n")?, type_boxes![true => Boolean]);
         assert_ne!(Self::evaluated_expressions("print true\n")?, type_boxes![false => Boolean]);
         assert_eq!(Self::evaluated_expressions("print false\n")?, type_boxes![false => Boolean]);
         assert_ne!(Self::evaluated_expressions("print false\n")?, type_boxes![true => Boolean]);
 
+        Ok(())
+    }
+
+    fn run_all() -> Result<(), Err> {
+        Self::print_literal()?;
+        Self::simple_variable_assignment()?;
+        Self::op_plus()?;
+        Self::op_minus()?;
+        Self::expr_parenthesised()?;
+        Self::op_multiply()?;
+        Self::literal_bool()?;
         Self::test_less()?;
         Self::test_more()?;
         Self::test_spaceship()?;
@@ -439,7 +470,7 @@ impl Task for Test {
 
     fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
         eprintln!("start");
-        Self::expression_equality_test()?;
+        Self::run_all()?;
         eprintln!("end");
         Ok(())
     }
