@@ -1,5 +1,5 @@
 use std::num::ParseIntError;
-use origlang_ast::{RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::lexer::Lexer;
 use crate::lexer::error::LexerError;
@@ -64,6 +64,8 @@ pub enum ParserError {
     IfExpressionWithoutThenClauseAndElseClause,
     #[error("tuple literal requires 2 or more elements, but got {_0}")]
     InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount),
+    #[error("`_` cannot used as right hand side expression")]
+    UnderscoreCanNotBeRightHandExpression,
 }
 
 #[repr(u8)]
@@ -235,6 +237,13 @@ impl Parser {
                 self.lexer.next();
                 Ok(Expression::Variable {
                     ident: inner
+                })
+            }
+            Token::SymUnderscore => {
+                self.lexer.next();
+                Err(SimpleErrorWithPos {
+                    kind: ParserError::UnderscoreCanNotBeRightHandExpression,
+                    position: token.position,
                 })
             }
             Token::Digits { .. } => {
@@ -644,15 +653,24 @@ impl Parser {
         debug!("decl:var");
         self.assert_token_eq_with_consumed(&Token::VarKeyword);
         let ident_token = self.lexer.next();
-        let Token::Identifier { inner: name } = ident_token.data else {
-            return Err(SimpleErrorWithPos {
-                position: ident_token.position,
-                kind: ParserError::UnexpectedToken {
-                    pat: TokenKind::Identifier,
-                    unmatch: ident_token.data,
-                }
-            })
+        let pattern = match ident_token.data {
+            Token::Identifier { inner: name } => {
+                AtomicPattern::Bind(name)
+            }
+            Token::SymUnderscore => {
+                AtomicPattern::Discard
+            }
+            other_token => {
+                return Err(SimpleErrorWithPos {
+                    position: ident_token.position,
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::Identifier,
+                        unmatch: other_token,
+                    }
+                })
+            }
         };
+
         // optionally, allow type annotation
         let type_annotation = self.lexer.parse_fallible(|| {
             match self.lexer.next().data {
@@ -672,8 +690,9 @@ impl Parser {
 
         self.assert_token_eq_with_consumed(&Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
+
         Ok(Statement::VariableDeclaration {
-            identifier: name,
+            pattern,
             expression,
             type_annotation,
         })

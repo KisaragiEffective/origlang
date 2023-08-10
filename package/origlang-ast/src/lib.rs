@@ -16,13 +16,19 @@ pub struct RootAst {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+pub enum AtomicPattern {
+    Discard,
+    Bind(Identifier)
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Statement {
     /// <int_literal> <new_line>
     Print {
         expression: Expression,
     },
     VariableDeclaration {
-        identifier: Identifier,
+        pattern: AtomicPattern,
         expression: Expression,
         // TODO: in this form, type must be named
         type_annotation: Option<TypeSignature>,

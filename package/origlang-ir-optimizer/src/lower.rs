@@ -88,6 +88,7 @@ impl LowerStep<IR1, IR2> for TheTranspiler<'_> {
             IR1::PushScope => IR2::PushScope,
             IR1::PopScope => IR2::PopScope,
             IR1::Exit => IR2::Exit,
+            IR1::EvalAndForget { expression } => IR2::EvalAndForget { expression: self.compile_typed_expression(expression) }
         }).collect()
     }
 }

@@ -228,6 +228,9 @@ impl Runtime {
                     x.try_get().expect("exit receiver is already called!").on_exit()
                 }
             }
+            IR2::EvalAndForget { expression } => {
+                self.evaluate(&expression).expect("runtime exception");
+            }
         }
     }
 

@@ -6,7 +6,7 @@ use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use crate::task::Task;
-use origlang_ast::{Comment, Identifier, RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::Expression;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
@@ -166,30 +166,31 @@ impl Test {
     }
 
     fn run_all() -> Result<(), Err> {
-        Self::print_literal()?;
-        Self::simple_variable_assignment()?;
-        Self::op_plus()?;
-        Self::op_minus()?;
-        Self::expr_parenthesised()?;
-        Self::op_multiply()?;
-        Self::literal_bool()?;
-        Self::test_less()?;
-        Self::test_more()?;
-        Self::test_spaceship()?;
-        Self::test_equality_operator()?;
-        Self::test_if_expression()?;
-        Self::test_parenthesised_expression()?;
-        Self::test_string_literal()?;
-        Self::test_string_concat()?;
-        Self::test_unit_literal()?;
-        Self::test_coerced_int_literal()?;
-        Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow()?;
-        Self::test_overflowed_literal()?;
-        Self::test_variable_reassign()?;
-        Self::test_block_scope()?;
-        Self::test_tuple_type()?;
-        Self::test_comment()?;
-        Self::test_exit()?;
+        Self::print_literal().expect("print literal");
+        Self::simple_variable_assignment().expect("simple");
+        Self::op_plus().expect("plus");
+        Self::op_minus().expect("minus");
+        Self::expr_parenthesised().expect("paren-expr");
+        Self::op_multiply().expect("mult");
+        Self::literal_bool().expect("lit");
+        Self::test_less().expect("less");
+        Self::test_more().expect("more");
+        Self::test_spaceship().expect("spaceship");
+        Self::test_equality_operator().expect("equality");
+        Self::test_if_expression().expect("if");
+        Self::test_parenthesised_expression().expect("paren-expr:2");
+        Self::test_string_literal().expect("string_literal");
+        Self::test_string_concat().expect("string_concat");
+        Self::test_unit_literal().expect("unit literal");
+        Self::test_coerced_int_literal().expect("int coerced");
+        Self::test_infix_op_does_not_cause_panic_by_arithmetic_overflow().expect("overflow?");
+        Self::test_overflowed_literal().expect("overflow literal");
+        Self::test_variable_reassign().expect("variable reassign");
+        Self::test_block_scope().expect("block");
+        Self::test_tuple_type().expect("tuple");
+        Self::test_comment().expect("comment");
+        Self::test_exit().expect("exit");
+        Self::test_underscore_discard().expect("underscore_discard");
 
         Ok(())
     }
@@ -386,7 +387,7 @@ print a
 
         assert_eq!(Self::ast(r#"var a: (Int32, Int32) = (1i32, 2i32)
 "#)?.statement, [Statement::VariableDeclaration {
-            identifier: Identifier::new("a".to_string()),
+            pattern: AtomicPattern::Bind(Identifier::new("a".to_string())),
             expression: Expression::Tuple {
                 expressions: vec![
                     Expression::IntLiteral {
@@ -459,6 +460,26 @@ print 1
         assert_eq!(Self::ast("exit\n")?.statement, [ Statement::Exit ]);
         assert_eq!(Self::evaluated_expressions("exit\n")?, []);
         assert_eq!(Self::evaluated_expressions_with_optimization_preset("exit\nprint 1\n", &SimpleOptimization)?, []);
+
+        Ok(())
+    }
+
+    fn test_underscore_discard() -> Result<(), Err> {
+        assert_eq!(Self::evaluated_expressions("var _ = 1\n")?, []);
+        assert_eq!(Self::evaluated_expressions("var a = block\n  print 1\n()\nend\n").expect("FATAL: shouldn't fail"), type_boxes![ 1 => NonCoercedInteger ]);
+        assert_eq!(Self::evaluated_expressions("var _ = block\n  print 1\n()\nend\n")?, type_boxes![ 1 => NonCoercedInteger ]);
+        assert!(
+            matches!(Self::evaluated_expressions("var _ = _\n"),
+                Err(
+                    TestFailureCause::Parser(
+                        SimpleErrorWithPos {
+                            kind: ParserError::UnderscoreCanNotBeRightHandExpression,
+                            ..
+                        }
+                    )
+                )
+            )
+        );
 
         Ok(())
     }

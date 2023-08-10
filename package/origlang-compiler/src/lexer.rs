@@ -19,8 +19,8 @@ use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
 use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 
-static KEYWORDS: [&str; 10] =
-    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end"];
+static KEYWORDS: [&str; 11] =
+    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "_"];
 
 trait AssociateWithPos {
     fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
@@ -234,12 +234,19 @@ impl Lexer {
             .or_else(|| {
                 self.one_or_many_accumulator(
                     String::new(),
-                    true,
-                    |x, first| {
-                        let b = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
+                    (true, false),
+                    |x, (first, exit_on_next_iteration)| {
+                        if exit_on_next_iteration {
+                            return ControlFlow::Break(())
+                        }
 
-                        if b {
-                            ControlFlow::Continue(false)
+                        let discarding = x == '_' && first;
+                        let is_identifier = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
+
+                        if is_identifier {
+                            ControlFlow::Continue((false, false))
+                        } else if discarding {
+                            ControlFlow::Continue((false, true))
                         } else {
                             ControlFlow::Break(())
                         }
@@ -264,6 +271,7 @@ impl Lexer {
                                 "block" => Token::KeywordBlock,
                                 "end" => Token::KeywordEnd,
                                 "exit" => Token::KeywordExit,
+                                "_" => Token::SymUnderscore,
                                 other => Token::Reserved {
                                     matched: other.to_string(),
                                 }
@@ -332,7 +340,7 @@ impl Lexer {
         scan_sequence_accumulator: Acc,
         registers: R,
         judge: impl Fn(char, R) -> ControlFlow<(), R>,
-        accumulate: impl Fn(char, &mut Acc)
+        accumulate_before_next_iteration_after_break: impl Fn(char, &mut Acc)
     ) -> Result<Acc, LexerError> {
         let mut acc = scan_sequence_accumulator;
         let mut registers = registers;
@@ -354,7 +362,7 @@ impl Lexer {
                 }
             }
 
-            accumulate(c, &mut acc);
+            accumulate_before_next_iteration_after_break(c, &mut acc);
         }
 
         Ok(acc)

@@ -3,7 +3,7 @@ pub mod error;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_ast::{Identifier, RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, Identifier, RootAst, Statement, TypeSignature};
 use origlang_typesystem_model::{AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
 use crate::type_check::error::TypeCheckError;
@@ -222,17 +222,25 @@ impl TryIntoTypeCheckedForm for Statement {
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::Print { expression } => checker.check(expression).map(|e| TypedStatement::Print { expression: e }),
-            Self::VariableDeclaration { identifier, expression, type_annotation } => {
+            Self::VariableDeclaration { pattern: pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
                 return if let Some(type_name) = type_annotation {
                     if let Ok(dest) = checker.lookup(&type_name) {
                         match dest.is_assignable(&checked.actual_type()) {
                             AssignableQueryAnswer::Yes => {
-                                checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
-                                Ok(TypedStatement::VariableDeclaration {
-                                    identifier,
-                                    expression: checked,
-                                })
+                                match pattern {
+                                    AtomicPattern::Discard => {
+                                        Ok(TypedStatement::EvalAndForget { expression: checked })
+                                    }
+                                    AtomicPattern::Bind(identifier) => {
+                                        checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                                        Ok(TypedStatement::VariableDeclaration {
+                                            identifier,
+                                            expression: checked,
+                                        })
+
+                                    }
+                                }
                             },
                             AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
 
@@ -255,11 +263,19 @@ impl TryIntoTypeCheckedForm for Statement {
                     }
                 } else {
                     // no annotations, just set its type (type-inference) from the expr
-                    checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
-                    Ok(TypedStatement::VariableDeclaration {
-                        identifier,
-                        expression: checked,
-                    })
+                    match pattern {
+                        AtomicPattern::Discard => {
+                            Ok(TypedStatement::EvalAndForget { expression: checked })
+                        }
+                        AtomicPattern::Bind(identifier) => {
+                            checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                            Ok(TypedStatement::VariableDeclaration {
+                                identifier,
+                                expression: checked,
+                            })
+
+                        }
+                    }
                 }
             }
             Self::VariableAssignment { identifier, expression } => {
