@@ -6,7 +6,7 @@ use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use crate::task::Task;
-use origlang_ast::{Comment, Identifier, RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::Expression;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
@@ -159,6 +159,7 @@ impl Test {
         Self::test_tuple_type()?;
         Self::test_comment()?;
         Self::test_exit()?;
+        Self::test_underscore_discard()?;
 
         Ok(())
     }
@@ -355,7 +356,7 @@ print a
 
         assert_eq!(Self::ast(r#"var a: (Int32, Int32) = (1i32, 2i32)
 "#)?.statement, [Statement::VariableDeclaration {
-            identifier: Identifier::new("a".to_string()),
+            pattern: AtomicPattern::Bind(Identifier::new("a".to_string())),
             expression: Expression::Tuple {
                 expressions: vec![
                     Expression::IntLiteral {
@@ -428,6 +429,13 @@ print 1
         assert_eq!(Self::ast("exit\n")?.statement, [ Statement::Exit ]);
         assert_eq!(Self::evaluated_expressions("exit\n")?, []);
         assert_eq!(Self::evaluated_expressions_with_optimization_preset("exit\nprint 1\n", &SimpleOptimization)?, []);
+
+        Ok(())
+    }
+
+    fn test_underscore_discard() -> Result<(), Err> {
+        assert_eq!(Self::evaluated_expressions("var _ = 1\n")?, []);
+        assert_eq!(Self::evaluated_expressions("var _ = block\n  print 1\nend\n")?, type_boxes![ 1 => NonCoercedInteger ]);
 
         Ok(())
     }

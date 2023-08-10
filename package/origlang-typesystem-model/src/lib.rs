@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use derive_more::Display;
 use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ast::Identifier;
+use origlang_ast::{AtomicPattern, Identifier};
 
 // TODO: this is implementation detail, should be unreachable.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -117,6 +117,9 @@ pub enum TypedStatement {
     },
     Block {
         inner_statements: Vec<Self>
+    },
+    EvalAndForget {
+        expression: TypedExpression,
     },
     Exit,
 }

@@ -1,5 +1,5 @@
 use std::num::ParseIntError;
-use origlang_ast::{RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::lexer::Lexer;
 use crate::lexer::error::LexerError;
@@ -672,8 +672,14 @@ impl Parser {
 
         self.assert_token_eq_with_consumed(&Token::SymEq);
         let expression = self.parse_lowest_precedence_expression()?;
+        let pat = if name.as_name() == "_" {
+            AtomicPattern::Discard
+        } else {
+            AtomicPattern::Bind(name)
+        };
+
         Ok(Statement::VariableDeclaration {
-            identifier: name,
+            pattern: pat,
             expression,
             type_annotation,
         })

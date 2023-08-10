@@ -59,6 +59,9 @@ impl IntoVerbatimSequencedIR for TypedStatement {
                 vec.into()
             }
             TypedStatement::Exit => vec![IR0::Exit],
+            TypedStatement::EvalAndForget { expression } => {
+                vec![IR0::Normal(IR1::EvalAndForget { expression })]
+            }
         }
     }
 }
@@ -87,6 +90,9 @@ pub enum IR1 {
     PushScope,
     PopScope,
     Exit,
+    EvalAndForget {
+        expression: TypedExpression
+    }
 }
 
 /// Same as [`IR1`], except that statements in blocks are lowered to this type.
@@ -100,6 +106,9 @@ pub enum IR2 {
     PushScope,
     PopScope,
     Exit,
+    EvalAndForget {
+        expression: CompiledTypedExpression
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]

@@ -234,12 +234,19 @@ impl Lexer {
             .or_else(|| {
                 self.one_or_many_accumulator(
                     String::new(),
-                    true,
-                    |x, first| {
-                        let b = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
+                    (true, false),
+                    |x, (first, exit_on_next_iteration)| {
+                        if exit_on_next_iteration {
+                            return ControlFlow::Break(())
+                        }
 
-                        if b {
-                            ControlFlow::Continue(false)
+                        let discarding = x == '_' && first;
+                        let is_identifier = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
+
+                        if is_identifier {
+                            ControlFlow::Continue((false, false))
+                        } else if discarding {
+                            ControlFlow::Continue((false, true))
                         } else {
                             ControlFlow::Break(())
                         }
@@ -332,7 +339,7 @@ impl Lexer {
         scan_sequence_accumulator: Acc,
         registers: R,
         judge: impl Fn(char, R) -> ControlFlow<(), R>,
-        accumulate: impl Fn(char, &mut Acc)
+        accumulate_before_next_iteration_after_break: impl Fn(char, &mut Acc)
     ) -> Result<Acc, LexerError> {
         let mut acc = scan_sequence_accumulator;
         let mut registers = registers;
@@ -354,7 +361,7 @@ impl Lexer {
                 }
             }
 
-            accumulate(c, &mut acc);
+            accumulate_before_next_iteration_after_break(c, &mut acc);
         }
 
         Ok(acc)
