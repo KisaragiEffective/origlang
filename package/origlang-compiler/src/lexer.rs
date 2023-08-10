@@ -19,8 +19,8 @@ use crate::chars::line::{LineComputation, LineComputationError};
 use crate::chars::occurrence::OccurrenceSet;
 use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 
-static KEYWORDS: [&str; 10] =
-    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end"];
+static KEYWORDS: [&str; 11] =
+    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "_"];
 
 trait AssociateWithPos {
     fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
@@ -271,6 +271,7 @@ impl Lexer {
                                 "block" => Token::KeywordBlock,
                                 "end" => Token::KeywordEnd,
                                 "exit" => Token::KeywordExit,
+                                "_" => Token::SymUnderscore,
                                 other => Token::Reserved {
                                     matched: other.to_string(),
                                 }

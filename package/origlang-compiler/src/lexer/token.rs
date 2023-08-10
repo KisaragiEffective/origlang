@@ -98,7 +98,8 @@ pub enum Token {
     Reserved {
         matched: String,
     },
-
+    /// `_`
+    SymUnderscore,
 }
 
 impl Token {
@@ -146,6 +147,7 @@ impl Token {
             Self::KeywordExit => "keyword:exit",
             Self::SymColon => "sym:colon",
             Self::Reserved { .. } => "reserved_token",
+            Self::SymUnderscore => "sym:underscore",
         }
     }
 

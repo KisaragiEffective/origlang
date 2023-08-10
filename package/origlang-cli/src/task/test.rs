@@ -468,6 +468,18 @@ print 1
         assert_eq!(Self::evaluated_expressions("var _ = 1\n")?, []);
         assert_eq!(Self::evaluated_expressions("var a = block\n  print 1\n()\nend\n").expect("FATAL: shouldn't fail"), type_boxes![ 1 => NonCoercedInteger ]);
         assert_eq!(Self::evaluated_expressions("var _ = block\n  print 1\n()\nend\n")?, type_boxes![ 1 => NonCoercedInteger ]);
+        assert!(
+            matches!(Self::evaluated_expressions("var _ = _\n"),
+                Err(
+                    TestFailureCause::Parser(
+                        SimpleErrorWithPos {
+                            kind: ParserError::UnderscoreCanNotBeRightHandExpression,
+                            ..
+                        }
+                    )
+                )
+            )
+        );
 
         Ok(())
     }
