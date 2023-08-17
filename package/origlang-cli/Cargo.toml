@@ -9,7 +9,7 @@ edition = "2021"
 clap = { version = "4.3.21", features = ["derive"] }
 env_logger = "0.10.0"
 log = "0.4.20"
-thiserror = "1.0.46"
+thiserror = "1.0.47"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-runtime = { path = "../origlang-runtime" }
