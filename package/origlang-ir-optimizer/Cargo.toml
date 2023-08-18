@@ -10,3 +10,4 @@ origlang-ir = { path = "../origlang-ir" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ast = { path = "../origlang-ast" }
 tap = "1.0.1"
+num-traits = "0.2.16"

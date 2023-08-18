@@ -5,55 +5,10 @@ use std::cmp::Ordering;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
-
-macro_rules! delegate {
-    ($trait_:ident, $implementor:ty, $method:ident) => {
-        impl $trait_<$implementor> for $implementor {
-            fn $method(self, other: $implementor) -> Option<$implementor> {
-                <$implementor>::$method(self, other)
-            }
-        }
-    }
-}
-
-trait CheckedAdd<T> {
-    fn checked_add(self, other: T) -> Option<T>;
-}
-
-delegate!(CheckedAdd, i8, checked_add);
-delegate!(CheckedAdd, i16, checked_add);
-delegate!(CheckedAdd, i32, checked_add);
-delegate!(CheckedAdd, i64, checked_add);
-
-trait CheckedSub<T> {
-    fn checked_sub(self, other: T) -> Option<T>;
-}
-
-delegate!(CheckedSub, i8,  checked_sub);
-delegate!(CheckedSub, i16, checked_sub);
-delegate!(CheckedSub, i32, checked_sub);
-delegate!(CheckedSub, i64, checked_sub);
-
-trait CheckedMul<T> {
-    fn checked_mul(self, other: T) -> Option<T>;
-}
-
-delegate!(CheckedMul, i8,  checked_mul);
-delegate!(CheckedMul, i16, checked_mul);
-delegate!(CheckedMul, i32, checked_mul);
-delegate!(CheckedMul, i64, checked_mul);
-
-trait CheckedDiv<T> {
-    fn checked_div(self, other: T) -> Option<T>;
-}
-
-delegate!(CheckedDiv, i8,  checked_div);
-delegate!(CheckedDiv, i16, checked_div);
-delegate!(CheckedDiv, i32, checked_div);
-delegate!(CheckedDiv, i64, checked_div);
+pub use num_traits::{CheckedAdd, CheckedSub, CheckedDiv, CheckedMul};
 
 trait OutputCompareResultAsSelf : Sized + PartialOrd + PartialEq {
-    fn compare_self(self, other: Self) -> Option<Self>;
+    fn compare_self(&self, other: &Self) -> Option<Self>;
 }
 
 trait CastFrom<T>: Sized {
@@ -76,7 +31,7 @@ gen_cast_from!(Ordering, i32);
 gen_cast_from!(Ordering, i64);
 
 impl<T: PartialOrd + PartialEq + CastFrom<Ordering>> OutputCompareResultAsSelf for T {
-    fn compare_self(self, other: Self) -> Option<Self> {
+    fn compare_self(&self, other: &Self) -> Option<Self> {
         self.partial_cmp(&other).map(T::cast_from)
     }
 }
@@ -194,19 +149,19 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     ($method:expr) => {
                         match (lhs_lit, rhs_lit) {
                             (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
-                                fold_opt_to_discriminator!($method, *lhs, *rhs, Generic)
+                                fold_opt_to_discriminator!($method, lhs, rhs, Generic)
                             },
                             (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
-                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit64)
+                                fold_opt_to_discriminator!($method, lhs, rhs, Bit64)
                             },
                             (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
-                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit32)
+                                fold_opt_to_discriminator!($method, lhs, rhs, Bit32)
                             },
                             (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
-                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit16)
+                                fold_opt_to_discriminator!($method, lhs, rhs, Bit16)
                             },
                             (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                                fold_opt_to_discriminator!($method, *lhs, *rhs, Bit8)
+                                fold_opt_to_discriminator!($method, lhs, rhs, Bit8)
                             },
                             _ => unreachable!(),
                         }
