@@ -122,6 +122,8 @@ pub enum TypedStatement {
         expression: TypedExpression,
     },
     Exit,
+    // TODO: eventually this would not be needed!
+    Empty,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

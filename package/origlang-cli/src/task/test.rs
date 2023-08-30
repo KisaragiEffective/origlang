@@ -191,6 +191,7 @@ impl Test {
         Self::test_comment().expect("comment");
         Self::test_exit().expect("exit");
         Self::test_underscore_discard().expect("underscore_discard");
+        Self::test_type_alias().expect("type_alias");
 
         Ok(())
     }
@@ -481,6 +482,14 @@ print 1
             )
         );
 
+        Ok(())
+    }
+
+    fn test_type_alias() -> Result<(), Err> {
+        assert_eq!(Self::ast("type Ik = Int32\n")?.statement, [ Statement::TypeAliasDeclaration {
+            new_name: Identifier::new("Ik".to_string()), replace_with: TypeSignature::Simple(Identifier::new("Int32".to_string())) } ]);
+        assert_eq!(Self::evaluated_expressions("type Ik = Int32\n")?, []);
+        assert_eq!(Self::evaluated_expressions("type Ik = Int32\nvar t: Ik = 0i32\nprint t\n")?, type_boxes![0 => Int32]);
         Ok(())
     }
 }
