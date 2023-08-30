@@ -61,7 +61,8 @@ impl IntoVerbatimSequencedIR for TypedStatement {
             TypedStatement::Exit => vec![IR0::Exit],
             TypedStatement::EvalAndForget { expression } => {
                 vec![IR0::Normal(IR1::EvalAndForget { expression })]
-            }
+            },
+            TypedStatement::Empty => vec![]
         }
     }
 }

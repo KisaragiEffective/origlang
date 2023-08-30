@@ -100,6 +100,8 @@ pub enum Token {
     },
     /// `_`
     SymUnderscore,
+    /// `type`
+    KeywordType,
 }
 
 impl Token {
@@ -148,6 +150,7 @@ impl Token {
             Self::SymColon => "sym:colon",
             Self::Reserved { .. } => "reserved_token",
             Self::SymUnderscore => "sym:underscore",
+            Self::KeywordType => "keyword:type",
         }
     }
 

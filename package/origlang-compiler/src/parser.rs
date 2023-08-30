@@ -195,6 +195,49 @@ impl Parser {
                 self.lexer.next();
                 Statement::Exit
             }
+            Token::KeywordType => {
+                self.lexer.next();
+                let aliased = self.lexer.next();
+
+                if let Token::Identifier { inner: aliased } = aliased.data {
+                    let except_eq = self.lexer.next();
+
+                    if let Token::SymEq = except_eq.data {
+
+                        let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
+                            return Err(SimpleErrorWithPos {
+                                kind: ParserError::UnexpectedToken {
+                                    pat: TokenKind::StartOfTypeSignature,
+                                    unmatch: self.lexer.peek().data
+                                },
+                                position: self.lexer.peek().position
+                            })
+                        };
+
+                        Statement::TypeAliasDeclaration {
+                            new_name: aliased,
+                            replace_with,
+                        }
+
+                    } else {
+                        return Err(SimpleErrorWithPos {
+                            kind: ParserError::UnexpectedToken {
+                                pat: TokenKind::only(Token::SymEq),
+                                unmatch: except_eq.data
+                            },
+                            position: except_eq.position
+                        })
+                    }
+                } else {
+                    return Err(SimpleErrorWithPos {
+                        kind: ParserError::UnexpectedToken {
+                            pat: TokenKind::Identifier,
+                            unmatch: aliased.data,
+                        },
+                        position: aliased.position,
+                    })
+                }
+            }
             x => {
                 return Err(SimpleErrorWithPos {
                     kind: ParserError::UnexpectedToken {

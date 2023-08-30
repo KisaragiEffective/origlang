@@ -225,7 +225,7 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::VariableDeclaration { pattern: pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
                 return if let Some(type_name) = type_annotation {
-                    if let Ok(dest) = checker.lookup(&type_name) {
+                    if let Ok(dest) = checker.lower_type_signature_into_type(&type_name) {
                         match dest.is_assignable(&checked.actual_type()) {
                             AssignableQueryAnswer::Yes => {
                                 match pattern {
@@ -233,7 +233,7 @@ impl TryIntoTypeCheckedForm for Statement {
                                         Ok(TypedStatement::EvalAndForget { expression: checked })
                                     }
                                     AtomicPattern::Bind(identifier) => {
-                                        checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                                        checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
                                         Ok(TypedStatement::VariableDeclaration {
                                             identifier,
                                             expression: checked,
@@ -268,7 +268,7 @@ impl TryIntoTypeCheckedForm for Statement {
                             Ok(TypedStatement::EvalAndForget { expression: checked })
                         }
                         AtomicPattern::Bind(identifier) => {
-                            checker.ctx.borrow_mut().add_variable_type(identifier.clone(), checked.actual_type());
+                            checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
                             Ok(TypedStatement::VariableDeclaration {
                                 identifier,
                                 expression: checked,
@@ -307,7 +307,14 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::Comment { .. } => Ok(TypedStatement::Block {
                 inner_statements: vec![]
             }),
-            Self::Exit => Ok(TypedStatement::Exit)
+            Self::Exit => Ok(TypedStatement::Exit),
+            Self::TypeAliasDeclaration { new_name, replace_with } => {
+                checker.ctx.borrow_mut().known_aliases.insert(new_name, checker.lower_type_signature_into_type(&replace_with).map_err(|_| TypeCheckError::UnknownType {
+                    name: replace_with,
+                })?);
+
+                Ok(TypedStatement::Empty)
+            }
         }
     }
 }
@@ -334,7 +341,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    pub(crate) fn lookup(&self, p0: &TypeSignature) -> Result<Type, ()> {
+    pub(crate) fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
         match p0 {
             TypeSignature::Simple(ident) => {
                 match ident.as_name() {
@@ -345,13 +352,13 @@ impl TypeChecker {
                     "Int16" => Ok(Type::Int16),
                     "Int32" => Ok(Type::Int32),
                     "Int64" => Ok(Type::Int64),
-                    _ => Err(())
+                    _other => self.ctx.borrow().known_aliases.get(ident).cloned().ok_or(())
                 }
             }
             TypeSignature::Tuple(x) => {
                 let mut types = Vec::with_capacity(x.capacity());
                 for ts in x {
-                    types.push(self.lookup(ts)?);
+                    types.push(self.lower_type_signature_into_type(ts)?);
                 }
 
                 Ok(Type::tuple(types))
@@ -387,22 +394,24 @@ impl TypeChecker {
 }
 
 pub struct Context {
-    typed_variables: HashMap<Identifier, Type>,
+    known_typed_variables: HashMap<Identifier, Type>,
+    known_aliases: HashMap<Identifier, Type>,
 }
 
 impl Context {
     #[must_use]
     pub fn empty() -> Self {
         Self {
-            typed_variables: HashMap::new()
+            known_typed_variables: HashMap::new(),
+            known_aliases: HashMap::new(),
         }
     }
 
-    fn lookup_variable_type(&self, ident: &Identifier) -> Result<Type, TypeCheckError> {
-        self.typed_variables.get(ident).cloned().ok_or_else(|| TypeCheckError::UndefinedIdentifier(ident.clone()))
+    fn lookup_variable_type(&self, variable_name: &Identifier) -> Result<Type, TypeCheckError> {
+        self.known_typed_variables.get(variable_name).cloned().ok_or_else(|| TypeCheckError::UndefinedIdentifier(variable_name.clone()))
     }
 
-    fn add_variable_type(&mut self, ident: Identifier, tp: Type) {
-        self.typed_variables.insert(ident, tp);
+    fn add_known_variable(&mut self, variable_ident: Identifier, tp: Type) {
+        self.known_typed_variables.insert(variable_ident, tp);
     }
 }

@@ -44,6 +44,10 @@ pub enum Statement {
         content: Comment,
     },
     Exit,
+    TypeAliasDeclaration {
+        new_name: Identifier,
+        replace_with: TypeSignature,
+    },
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
