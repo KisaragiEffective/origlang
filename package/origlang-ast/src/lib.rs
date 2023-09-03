@@ -30,7 +30,6 @@ pub enum Statement {
     VariableDeclaration {
         pattern: AtomicPattern,
         expression: Expression,
-        // TODO: in this form, type must be named
         type_annotation: Option<TypeSignature>,
     },
     VariableAssignment {
