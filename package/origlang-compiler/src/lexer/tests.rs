@@ -92,3 +92,14 @@ fn parse_string_literal_mixed_4_2() {
 fn parse_string_literal_mixed_4_3() {
     test("\u{10000}あ")
 }
+
+#[test]
+fn avoid_off_read() {
+    const S: &str = r#"var x = "4あ"
+"#;
+    let lexer = Lexer::create(S);
+    let k = S.chars().count();
+    for i in 0..k {
+        assert_eq!(lexer.consume_char().expect("oops"), S.chars().nth(i).expect("out of bounds from literal"))
+    }
+}
