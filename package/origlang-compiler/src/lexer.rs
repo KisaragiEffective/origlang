@@ -575,12 +575,12 @@ impl Lexer {
 
         let stride = if heading_byte <= 0x7F {
             Utf8CharStride::One
+        } else if heading_byte & 0b1111_0000 == 0b1111_0000 {
+            Utf8CharStride::Four
         } else if heading_byte & 0b1110_0000 == 0b1110_0000 {
-            Utf8CharStride::Four
-        } else if heading_byte & 0b1100_0000 == 0b1100_0000 {
             Utf8CharStride::Three
-        } else if heading_byte & 0b1000_0000 == 0b1000_0000 {
-            Utf8CharStride::Four
+        } else if heading_byte & 0b1100_0000 == 0b1100_0000 {
+            Utf8CharStride::Two
         } else {
             return Err(LexerError::MalformedAsUtf8 {
                 boundary: current_boundary,
@@ -650,3 +650,4 @@ impl Lexer {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 }
+
