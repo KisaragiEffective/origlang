@@ -291,6 +291,8 @@ macro_rules! f {
             BinaryOperatorKind::MoreEqual => (lhs >= rhs).into(),
             BinaryOperatorKind::Less => (lhs < rhs).into(),
             BinaryOperatorKind::LessEqual => (lhs <= rhs).into(),
+            BinaryOperatorKind::ShiftLeft => (lhs << rhs).into(),
+            BinaryOperatorKind::ShiftRight => (lhs >> rhs).into(),
             BinaryOperatorKind::ThreeWay => {
                 match lhs.cmp(&rhs) {
                     ::std::cmp::Ordering::Less => -1,
@@ -315,6 +317,8 @@ macro_rules! f {
             BinaryOperatorKind::MoreEqual => (lhs >= rhs).into(),
             BinaryOperatorKind::Less => (lhs < rhs).into(),
             BinaryOperatorKind::LessEqual => (lhs <= rhs).into(),
+            BinaryOperatorKind::ShiftLeft => (lhs << rhs).conv::<$intermediate>().into(),
+            BinaryOperatorKind::ShiftRight => (lhs >> rhs).conv::<$intermediate>().into(),
             BinaryOperatorKind::ThreeWay => {
                 match lhs.cmp(&rhs) {
                     ::std::cmp::Ordering::Less => -1,

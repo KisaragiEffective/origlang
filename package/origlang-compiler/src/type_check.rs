@@ -154,6 +154,22 @@ impl TryIntoTypeCheckedForm for Expression {
                             })
                         }
                     }
+                    BinaryOperatorKind::ShiftLeft | BinaryOperatorKind::ShiftRight => {
+                        if lhs_type == rhs_type {
+                            Ok(TypedExpression::BinaryOperator {
+                                lhs: Box::new(lhs_expr),
+                                rhs: Box::new(rhs_expr),
+                                operator,
+                                return_type: lhs_type.clone()
+                            })
+                        } else {
+                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                                operator,
+                                got_lhs: lhs_type,
+                                got_rhs: rhs_type,
+                            })
+                        }
+                    }
                 }
             }
             Self::If { condition, then_clause_value, else_clause_value } => {

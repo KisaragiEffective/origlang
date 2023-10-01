@@ -7,7 +7,7 @@ use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use crate::task::Task;
 use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
-use origlang_ast::after_parse::Expression;
+use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
@@ -192,6 +192,7 @@ impl Test {
         Self::test_exit().expect("exit");
         Self::test_underscore_discard().expect("underscore_discard");
         Self::test_type_alias().expect("type_alias");
+        Self::test_shift().expect("shift");
 
         Ok(())
     }
@@ -490,6 +491,48 @@ print 1
             new_name: Identifier::new("Ik".to_string()), replace_with: TypeSignature::Simple(Identifier::new("Int32".to_string())) } ]);
         assert_eq!(Self::evaluated_expressions("type Ik = Int32\n")?, []);
         assert_eq!(Self::evaluated_expressions("type Ik = Int32\nvar t: Ik = 0i32\nprint t\n")?, type_boxes![0 => Int32]);
+        Ok(())
+    }
+
+    fn test_shift() -> Result<(), Err> {
+        assert_eq!(Self::ast("var a = 1 << 2\n").expect("fail").statement, [
+            Statement::VariableDeclaration {
+                pattern: AtomicPattern::Bind(Identifier::new("a".to_owned())),
+                expression: Expression::BinaryOperator {
+                    lhs: Box::new(Expression::IntLiteral {
+                        value: 1,
+                        suffix: None,
+                    }),
+                    rhs: Box::new(Expression::IntLiteral {
+                        value: 2,
+                        suffix: None,
+                    }),
+                    operator: BinaryOperatorKind::ShiftLeft,
+                },
+                type_annotation: None,
+            }
+        ]);
+
+        assert_eq!(Self::evaluated_expressions("var t = 1i32 << 2i32\nprint t\n")?, type_boxes![4 => Int32]);
+        assert_eq!(Self::ast("var a = 4 >> 2\n").expect("fail").statement, [
+            Statement::VariableDeclaration {
+                pattern: AtomicPattern::Bind(Identifier::new("a".to_owned())),
+                expression: Expression::BinaryOperator {
+                    lhs: Box::new(Expression::IntLiteral {
+                        value: 4,
+                        suffix: None,
+                    }),
+                    rhs: Box::new(Expression::IntLiteral {
+                        value: 2,
+                        suffix: None,
+                    }),
+                    operator: BinaryOperatorKind::ShiftRight,
+                },
+                type_annotation: None,
+            }
+        ]);
+
+        assert_eq!(Self::evaluated_expressions("var t = 4i32 >> 2i32\nprint t\n")?, type_boxes![1 => Int32]);
         Ok(())
     }
 }
