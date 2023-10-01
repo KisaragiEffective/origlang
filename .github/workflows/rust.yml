@@ -15,15 +15,25 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
+        include:
+          - rustc_channel: stable
+            # renovate: rustc-stable
+            rustc_version: '1.72.1'
+          - rustc_channel: nightly
+            # renovate: rustc-nightly
+            rustc_version: '2023-09-30'
 
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
+    - name: Set up compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
+      run:
+        rustup install ${{ matrix.rustc_version }}
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.0
       with:
-        prefix-key: ${{ matrix.os }}-${{ env.CI_RUSTC_VERSION }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+        prefix-key: ${{ matrix.os }}-${{ matrix.rustc_version }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # See rust-wasm.yml for CI details about those package
     - name: Build package
       run: cargo build --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
