@@ -39,6 +39,7 @@ jobs:
         fi
 
         rustup show
+      shell: bash
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.0
       with:
