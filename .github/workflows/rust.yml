@@ -28,9 +28,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-    - name: Set up compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
-      run:
-        rustup install ${{ matrix.rustc_version }}
+    - name: Install compiler compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
+      run: |
+        if [[ "${{ matrix.rustc_channel }}" -eq nightly ]]; then
+          rustup install nightly-${{ matrix.rustc_version }}
+          rustup override set nightly-${{ matrix.rustc_version }}
+        else
+          rustup install ${{ matrix.rustc_version }}
+          rustup override set ${{ mawtrix.rustc_version }}
+        fi
+
+        rustup show
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.0
       with:
