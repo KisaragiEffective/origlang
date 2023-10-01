@@ -532,7 +532,7 @@ print 1
             }
         ]);
 
-        assert_eq!(Self::evaluated_expressions("var t = 4i32 >> 1i32\nprint t\n")?, type_boxes![1 => Int32]);
+        assert_eq!(Self::evaluated_expressions("var t = 4i32 >> 2i32\nprint t\n")?, type_boxes![1 => Int32]);
         Ok(())
     }
 }
