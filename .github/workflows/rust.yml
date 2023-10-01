@@ -28,9 +28,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4
-    - name: Install compiler compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
+    - name: Install compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
       run: |
-        if [[ "${{ matrix.rustc_channel }}" -eq nightly ]]; then
+        if [[ "${{ matrix.rustc_channel }}" == nightly ]]; then
           rustup install nightly-${{ matrix.rustc_version }}
           rustup override set nightly-${{ matrix.rustc_version }}
         else
