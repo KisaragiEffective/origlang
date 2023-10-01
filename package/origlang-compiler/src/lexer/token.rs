@@ -54,6 +54,10 @@ pub enum Token {
     SymAsterisk,
     /// `/`
     SymSlash,
+    /// `<<`
+    PartLessLess,
+    /// `>>`
+    PartMoreMore,
     /// `"("`
     SymLeftPar,
     /// `")"`
@@ -151,6 +155,8 @@ impl Token {
             Self::Reserved { .. } => "reserved_token",
             Self::SymUnderscore => "sym:underscore",
             Self::KeywordType => "keyword:type",
+            Self::PartLessLess => "part:less_less",
+            Self::PartMoreMore => "part:more_more",
         }
     }
 

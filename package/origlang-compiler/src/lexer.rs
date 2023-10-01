@@ -166,32 +166,36 @@ impl Lexer {
             )
             .or_else(|| self.try_char('(').expect("huh?").map(|_| Token::SymLeftPar))
             .or_else(|| self.try_char(')').expect("huh?").map(|_| Token::SymRightPar))
-            .or_else(|| 
-                fold!(
-                    self.try_char('<').expect("huh?").map(|_| Token::SymPlus),
-                    fold!(
-                        self.try_char('=').expect("huh?"),
-                        fold!(
-                            self.try_char('>').expect("huh?"),
-                            Some(Token::PartLessEqMore),
+            .or_else(|| {
+                if let Some(_) = self.try_char('<').expect("huh?") {
+                    if let Some(_) = self.try_char('=').expect("huh?") {
+                        if let Some(_) = self.try_char('>').expect("huh?") {
+                            Some(Token::PartLessEqMore)
+                        } else {
                             Some(Token::PartLessEq)
-                        ),
+                        }
+                    } else if let Some(_) = self.try_char('<').expect("huh?") {
+                        Some(Token::PartLessLess)
+                    } else {
                         Some(Token::SymLess)
-                    ),
+                    }
+                } else {
                     None
-                )
-            )
-            .or_else(|| 
-                fold!(
-                    self.try_char('>').expect("huh?"),
-                    fold!(
-                        self.try_char('=').expect("huh?"),
-                        Some(Token::PartMoreEq),
+                }
+            })
+            .or_else(|| {
+                if let Some(_) = self.try_char('>').expect("huh?") {
+                    if let Some(_) = self.try_char('=').expect("huh?") {
+                        Some(Token::PartMoreEq)
+                    } else if let Some(_) = self.try_char('>').expect("huh?") {
+                        Some(Token::PartMoreMore)
+                    } else {
                         Some(Token::SymMore)
-                    ),
+                    }
+                } else {
                     None
-                )
-            )
+                }
+            })
             .or_else(|| 
                 fold!(
                     self.try_char('!').expect("huh?"),

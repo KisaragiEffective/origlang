@@ -75,4 +75,8 @@ pub enum BinaryOperatorKind {
     Equal,
     #[display(fmt = "!=")]
     NotEqual,
+    #[display(fmt = "<<")]
+    ShiftLeft,
+    #[display(fmt = ">>")]
+    ShiftRight,
 }

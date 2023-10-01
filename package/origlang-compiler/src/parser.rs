@@ -108,6 +108,8 @@ pub enum TokenKind {
     ComparisonOps,
     #[display(fmt = "`==` or `!=`")]
     EqualityOps,
+    #[display(fmt = "`<<` or `>>`")]
+    ShiftOps,
     #[display(fmt = "int literal")]
     IntLiteral,
     #[display(fmt = "identifier")]
@@ -478,10 +480,53 @@ impl Parser {
         }
     }
 
+    fn parse_shift_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+        debug!("expr:shift");
+        let first_term = self.parse_additive()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartLessLess | Token::PartMoreMore)
+        };
+
+        if is_relation_operator(&next_token.data) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_relation_expression()?;
+            let get_operator_from_token = |token: &WithPosition<Token>| {
+                match &token.data {
+                    Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
+                    Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
+                    e => Err(SimpleErrorWithPos {
+                        kind: ParserError::UnexpectedToken {
+                            pat: TokenKind::ShiftOps,
+                            unmatch: e.clone(),
+                        },
+                        position: token.position,
+                    }),
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token.data) {
+                self.lexer.next();
+                let new_rhs = self.parse_relation_expression()?;
+                // 左結合になるように詰め替える
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+
+            Ok(acc)
+        } else {
+            Ok(first_term)
+        }
+    }
+
     /// 現在の位置から比較演算式をパースしようと試みる
     fn parse_relation_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("expr:rel");
-        let first_term = self.parse_additive()?;
+        let first_term = self.parse_shift_expression()?;
         let next_token = self.lexer.peek();
         let is_relation_operator = |token: &Token| {
             matches!(token, Token::PartLessEq | Token::PartMoreEq | Token::SymLess | Token::SymMore | Token::PartLessEqMore)
@@ -491,7 +536,7 @@ impl Parser {
             self.lexer.next();
             let operator_token = next_token;
             let lhs = first_term;
-            let rhs = self.parse_additive()?;
+            let rhs = self.parse_shift_expression()?;
             let get_operator_from_token = |token: &WithPosition<Token>| {
                 match &token.data {
                     Token::PartLessEq => Ok(BinaryOperatorKind::LessEqual),
