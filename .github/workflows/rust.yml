@@ -35,7 +35,7 @@ jobs:
           rustup override set nightly-${{ matrix.rustc_version }}
         else
           rustup install ${{ matrix.rustc_version }}
-          rustup override set ${{ mawtrix.rustc_version }}
+          rustup override set ${{ matrix.rustc_version }}
         fi
 
         rustup show
