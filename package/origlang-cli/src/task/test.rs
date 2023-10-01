@@ -519,7 +519,7 @@ print 1
                 pattern: AtomicPattern::Bind(Identifier::new("a".to_owned())),
                 expression: Expression::BinaryOperator {
                     lhs: Box::new(Expression::IntLiteral {
-                        value: 1,
+                        value: 4,
                         suffix: None,
                     }),
                     rhs: Box::new(Expression::IntLiteral {
