@@ -22,7 +22,7 @@
       * nb. no plan to introduce checked exception
 * 対称性よりも実用性を優先する
     * 例えば、Lispはほぼすべての物事が伝統的にコンスリストで処理されるが、この言語はそうではない
-    * 例えば、Zigはジェネリクスの型引数を宣言する際、`comptime T: type`という記法を[使う](https://ziglang.org/documentation/master/#toc-Generic-Data-Structures)が、この言語はそうではない
+    * 例えば、Zigはジェネリクスの型引数を宣言する際、`comptime T: type`という記法を[使う](https://ziglang.org/documentation/master/#Generic-Data-Structures)が、この言語はそうではない
 * グローバル空間に何もかもぶちまけない
     * 例えば、PHPは(おそらく過去の互換性の観点から) 名前空間を使えるにも関わらず標準ライブラリの関数が全てグローバル空間に置かれているが、この言語はそうではない
 * ポインタではない形におけるマルチバイト文字の対応 (UTF-8)
