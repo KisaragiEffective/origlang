@@ -31,3 +31,5 @@ jobs:
       run: cargo test --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run compile test
       run: cargo run -p origlang-cli -- test
+      env:
+        RUST_BACKTRACE: 1
