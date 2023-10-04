@@ -45,6 +45,14 @@ jobs:
       with:
         prefix-key: ${{ matrix.os }}-${{ matrix.rustc_version }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # See rust-wasm.yml for CI details about those package
+    - name: Setup ramdisk (on Windows)
+      run: |
+        ls $env:GITHUB_WORKSPACE
+        choco install imdisk
+        $path = $(Join-Path $env:GITHUB_WORKSPACE target)
+        echo "Mount point: $path"
+        imdisk -a -s 2G -m $path -p "/fs:ntfs /q /y"
+      if: ${{ matrix.runner == "windows-latest" }}
     - name: Build package
       run: cargo build --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run tests
