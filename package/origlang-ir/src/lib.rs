@@ -141,5 +141,6 @@ pub enum CompiledTypedExpression {
     },
     Tuple {
         expressions: Vec<Self>
-    }
+    },
+    Panic,
 }

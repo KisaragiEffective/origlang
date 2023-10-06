@@ -2,10 +2,16 @@
 mod tests;
 
 use std::cmp::Ordering;
+use std::num::NonZeroU8;
+use std::ops::{Add, BitAnd, Mul};
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
 pub use num_traits::{CheckedAdd, CheckedSub, CheckedDiv, CheckedMul};
+use num_traits::{One, WrappingSub, Zero};
+use tap::Conv;
+use crate::expr::AsTypedIntLiteral;
+use crate::num::{Coerced, IntegralLogarithm, NonCoerced, SizeOfLessThan256Bits, CreateWitness};
 
 trait OutputCompareResultAsSelf : Sized + PartialOrd + PartialEq {
     fn compare_self(&self, other: &Self) -> Option<Self>;
@@ -50,6 +56,30 @@ impl<T> Continue<T> for Option<T> {
 impl Continue<bool> for bool {
     fn continue_value(self) -> Option<bool> {
         self.then_some(true)
+    }
+}
+
+fn walk_rec(f: &mut impl FnMut(&TypedExpression) -> TypedExpression, s: TypedExpression) -> TypedExpression {
+    match s {
+        TypedExpression::If { condition, then, els, return_type } => {
+            return TypedExpression::If {
+                condition: Box::new(walk_rec(f, *condition)),
+                then: Box::new(walk_rec(f, *then)),
+                els: Box::new(walk_rec(f, *els)),
+                return_type
+            }
+        }
+        TypedExpression::Block { inner, final_expression, return_type } => {
+            return TypedExpression::Block {
+                inner,
+                final_expression: Box::new(walk_rec(f, *final_expression)),
+                return_type
+            }
+        }
+        TypedExpression::Tuple { expressions } => {
+            return TypedExpression::Tuple { expressions: expressions.into_iter().map(|x| walk_rec(f, x)).collect() }
+        }
+        other => f(&other)
     }
 }
 
@@ -303,5 +333,109 @@ impl InlineSimpleBlock {
             }
             other => other,
         }
+    }
+}
+
+pub struct DecomposeDivideByConst(pub Vec<IR1>);
+
+impl DecomposeDivideByConst {
+    pub fn optimize(self) -> Vec<IR1> {
+        self.0.into_iter().map(|x| match x {
+            IR1::Output(x) => IR1::Output(Self::walk_expression(x)),
+            IR1::UpdateVariable { ident, value } => IR1::UpdateVariable {
+                ident,
+                value: Self::walk_expression(value)
+            },
+            other => other,
+        }).collect()
+    }
+    
+    fn walk_expression(checked: TypedExpression) -> TypedExpression {
+        walk_rec(&mut |t| {
+            let TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } = &t else {
+                return t.clone()
+            };
+
+            let TypedExpression::IntLiteral(rhs) = rhs.as_ref() else {
+                return t.clone()
+            };
+
+            let BinaryOperatorKind::Divide = operator else {
+                return t.clone()
+            };
+
+            enum DivisorPattern {
+                Zero,
+                PowerOfTwo {
+                    exponent: NonZeroU8,
+                },
+                Normal(TypedIntLiteral)
+            }
+
+            fn compute_state<
+                T: Eq + Zero + One + BitAnd<Output=T> + WrappingSub + IntegralLogarithm<2> + Into<TypedIntLiteral> + SizeOfLessThan256Bits + Copy
+            >(t: T) -> DivisorPattern
+            {
+                if t == Zero::zero() {
+                    DivisorPattern::Zero
+                } else {
+                    let k = t & (t.wrapping_sub(&One::one()));
+                    if k != Zero::zero() {
+                        DivisorPattern::PowerOfTwo {
+                            // SAFETY: SizeOfLessThan256Bits enforces `core::mem::size_of::<T>() < 256usize`.
+                            // Therefore, k.int_log() fits u8 (1 <= `k.int_log()` <= 255 = u8::MAX).
+                            // `k.int_log()` never becomes zero, so using `NonZeroU8::new_unchecked` is fine.
+                            exponent: unsafe { NonZeroU8::new_unchecked(k.int_log().try_into().unwrap_unchecked()) }
+                        }
+                    } else {
+                        DivisorPattern::Normal(k.into())
+                    }
+                }
+            }
+
+            let state: DivisorPattern = match rhs {
+                TypedIntLiteral::Generic(i) => compute_state(NonCoerced(*i)),
+                TypedIntLiteral::Bit64(i) => compute_state(Coerced(*i)),
+                TypedIntLiteral::Bit32(i) => compute_state(*i),
+                TypedIntLiteral::Bit16(i) => compute_state(*i),
+                TypedIntLiteral::Bit8(i) => compute_state(*i),
+            };
+
+            let after = match state {
+                DivisorPattern::Zero => {
+                    // hi zero division! we propagate your panic earlier!
+                    TypedExpression::Panic
+                }
+                DivisorPattern::PowerOfTwo { exponent } => {
+                    let bit_width = match rhs {
+                        TypedIntLiteral::Generic(_) => 64,
+                        TypedIntLiteral::Bit64(_) => 64,
+                        TypedIntLiteral::Bit32(_) => 32,
+                        TypedIntLiteral::Bit16(_) => 16,
+                        TypedIntLiteral::Bit8(_) => 8,
+                    };
+
+                    if bit_width >= exponent.get() {
+                        // by definition, we cannot have overflowed value.
+                        TypedExpression::BinaryOperator {
+                            lhs: lhs.clone(),
+                            // SAFETY: Except Int8, their valid range covers u8 possible range.
+                            // for Int8, the witness will not be more than 8.
+                            rhs: Box::new(TypedExpression::IntLiteral(unsafe { rhs.create_witness(exponent.get() as i64).unwrap_unchecked() })),
+                            operator: BinaryOperatorKind::ShiftRight,
+                            return_type: lhs.actual_type(),
+                        }
+                    } else {
+                        unsafe { TypedExpression::IntLiteral(rhs.create_witness(0).unwrap_unchecked()) }
+                    }
+                }
+                DivisorPattern::Normal(x) => {
+                    // leave as-is at this point.
+                    TypedExpression::IntLiteral(x)
+                }
+            };
+
+            after
+        }, checked)
     }
 }

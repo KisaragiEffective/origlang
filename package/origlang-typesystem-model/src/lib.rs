@@ -155,7 +155,8 @@ pub enum TypedExpression {
     },
     Tuple {
         expressions: Vec<Self>
-    }
+    },
+    Panic
 }
 
 impl TypedExpression {
@@ -169,7 +170,9 @@ impl TypedExpression {
             TypedExpression::BinaryOperator { return_type, .. } => return_type.clone(),
             TypedExpression::If { return_type, .. } => return_type.clone(),
             TypedExpression::Block { return_type, .. } => return_type.clone(),
-            TypedExpression::Tuple { expressions } => Type::tuple(expressions.iter().map(|x| x.actual_type()).collect())
+            TypedExpression::Tuple { expressions } => Type::tuple(expressions.iter().map(|x| x.actual_type()).collect()),
+            // TODO: this is not correct, it should have Never type
+            TypedExpression::Panic => Type::Unit
         }
     }
 }
@@ -192,5 +195,23 @@ impl TypedIntLiteral {
             TypedIntLiteral::Bit16(_) => Type::Int16,
             TypedIntLiteral::Bit8(_) => Type::Int8,
         }
+    }
+}
+
+impl From<i8> for TypedIntLiteral {
+    fn from(value: i8) -> Self {
+        Self::Bit8(value)
+    }
+}
+
+impl From<i16> for TypedIntLiteral {
+    fn from(value: i16) -> Self {
+        Self::Bit16(value)
+    }
+}
+
+impl From<i32> for TypedIntLiteral {
+    fn from(value: i32) -> Self {
+        Self::Bit32(value)
     }
 }

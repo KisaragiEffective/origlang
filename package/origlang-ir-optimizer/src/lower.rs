@@ -53,6 +53,7 @@ impl TheTranspiler<'_> {
             TypedExpression::Tuple { expressions } => CompiledTypedExpression::Tuple {
                 expressions: expressions.into_iter().map(|x| self.compile_typed_expression(x)).collect()
             },
+            TypedExpression::Panic => CompiledTypedExpression::Panic,
         }
     }
 
