@@ -35,7 +35,6 @@ impl<T> AssociateWithPos for T {
     }
 }
 
-// FIXME: 行番号、列番号がおかしい
 #[derive(Debug)]
 pub struct Lexer {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
@@ -302,9 +301,13 @@ impl Lexer {
             return Token::EndOfFile.with_pos(self)
         }
 
-        let r = self.next_inner()
-            .expect("Lexer phase error")
-            .with_pos(self);
+        let pos = self.current_pos();
+
+        let r = WithPosition {
+            data: self.next_inner()
+                .expect("Lexer phase error"),
+            position: pos,
+        };
 
         debug!("next: {r:?}", r = &r);
         r
@@ -654,4 +657,3 @@ impl Lexer {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 }
-
