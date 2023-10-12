@@ -302,9 +302,13 @@ impl Lexer {
             return Token::EndOfFile.with_pos(self)
         }
 
-        let r = self.next_inner()
-            .expect("Lexer phase error")
-            .with_pos(self);
+        let pos = self.current_pos();
+
+        let r = WithPosition {
+            data: self.next_inner()
+                .expect("Lexer phase error"),
+            position: pos,
+        };
 
         debug!("next: {r:?}", r = &r);
         r
