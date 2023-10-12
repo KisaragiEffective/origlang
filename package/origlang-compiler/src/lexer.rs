@@ -658,4 +658,3 @@ impl Lexer {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 }
-

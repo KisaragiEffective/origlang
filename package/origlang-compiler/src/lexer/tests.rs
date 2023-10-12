@@ -103,3 +103,49 @@ fn avoid_off_read() {
         assert_eq!(lexer.consume_char().expect("oops"), S.chars().nth(i).expect("out of bounds from literal"))
     }
 }
+
+use std::num::NonZeroUsize;
+use origlang_source_span::{Pointed, SourcePosition};
+
+#[test]
+fn token_location() {
+    let src = "var x = 1\n";
+    let lexer = Lexer::create(src);
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::VarKeyword,
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(1).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Identifier {
+            inner: Identifier::new("x".to_string())
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(5).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::SymEq,
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(7).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Digits {
+            sequence: "1".to_string(),
+            suffix: None,
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(9).unwrap()
+        }
+    });
+}
