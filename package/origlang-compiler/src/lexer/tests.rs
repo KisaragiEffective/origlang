@@ -109,7 +109,8 @@ use origlang_source_span::{Pointed, SourcePosition};
 
 #[test]
 fn token_location() {
-    let src = "var x = 1\n";
+    // TODO: var y = 2 w/o new line -> unexpected panic (scan_digits_suffix_opt)
+    let src = "var x = 1\nvar y = 2\n";
     let lexer = Lexer::create(src);
 
     assert_eq!(lexer.next(), Pointed {
@@ -145,6 +146,51 @@ fn token_location() {
         },
         position: SourcePosition {
             line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(9).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::NewLine,
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(10).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::VarKeyword,
+        position: SourcePosition {
+            line: NonZeroUsize::new(2).unwrap(),
+            column: NonZeroUsize::new(1).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Identifier {
+            inner: Identifier::new("y".to_string())
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(2).unwrap(),
+            column: NonZeroUsize::new(5).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::SymEq,
+        position: SourcePosition {
+            line: NonZeroUsize::new(2).unwrap(),
+            column: NonZeroUsize::new(7).unwrap()
+        }
+    });
+
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Digits {
+            sequence: "2".to_string(),
+            suffix: None,
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(2).unwrap(),
             column: NonZeroUsize::new(9).unwrap()
         }
     });
