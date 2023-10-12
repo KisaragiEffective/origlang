@@ -35,7 +35,6 @@ impl<T> AssociateWithPos for T {
     }
 }
 
-// FIXME: 行番号、列番号がおかしい
 #[derive(Debug)]
 pub struct Lexer {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
