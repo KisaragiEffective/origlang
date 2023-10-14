@@ -83,7 +83,7 @@ impl Lexer {
     }
 
     fn drain_space(&self) {
-        while !self.reached_end() && self.current_char().expect("drain_space") == ' ' {
+        while !self.reached_end() && matches!(self.current_char().expect("drain_space"), ' ' | '\t') {
             self.consume_char().unwrap();
         }
     }
