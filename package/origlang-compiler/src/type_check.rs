@@ -553,6 +553,7 @@ impl Context {
     }
 
     fn add_known_variable(&mut self, variable_ident: Identifier, tp: Type) {
+        debug!("proved: {variable_ident}: {tp}");
         self.known_typed_variables.insert(variable_ident, tp);
     }
 }
