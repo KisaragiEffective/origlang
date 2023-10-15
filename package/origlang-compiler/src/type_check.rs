@@ -320,32 +320,32 @@ fn desugar(
         TypedExpression::ExtractTuple { expr, index } => {
             let expr = *expr;
 
-            enum K {
-                RecurseSimply(TypedExpression),
+            enum RecursionStrategy {
+                Simple(TypedExpression),
                 InsertTemporary(TypedExpression),
             }
             let expr = match expr {
                 TypedExpression::If { condition, then, els, return_type } => {
-                    K::RecurseSimply(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
+                    RecursionStrategy::Simple(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
                 }
                 TypedExpression::Block { inner, final_expression, return_type } => {
-                    K::RecurseSimply(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
+                    RecursionStrategy::Simple(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
                 }
                 TypedExpression::Tuple { expressions } => {
-                    K::RecurseSimply(expressions[index].clone())
+                    RecursionStrategy::Simple(expressions[index].clone())
                 }
                 TypedExpression::Variable { .. } => {
-                    K::InsertTemporary(expr)
+                    RecursionStrategy::InsertTemporary(expr)
                 }
-                other => K::RecurseSimply(other),
+                other => RecursionStrategy::Simple(other),
             };
 
             match expr {
-                K::RecurseSimply(expr) => {
+                RecursionStrategy::Simple(expr) => {
                     debug!("recurse");
                     desugar(outer_destruction, expr, checker)
                 }
-                K::InsertTemporary(expr) => {
+                RecursionStrategy::InsertTemporary(expr) => {
                     let new_ident = checker.make_fresh_identifier();
                     let tp = expr.actual_type().as_tuple().expect("oh").0[index].clone();
                     let v = TypedExpression::Variable {
