@@ -68,6 +68,10 @@ pub enum Type {
     Tuple(DisplayTupleType),
     #[display(fmt = "{_0}")]
     Record(DisplayRecordType),
+    #[display(fmt = "*const {_0}")]
+    Ref(Box<Self>),
+    #[display(fmt = "*mut {_0}")]
+    RefMut(Box<Self>)
 }
 
 impl Type {
