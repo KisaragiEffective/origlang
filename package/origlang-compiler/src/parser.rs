@@ -740,24 +740,7 @@ impl Parser {
     fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("decl:var");
         self.assert_token_eq_with_consumed(&Token::VarKeyword);
-        let ident_token = self.lexer.next();
-        let pattern = match ident_token.data {
-            Token::Identifier { inner: name } => {
-                AtomicPattern::Bind(name)
-            }
-            Token::SymUnderscore => {
-                AtomicPattern::Discard
-            }
-            other_token => {
-                return Err(SimpleErrorWithPos {
-                    position: ident_token.position,
-                    kind: ParserError::UnexpectedToken {
-                        pat: TokenKind::Identifier,
-                        unmatch: other_token,
-                    }
-                })
-            }
-        };
+        let pattern = self.parse_atomic_pattern()?;
 
         // optionally, allow type annotation
         let type_annotation = self.lexer.parse_fallible(|| {
@@ -883,6 +866,70 @@ impl Parser {
             })
         } else {
             self.parse_if_expression()
+        }
+    }
+
+    fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
+        let start = self.lexer.peek();
+        if start.data == Token::SymLeftPar {
+            drop(start);
+
+            self.lexer.next();
+
+            let mut v = vec![];
+
+            while let Ok(pattern) = self.parse_atomic_pattern() {
+                v.push(pattern);
+                self.assert_token_eq_with_consumed(&Token::SymComma);
+            }
+
+            let end = self.lexer.peek();
+            if end.data == Token::SymRightPar {
+                self.lexer.next();
+
+                Ok(AtomicPattern::Tuple(v))
+            } else {
+                Err(SimpleErrorWithPos {
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::only(Token::SymRightPar),
+                        unmatch: end.data,
+                    },
+                    position: end.position,
+                })
+            }
+        } else {
+            Err(SimpleErrorWithPos {
+                kind: ParserError::UnexpectedToken {
+                    pat: TokenKind::only(Token::SymLeftPar),
+                    unmatch: start.data,
+                },
+                position: start.position,
+            })
+        }
+    }
+
+    fn parse_atomic_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
+        let it = self.lexer.peek();
+
+        match it.data {
+            Token::Identifier { inner: name } => {
+                Ok(AtomicPattern::Bind(name))
+            }
+            Token::SymUnderscore => {
+                Ok(AtomicPattern::Discard)
+            }
+            Token::SymLeftPar => {
+                self.parse_tuple_destruct_pattern()
+            }
+            other_token => {
+                Err(SimpleErrorWithPos {
+                    position: it.position,
+                    kind: ParserError::UnexpectedToken {
+                        pat: TokenKind::Identifier,
+                        unmatch: other_token,
+                    }
+                })
+            }
         }
     }
 }

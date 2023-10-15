@@ -16,7 +16,8 @@ pub struct RootAst {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum AtomicPattern {
     Discard,
-    Bind(Identifier)
+    Bind(Identifier),
+    Tuple(Vec<Self>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
