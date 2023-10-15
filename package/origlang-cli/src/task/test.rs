@@ -545,6 +545,7 @@ print 1
         );
         assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, 2i32)\nprint a\n")?, type_boxes![1 => Int32]);
         assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, block\nprint 2i32\n()\nend)")?, type_boxes![2 => Int32]);
+        assert_eq!(Self::evaluated_expressions("var (a, _) = (46i32, if true then 178i32 else 251i32)\nprint a\n")?, type_boxes![46 => Int32]);
 
         // literal (nested)
         assert_eq!(Self::evaluated_expressions("var (a, (b, c)) = (1i32, (2i32, 3i32))\nprint a\nprint b\nprint c\n")?, type_boxes![1 => Int32, 2 => Int32, 3 => Int32]);
@@ -555,8 +556,8 @@ print 1
         assert_eq!(Self::evaluated_expressions("var z = (1i32, 2i32, 3i32)\nvar (a, b, c) = z\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 2 => Int32, 3 => Int32]);
 
         // var (nested)
-        assert_eq!(Self::evaluated_expressions("var z = (1i32, (2i32, 3i32))\nvar (a, (b, c)) = z\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 2 => Int32, 3 => Int32], "var nest");
-        assert_eq!(Self::evaluated_expressions("var z = (1i32, (2i32, 3i32))\nvar (a, y) = z\nvar (b, c) = y\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 2 => Int32, 3 => Int32], "double-var nest");
+        assert_eq!(Self::evaluated_expressions("var z = (1i32, (21i32, 30i32))\nvar (a, (b, c)) = z\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 21 => Int32, 30 => Int32], "var nest");
+        assert_eq!(Self::evaluated_expressions("var z = (1i32, (25i32, 38i32))\nvar (a, y) = z\nvar (b, c) = y\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 25 => Int32, 38 => Int32], "double-var nest");
 
         Ok(())
     }
