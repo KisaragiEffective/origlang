@@ -17,17 +17,17 @@
           const plural = (s, n) => n >= 2 ? `${s}s` : s;
           switch (s) {
             case "Hello, World":
-              fetch("./example/hello_world.ol").then(x => x.text()).then(t => {
+              fetch("./example/hello_world.origlang").then(x => x.text()).then(t => {
                 document.getElementById("src").value = t;
               });
               break;
             case "Fizz Buzz":
-              fetch("./example/fizz_buzz.ol").then(x => x.text()).then(t => {
+              fetch("./example/fizz_buzz.origlang").then(x => x.text()).then(t => {
                 document.getElementById("src").value = t;
               });
               break;
             case "99 Bottles of Beer":
-              fetch("./example/99_bottles_of_beer.ol").then(x => x.text()).then(t => {
+              fetch("./example/99_bottles_of_beer.origlang").then(x => x.text()).then(t => {
                 document.getElementById("src").value = t;
               })
               break;
