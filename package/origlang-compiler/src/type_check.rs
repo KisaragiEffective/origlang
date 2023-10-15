@@ -234,7 +234,7 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
-fn helper(
+fn handle_atomic_pattern(
     expr: TypedExpression, element_binding: &AtomicPattern, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     match element_binding {
@@ -301,7 +301,7 @@ fn desugar(
         }
         TypedExpression::Tuple { expressions } => {
             let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                helper(expressions[i].clone(), &element_binding, checker)
+                handle_atomic_pattern(expressions[i].clone(), &element_binding, checker)
             }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
 
             let mut k = vec![];
@@ -382,7 +382,7 @@ fn desugar(
 fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annotation: Option<TypeSignature>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
     let Some(type_name) = type_annotation else {
         // no annotations, just set its type (type-inference) from the expr
-        return helper(checked, pattern, checker)
+        return handle_atomic_pattern(checked, pattern, checker)
     };
 
     let Ok(dest) = checker.lower_type_signature_into_type(&type_name) else {
@@ -393,7 +393,7 @@ fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annot
 
     match dest.is_assignable(&checked.actual_type()) {
         AssignableQueryAnswer::Yes => {
-            helper(checked, pattern, checker)
+            handle_atomic_pattern(checked, pattern, checker)
         },
         AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
             Err(TypeCheckError::UnassignableType {
