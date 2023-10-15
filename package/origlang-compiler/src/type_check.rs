@@ -379,6 +379,37 @@ fn desugar(
     }
 }
 
+fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annotation: Option<TypeSignature>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    let Some(type_name) = type_annotation else {
+        // no annotations, just set its type (type-inference) from the expr
+        return helper(checked, pattern, checker)
+    };
+
+    let Ok(dest) = checker.lower_type_signature_into_type(&type_name) else {
+        return Err(TypeCheckError::UnknownType {
+            name: type_name
+        })
+    };
+
+    match dest.is_assignable(&checked.actual_type()) {
+        AssignableQueryAnswer::Yes => {
+            helper(checked, pattern, checker)
+        },
+        AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
+            Err(TypeCheckError::UnassignableType {
+                from: checked.actual_type(),
+                to: dest,
+            })
+        }
+        AssignableQueryAnswer::No => {
+            Err(TypeCheckError::UnassignableType {
+                from: checked.actual_type(),
+                to: dest,
+            })
+        }
+    }
+}
+
 impl TryIntoTypeCheckedForm for Statement {
     type Success = Vec<TypedStatement>;
     type Err = TypeCheckError;
@@ -388,62 +419,9 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::Print { expression } => checker.check(expression).map(|e| vec![TypedStatement::Print { expression: e }]),
             Self::VariableDeclaration { pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
-                return if let Some(type_name) = type_annotation {
-                    if let Ok(dest) = checker.lower_type_signature_into_type(&type_name) {
-                        match dest.is_assignable(&checked.actual_type()) {
-                            AssignableQueryAnswer::Yes => {
-                                match pattern {
-                                    AtomicPattern::Discard => {
-                                        Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
-                                    }
-                                    AtomicPattern::Bind(identifier) => {
-                                        checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                                        Ok(vec![TypedStatement::VariableDeclaration {
-                                            identifier,
-                                            expression: checked,
-                                        }])
-
-                                    }
-                                    AtomicPattern::Tuple(x) => desugar(x, checked, checker)
-                                }
-                            },
-                            AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
-
-                                Err(TypeCheckError::UnassignableType {
-                                    from: checked.actual_type(),
-                                    to: dest,
-                                })
-                            }
-                            AssignableQueryAnswer::No => {
-                                Err(TypeCheckError::UnassignableType {
-                                    from: checked.actual_type(),
-                                    to: dest,
-                                })
-                            }
-                        }
-                    } else {
-                        Err(TypeCheckError::UnknownType {
-                            name: type_name
-                        })
-                    }
-                } else {
-                    // no annotations, just set its type (type-inference) from the expr
-                    match pattern {
-                        AtomicPattern::Discard => {
-                            Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
-                        }
-                        AtomicPattern::Bind(identifier) => {
-                            checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                            Ok(vec![TypedStatement::VariableDeclaration {
-                                identifier,
-                                expression: checked,
-                            }])
-
-                        }
-                        AtomicPattern::Tuple(x) => desugar(x, checked, checker)
-                    }
-                }
+                extract_pattern(checked, &pattern, type_annotation, checker)
             }
+
             Self::VariableAssignment { identifier, expression } => {
                 let checked = checker.check(expression)?;
                 let expected_type = checker.ctx.borrow().lookup_variable_type(&identifier)?;
