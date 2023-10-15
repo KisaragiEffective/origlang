@@ -1,6 +1,7 @@
 use thiserror::Error;
 use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ast::{Identifier, TypeSignature};
+use origlang_ast::{AtomicPattern, Identifier, TypeSignature};
+use origlang_typesystem_model::TypedExpression;
 use crate::type_check::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
@@ -41,5 +42,11 @@ pub enum TypeCheckError {
     #[error("type {name} is not defined")]
     UnknownType {
         name: TypeSignature,
+    },
+    #[error("pattern {pattern} may not be satisfied where the expression has type of {expr_type}")]
+    UnsatisfiablePattern {
+        pattern: AtomicPattern,
+        expression: TypedExpression,
+        expr_type: Type,
     }
 }

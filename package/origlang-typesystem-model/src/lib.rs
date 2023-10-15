@@ -88,6 +88,14 @@ impl Type {
             AssignableQueryAnswer::No
         }
     }
+
+    pub fn as_tuple(&self) -> Option<&DisplayTupleType> {
+        if let Self::Tuple(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -155,7 +163,11 @@ pub enum TypedExpression {
     },
     Tuple {
         expressions: Vec<Self>
-    }
+    },
+    ExtractTuple {
+        expr: Box<Self>,
+        index: usize
+    },
 }
 
 impl TypedExpression {
@@ -169,7 +181,18 @@ impl TypedExpression {
             TypedExpression::BinaryOperator { return_type, .. } => return_type.clone(),
             TypedExpression::If { return_type, .. } => return_type.clone(),
             TypedExpression::Block { return_type, .. } => return_type.clone(),
-            TypedExpression::Tuple { expressions } => Type::tuple(expressions.iter().map(|x| x.actual_type()).collect())
+            TypedExpression::Tuple { expressions } => Type::tuple(expressions.iter().map(|x| x.actual_type()).collect()),
+            TypedExpression::ExtractTuple { expr, index } => {
+                expr.actual_type().as_tuple().map(|y| y.0[*index].clone()).expect("the underlying expression must be tuple and index must be within its bound")
+            }
+        }
+    }
+
+    pub fn tuple_arity(&self) -> Option<usize> {
+        if let TypedExpression::Tuple { expressions } = self {
+            Some(expressions.len())
+        } else {
+            None
         }
     }
 }

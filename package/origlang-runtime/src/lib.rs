@@ -436,6 +436,19 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     boxes: res
                 }))
             }
+            CompiledTypedExpression::ExtractTuple { expr, index } => {
+                let x = expr.evaluate(runtime)?;
+                match x {
+                    TypeBox::Tuple(x) => {
+                        if let Some(x) = x.boxes.get(*index) {
+                            Ok(x.clone())
+                        } else {
+                            indicate_type_checker_bug!(context = "tuple_destruction: out of bounds")
+                        }
+                    }
+                    other => indicate_type_checker_bug!(context = "must be tuple")
+                }
+            }
         }
     }
 }
