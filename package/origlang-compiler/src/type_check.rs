@@ -302,7 +302,7 @@ fn desugar(
         TypedExpression::Tuple { expressions } => {
             let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
                 handle_atomic_pattern(expressions[i].clone(), &element_binding, checker)
-            }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
+            }).collect::<Vec<_>>();
 
             let mut k = vec![];
 
