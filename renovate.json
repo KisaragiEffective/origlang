@@ -17,6 +17,24 @@
       "matchManagers": ["cargo"],
       "matchCurrentVersion": "/^0/",
       "automerge": true
+    },
+    {
+      "description": "automerge Rust compiler bump for stable channel",
+      "matchUpdateTypes": ["minor", "patch"],
+      "fileMatch": [".github"],
+      "matchStrings": [
+        "#\\s?renovate: image=(?<depName>.*?)\\s?appVersion:\\s?\\\"?(?<currentValue>[\\w+\\.\\-]*)\""
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/rust\\.yml$"],
+      "matchStrings": ["#\\s?renovate: rustc-stable\\s*rustc_version:\\s?'(?<currentValue>[\\d\\.\\d+\\.\\d+])'"],
+      "depNameTemplate": "rust",
+      "lookupNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
