@@ -251,111 +251,112 @@ fn handle_atomic_pattern_tuple(checked: TypedExpression, x: Vec<AtomicPattern>) 
             })
         }
 
-        fn helper(
-            expr: TypedExpression, element_binding: &AtomicPattern
-        ) -> Result<Vec<TypedStatement>, TypeCheckError> {
-            match element_binding {
-                AtomicPattern::Discard => {
-                    Ok(vec![TypedStatement::EvalAndForget {
-                        expression: expr,
-                    }])
-                },
-                AtomicPattern::Bind(identifier) => {
-                    Ok(vec![TypedStatement::VariableDeclaration {
-                        identifier: identifier.clone(),
-                        expression: expr,
-                    }])
-                }
-                AtomicPattern::Tuple(tp) => {
-                    desugar(tp.clone(), expr)
-                }
-            }
-        }
-
-        fn desugar(
-            outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression
-        ) -> Result<Vec<TypedStatement>, TypeCheckError> {
-            match rhs {
-                TypedExpression::Variable { ident, tp } => {
-                    match tp {
-                        Type::Tuple(tuple_element_types) => {
-                            let tuple_element_types = tuple_element_types.0;
-                            if outer_destruction.len() == tuple_element_types.len() {
-                                let m = tuple_element_types.iter().enumerate().map(|(i, t)| {
-                                    let element_binding = &outer_destruction[i];
-
-                                    let expr = TypedExpression::ExtractTuple {
-                                        expr: Box::new(TypedExpression::Variable {
-                                            ident: ident.clone(),
-                                            tp: Type::tuple(tuple_element_types.clone())
-                                        }),
-                                        index: i,
-                                    };
-
-                                    helper(expr, element_binding)
-                                }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
-
-                                let mut k = vec![];
-
-                                for mx in m {
-                                    match mx {
-                                        Ok(y) => {
-                                            k.extend(y);
-                                        }
-                                        Err(x) => return Err(x)
-                                    }
-                                }
-
-                                Ok(k)
-                            } else {
-                                Err(TypeCheckError::UnsatisfiablePattern {
-                                    pattern: AtomicPattern::Tuple(outer_destruction),
-                                    expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
-                                    expr_type: Type::tuple(tuple_element_types.clone()),
-                                })
-                            }
-                        }
-                        other => Err(TypeCheckError::UnsatisfiablePattern {
-                            pattern: AtomicPattern::Tuple(outer_destruction),
-                            expression: TypedExpression::Variable { ident, tp: other.clone() },
-                            expr_type: other,
-                        })
-                    }
-                }
-                TypedExpression::Block { inner, final_expression, return_type } => {
-                    desugar(outer_destruction, *final_expression)
-                }
-                TypedExpression::Tuple { expressions } => {
-                    let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                        helper(expressions[i].clone(), &element_binding)
-                    }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
-
-                    let mut k = vec![];
-
-                    for mx in m {
-                        match mx {
-                            Ok(y) => {
-                                k.extend(y);
-                            }
-                            Err(x) => return Err(x)
-                        }
-                    }
-
-                    Ok(k)
-                }
-                TypedExpression::ExtractTuple { expr, index } => {
-                    desugar(outer_destruction, *expr)
-                }
-                other => Err(TypeCheckError::UnsatisfiablePattern {
-                    pattern: AtomicPattern::Tuple(outer_destruction),
-                    expr_type: other.actual_type(),
-                    expression: other,
-                })
-            }
-        }
         let y = desugar(x, TypedExpression::Tuple { expressions })?;
 
         Ok(y)
+    }
+}
+
+fn helper(
+    expr: TypedExpression, element_binding: &AtomicPattern
+) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    match element_binding {
+        AtomicPattern::Discard => {
+            Ok(vec![TypedStatement::EvalAndForget {
+                expression: expr,
+            }])
+        },
+        AtomicPattern::Bind(identifier) => {
+            Ok(vec![TypedStatement::VariableDeclaration {
+                identifier: identifier.clone(),
+                expression: expr,
+            }])
+        }
+        AtomicPattern::Tuple(tp) => {
+            desugar(tp.clone(), expr)
+        }
+    }
+}
+
+fn desugar(
+    outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression
+) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    match rhs {
+        TypedExpression::Variable { ident, tp } => {
+            match tp {
+                Type::Tuple(tuple_element_types) => {
+                    let tuple_element_types = tuple_element_types.0;
+                    if outer_destruction.len() == tuple_element_types.len() {
+                        let m = tuple_element_types.iter().enumerate().map(|(i, t)| {
+                            let element_binding = &outer_destruction[i];
+
+                            let expr = TypedExpression::ExtractTuple {
+                                expr: Box::new(TypedExpression::Variable {
+                                    ident: ident.clone(),
+                                    tp: Type::tuple(tuple_element_types.clone())
+                                }),
+                                index: i,
+                            };
+
+                            helper(expr, element_binding)
+                        }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
+
+                        let mut k = vec![];
+
+                        for mx in m {
+                            match mx {
+                                Ok(y) => {
+                                    k.extend(y);
+                                }
+                                Err(x) => return Err(x)
+                            }
+                        }
+
+                        Ok(k)
+                    } else {
+                        Err(TypeCheckError::UnsatisfiablePattern {
+                            pattern: AtomicPattern::Tuple(outer_destruction),
+                            expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
+                            expr_type: Type::tuple(tuple_element_types.clone()),
+                        })
+                    }
+                }
+                other => Err(TypeCheckError::UnsatisfiablePattern {
+                    pattern: AtomicPattern::Tuple(outer_destruction),
+                    expression: TypedExpression::Variable { ident, tp: other.clone() },
+                    expr_type: other,
+                })
+            }
+        }
+        TypedExpression::Block { inner, final_expression, return_type } => {
+            desugar(outer_destruction, *final_expression)
+        }
+        TypedExpression::Tuple { expressions } => {
+            let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
+                helper(expressions[i].clone(), &element_binding)
+            }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
+
+            let mut k = vec![];
+
+            for mx in m {
+                match mx {
+                    Ok(y) => {
+                        k.extend(y);
+                    }
+                    Err(x) => return Err(x)
+                }
+            }
+
+            Ok(k)
+        }
+        TypedExpression::ExtractTuple { expr, index } => {
+            desugar(outer_destruction, *expr)
+        }
+        other => Err(TypeCheckError::UnsatisfiablePattern {
+            pattern: AtomicPattern::Tuple(outer_destruction),
+            expr_type: other.actual_type(),
+            expression: other,
+        })
     }
 }
 
