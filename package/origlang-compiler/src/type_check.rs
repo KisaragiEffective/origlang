@@ -234,7 +234,7 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
-fn helper(
+fn handle_atomic_pattern(
     expr: TypedExpression, element_binding: &AtomicPattern, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     match element_binding {
@@ -301,8 +301,8 @@ fn desugar(
         }
         TypedExpression::Tuple { expressions } => {
             let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                helper(expressions[i].clone(), &element_binding, checker)
-            }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
+                handle_atomic_pattern(expressions[i].clone(), &element_binding, checker)
+            }).collect::<Vec<_>>();
 
             let mut k = vec![];
 
@@ -320,32 +320,32 @@ fn desugar(
         TypedExpression::ExtractTuple { expr, index } => {
             let expr = *expr;
 
-            enum K {
-                RecurseSimply(TypedExpression),
+            enum RecursionStrategy {
+                Simple(TypedExpression),
                 InsertTemporary(TypedExpression),
             }
             let expr = match expr {
                 TypedExpression::If { condition, then, els, return_type } => {
-                    K::RecurseSimply(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
+                    RecursionStrategy::Simple(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
                 }
                 TypedExpression::Block { inner, final_expression, return_type } => {
-                    K::RecurseSimply(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
+                    RecursionStrategy::Simple(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
                 }
                 TypedExpression::Tuple { expressions } => {
-                    K::RecurseSimply(expressions[index].clone())
+                    RecursionStrategy::Simple(expressions[index].clone())
                 }
                 TypedExpression::Variable { .. } => {
-                    K::InsertTemporary(expr)
+                    RecursionStrategy::InsertTemporary(expr)
                 }
-                other => K::RecurseSimply(other),
+                other => RecursionStrategy::Simple(other),
             };
 
             match expr {
-                K::RecurseSimply(expr) => {
+                RecursionStrategy::Simple(expr) => {
                     debug!("recurse");
                     desugar(outer_destruction, expr, checker)
                 }
-                K::InsertTemporary(expr) => {
+                RecursionStrategy::InsertTemporary(expr) => {
                     let new_ident = checker.make_fresh_identifier();
                     let tp = expr.actual_type().as_tuple().expect("oh").0[index].clone();
                     let v = TypedExpression::Variable {
@@ -379,6 +379,37 @@ fn desugar(
     }
 }
 
+fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annotation: Option<TypeSignature>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    let Some(type_name) = type_annotation else {
+        // no annotations, just set its type (type-inference) from the expr
+        return handle_atomic_pattern(checked, pattern, checker)
+    };
+
+    let Ok(dest) = checker.lower_type_signature_into_type(&type_name) else {
+        return Err(TypeCheckError::UnknownType {
+            name: type_name
+        })
+    };
+
+    match dest.is_assignable(&checked.actual_type()) {
+        AssignableQueryAnswer::Yes => {
+            handle_atomic_pattern(checked, pattern, checker)
+        },
+        AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
+            Err(TypeCheckError::UnassignableType {
+                from: checked.actual_type(),
+                to: dest,
+            })
+        }
+        AssignableQueryAnswer::No => {
+            Err(TypeCheckError::UnassignableType {
+                from: checked.actual_type(),
+                to: dest,
+            })
+        }
+    }
+}
+
 impl TryIntoTypeCheckedForm for Statement {
     type Success = Vec<TypedStatement>;
     type Err = TypeCheckError;
@@ -388,62 +419,9 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::Print { expression } => checker.check(expression).map(|e| vec![TypedStatement::Print { expression: e }]),
             Self::VariableDeclaration { pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
-                return if let Some(type_name) = type_annotation {
-                    if let Ok(dest) = checker.lower_type_signature_into_type(&type_name) {
-                        match dest.is_assignable(&checked.actual_type()) {
-                            AssignableQueryAnswer::Yes => {
-                                match pattern {
-                                    AtomicPattern::Discard => {
-                                        Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
-                                    }
-                                    AtomicPattern::Bind(identifier) => {
-                                        checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                                        Ok(vec![TypedStatement::VariableDeclaration {
-                                            identifier,
-                                            expression: checked,
-                                        }])
-
-                                    }
-                                    AtomicPattern::Tuple(x) => desugar(x, checked, checker)
-                                }
-                            },
-                            AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
-
-                                Err(TypeCheckError::UnassignableType {
-                                    from: checked.actual_type(),
-                                    to: dest,
-                                })
-                            }
-                            AssignableQueryAnswer::No => {
-                                Err(TypeCheckError::UnassignableType {
-                                    from: checked.actual_type(),
-                                    to: dest,
-                                })
-                            }
-                        }
-                    } else {
-                        Err(TypeCheckError::UnknownType {
-                            name: type_name
-                        })
-                    }
-                } else {
-                    // no annotations, just set its type (type-inference) from the expr
-                    match pattern {
-                        AtomicPattern::Discard => {
-                            Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
-                        }
-                        AtomicPattern::Bind(identifier) => {
-                            checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                            Ok(vec![TypedStatement::VariableDeclaration {
-                                identifier,
-                                expression: checked,
-                            }])
-
-                        }
-                        AtomicPattern::Tuple(x) => desugar(x, checked, checker)
-                    }
-                }
+                extract_pattern(checked, &pattern, type_annotation, checker)
             }
+
             Self::VariableAssignment { identifier, expression } => {
                 let checked = checker.check(expression)?;
                 let expected_type = checker.ctx.borrow().lookup_variable_type(&identifier)?;
