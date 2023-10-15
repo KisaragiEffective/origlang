@@ -2,6 +2,7 @@
 #![allow(clippy::unnecessary_wraps)]
 
 fn main() {
+    env_logger::init();
     eprintln!("start");
     Test::run_all().expect("failed");
     eprintln!("end");

@@ -1070,6 +1070,7 @@ version = "0.1.0"
 name = "origlang-testsuite"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "log",
  "origlang-ast",
  "origlang-compiler",
