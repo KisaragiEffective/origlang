@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CI_RUST_CACHE_VERSION: v0
+  CI_RUST_CACHE_VERSION: v1
 
 jobs:
   build:
@@ -50,6 +50,6 @@ jobs:
     - name: Run tests
       run: cargo test --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run compile test
-      run: cargo run -p origlang-cli -- test
+      run: cargo run -p origlang-testsuite
       env:
         RUST_BACKTRACE: 1

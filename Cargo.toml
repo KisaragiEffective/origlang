@@ -15,4 +15,5 @@ members = [
     "package/origlang-source-span",
     "package/origlang-typesystem-model",
     "package/origlang-platform",
+    "package/origlang-testsuite",
 ]

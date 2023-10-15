@@ -1067,6 +1067,19 @@ name = "origlang-source-span"
 version = "0.1.0"
 
 [[package]]
+name = "origlang-testsuite"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-compiler",
+ "origlang-ir",
+ "origlang-ir-optimizer",
+ "origlang-runtime",
+ "thiserror",
+]
+
+[[package]]
 name = "origlang-typesystem-model"
 version = "0.1.0"
 dependencies = [

@@ -6,7 +6,6 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use strum::EnumString;
-use crate::task::test::Test;
 use crate::task::interpret::Interpret;
 use crate::task::repl::Repl;
 use crate::task::Task;
@@ -65,11 +64,6 @@ impl Args {
                 task.execute((source, optimize_level))?;
                 Ok(())
             }
-            SubCom::Test => {
-                let task = Test;
-                task.execute(()).map_err(TaskExecutionError::from)?;
-                Ok(())
-            }
         }
     }
 }
@@ -95,7 +89,6 @@ pub enum SubCom {
         #[clap(long, group = "evaluate_source")]
         input_source: Option<String>,
     },
-    Test
 }
 
 #[derive(EnumString)]

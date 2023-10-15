@@ -1,4 +1,3 @@
-pub mod test;
 pub mod interpret;
 pub mod repl;
 pub mod emit;

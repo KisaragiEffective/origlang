@@ -1,11 +1,16 @@
-#![forbid(dead_code)]
+#![deny(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
+
+fn main() {
+    eprintln!("start");
+    Test::run_all().expect("failed");
+    eprintln!("end");
+}
 
 use log::{debug, info};
 use thiserror::Error;
 use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
-use crate::task::Task;
 use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_compiler::type_check::error::TypeCheckError;
@@ -13,7 +18,6 @@ use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
-use crate::error::TaskExecutionError;
 
 type Err = TestFailureCause;
 
@@ -23,16 +27,6 @@ pub enum TestFailureCause {
     Parser(#[from] SimpleErrorWithPos),
     #[error("type checker failure: {0}")]
     TypeChecker(#[from] TypeCheckError),
-}
-
-impl From<TestFailureCause> for TaskExecutionError {
-    fn from(value: TestFailureCause) -> Self {
-        match value {
-            TestFailureCause::Parser(e) => Self::Generic(e),
-            TestFailureCause::TypeChecker(e) => Self::TypeCheck(e),
-        }
-
-    }
 }
 
 pub struct Test;
@@ -63,7 +57,6 @@ macro_rules! type_boxes {
         }
     };
 }
-
 
 impl Test {
     fn evaluated_expressions(src: &str) -> Result<Vec<TypeBox>, Err> {
@@ -559,18 +552,6 @@ print 1
         assert_eq!(Self::evaluated_expressions("var z = (1i32, (21i32, 30i32))\nvar (a, (b, c)) = z\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 21 => Int32, 30 => Int32], "var nest");
         assert_eq!(Self::evaluated_expressions("var z = (1i32, (25i32, 38i32))\nvar (a, y) = z\nvar (b, c) = y\nprint a\nprint b\nprint c")?, type_boxes![1 => Int32, 25 => Int32, 38 => Int32], "double-var nest");
 
-        Ok(())
-    }
-}
-
-impl Task for Test {
-    type Environment = ();
-    type Error = TestFailureCause;
-
-    fn execute(&self, _environment: Self::Environment) -> Result<(), Self::Error> {
-        eprintln!("start");
-        Self::run_all()?;
-        eprintln!("end");
         Ok(())
     }
 }
