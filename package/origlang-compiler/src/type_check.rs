@@ -2,6 +2,7 @@ pub mod error;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use log::debug;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_ast::{AtomicPattern, Identifier, RootAst, Statement, TypeSignature};
 use origlang_typesystem_model::{AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
@@ -257,6 +258,9 @@ fn helper(
 fn desugar(
     outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    debug!("check: {outer_destruction:?}");
+    debug!("check: {rhs:?}");
+
     match rhs {
         TypedExpression::Variable { ident, tp } => {
             match tp {
@@ -295,6 +299,7 @@ fn desugar(
 
                         Ok(k)
                     } else {
+                        debug!("tuple arity mismatch");
                         Err(TypeCheckError::UnsatisfiablePattern {
                             pattern: AtomicPattern::Tuple(outer_destruction),
                             expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
@@ -302,14 +307,18 @@ fn desugar(
                         })
                     }
                 }
-                other => Err(TypeCheckError::UnsatisfiablePattern {
-                    pattern: AtomicPattern::Tuple(outer_destruction),
-                    expression: TypedExpression::Variable { ident, tp: other.clone() },
-                    expr_type: other,
-                })
+                other => {
+                    debug!("non-tuple expression");
+                    Err(TypeCheckError::UnsatisfiablePattern {
+                        pattern: AtomicPattern::Tuple(outer_destruction),
+                        expression: TypedExpression::Variable { ident, tp: other.clone() },
+                        expr_type: other,
+                    })
+                }
             }
         }
         TypedExpression::Block { inner, final_expression, return_type } => {
+            // TODO: how can we handle inner statement?
             desugar(outer_destruction, *final_expression, checker)
         }
         TypedExpression::Tuple { expressions } => {
@@ -333,11 +342,14 @@ fn desugar(
         TypedExpression::ExtractTuple { expr, index } => {
             desugar(outer_destruction, *expr, checker)
         }
-        other => Err(TypeCheckError::UnsatisfiablePattern {
-            pattern: AtomicPattern::Tuple(outer_destruction),
-            expr_type: other.actual_type(),
-            expression: other,
-        })
+        other => {
+            debug!("unsupported expression");
+            Err(TypeCheckError::UnsatisfiablePattern {
+                pattern: AtomicPattern::Tuple(outer_destruction),
+                expr_type: other.actual_type(),
+                expression: other,
+            })
+        }
     }
 }
 
