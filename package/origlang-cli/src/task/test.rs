@@ -13,7 +13,6 @@ use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
-use origlang_typesystem_model::Type;
 use crate::error::TaskExecutionError;
 
 type Err = TestFailureCause;

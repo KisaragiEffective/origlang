@@ -4,9 +4,8 @@ use std::ops::Range;
 use ariadne::{Report, ReportKind, Source};
 use crate::task::Task;
 use crate::error::TaskExecutionError;
-use origlang_compiler::lexer::token::Token;
 use origlang_platform::CTRL_D_NL;
-use origlang_compiler::parser::{IntermediateStateCandidate, Parser, ParserError, PartiallyParseFixCandidate};
+use origlang_compiler::parser::{Parser, ParserError};
 use origlang_runtime::{PrintToStdout, Runtime, TypeBox};
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::{IntoVerbatimSequencedIR, IR2};
@@ -91,8 +90,8 @@ impl Task for Repl {
                 }
                 Err(error_message) => {
                     let error = error_message.kind;
-                    let mut handled = false;
-                    if let ParserError::PartiallyParsed { hint, intermediate_state } = &error {
+                    let handled = false;
+                    if let ParserError::PartiallyParsed { hint: _, intermediate_state: _ } = &error {
                         // TODO: insta-expression eval
                         // TODO: revisit this
                         /*

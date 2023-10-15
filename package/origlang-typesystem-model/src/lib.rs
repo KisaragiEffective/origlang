@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use derive_more::Display;
 use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ast::{AtomicPattern, Identifier};
+use origlang_ast::Identifier;
 
 // TODO: this is implementation detail, should be unreachable.
 #[derive(Clone, Eq, PartialEq, Debug)]
