@@ -1,7 +1,10 @@
 pub mod error;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{HashMap, VecDeque};
+use std::hash::BuildHasher;
+use log::debug;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_ast::{AtomicPattern, Identifier, RootAst, Statement, TypeSignature};
 use origlang_typesystem_model::{AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
@@ -208,7 +211,7 @@ impl TryIntoTypeCheckedForm for Expression {
                 let mut checked_intermediates = Vec::with_capacity(intermediate_statements.len());
 
                 for is in intermediate_statements {
-                    checked_intermediates.push(checker.check(is)?);
+                    checked_intermediates.extend(checker.check(is)?);
                 }
 
                 let checked_final = checker.check(*final_expression)?;
@@ -231,13 +234,158 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
+fn helper(
+    expr: TypedExpression, element_binding: &AtomicPattern, checker: &TypeChecker,
+) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    match element_binding {
+        AtomicPattern::Discard => {
+            Ok(vec![TypedStatement::EvalAndForget {
+                expression: expr,
+            }])
+        },
+        AtomicPattern::Bind(identifier) => {
+            checker.ctx.borrow_mut().add_known_variable(identifier.clone(), expr.actual_type());
+
+            Ok(vec![TypedStatement::VariableDeclaration {
+                identifier: identifier.clone(),
+                expression: expr,
+            }])
+        }
+        AtomicPattern::Tuple(tp) => {
+            desugar(tp.clone(), expr, checker)
+        }
+    }
+}
+
+fn desugar(
+    outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression, checker: &TypeChecker,
+) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    debug!("check: {outer_destruction:?} = {rhs:?}");
+
+    match rhs {
+        TypedExpression::Variable { ident, tp } => {
+            match tp {
+                Type::Tuple(tuple_element_types) => {
+                    let tuple_element_types = tuple_element_types.0;
+                    if outer_destruction.len() == tuple_element_types.len() {
+                        desugar(outer_destruction, TypedExpression::Tuple {
+                            expressions: tuple_element_types.clone().into_iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
+                                expr: Box::new(
+                                    TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
+                                ),
+                                index: i,
+                            }).collect(),
+                        }, checker)
+                    } else {
+                        debug!("tuple arity mismatch");
+                        Err(TypeCheckError::UnsatisfiablePattern {
+                            pattern: AtomicPattern::Tuple(outer_destruction),
+                            expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
+                            expr_type: Type::tuple(tuple_element_types.clone()),
+                        })
+                    }
+                }
+                other => {
+                    debug!("non-tuple expression");
+                    Err(TypeCheckError::UnsatisfiablePattern {
+                        pattern: AtomicPattern::Tuple(outer_destruction),
+                        expression: TypedExpression::Variable { ident, tp: other.clone() },
+                        expr_type: other,
+                    })
+                }
+            }
+        }
+        TypedExpression::Block { inner, final_expression, return_type } => {
+            // TODO: how can we handle inner statement?
+            desugar(outer_destruction, *final_expression, checker)
+        }
+        TypedExpression::Tuple { expressions } => {
+            let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
+                helper(expressions[i].clone(), &element_binding, checker)
+            }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
+
+            let mut k = vec![];
+
+            for mx in m {
+                match mx {
+                    Ok(y) => {
+                        k.extend(y);
+                    }
+                    Err(x) => return Err(x)
+                }
+            }
+
+            Ok(k)
+        }
+        TypedExpression::ExtractTuple { expr, index } => {
+            let expr = *expr;
+
+            enum K {
+                RecurseSimply(TypedExpression),
+                InsertTemporary(TypedExpression),
+            }
+            let expr = match expr {
+                TypedExpression::If { condition, then, els, return_type } => {
+                    K::RecurseSimply(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
+                }
+                TypedExpression::Block { inner, final_expression, return_type } => {
+                    K::RecurseSimply(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
+                }
+                TypedExpression::Tuple { expressions } => {
+                    K::RecurseSimply(expressions[index].clone())
+                }
+                TypedExpression::Variable { .. } => {
+                    K::InsertTemporary(expr)
+                }
+                other => K::RecurseSimply(other),
+            };
+
+            match expr {
+                K::RecurseSimply(expr) => {
+                    debug!("recurse");
+                    desugar(outer_destruction, expr, checker)
+                }
+                K::InsertTemporary(expr) => {
+                    let new_ident = checker.make_fresh_identifier();
+                    let tp = expr.actual_type().as_tuple().expect("oh").0[index].clone();
+                    let v = TypedExpression::Variable {
+                        ident: new_ident.clone(), tp: tp.clone()
+                    };
+
+                    checker.ctx.borrow_mut().add_known_variable(new_ident.clone(), tp.clone());
+                    let v = desugar(outer_destruction, v, checker)?;
+                    let mut r = VecDeque::from(v);
+
+                    r.push_front(TypedStatement::VariableDeclaration {
+                        identifier: new_ident.clone(),
+                        expression: TypedExpression::ExtractTuple {
+                            expr: Box::new(expr),
+                            index
+                        },
+                    });
+
+                    Ok(r.into_iter().collect::<Vec<_>>())
+                }
+            }
+        }
+        other => {
+            debug!("unsupported expression");
+            Err(TypeCheckError::UnsatisfiablePattern {
+                pattern: AtomicPattern::Tuple(outer_destruction),
+                expr_type: other.actual_type(),
+                expression: other,
+            })
+        }
+    }
+}
+
 impl TryIntoTypeCheckedForm for Statement {
-    type Success = TypedStatement;
+    type Success = Vec<TypedStatement>;
     type Err = TypeCheckError;
 
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
-            Self::Print { expression } => checker.check(expression).map(|e| TypedStatement::Print { expression: e }),
+            Self::Print { expression } => checker.check(expression).map(|e| vec![TypedStatement::Print { expression: e }]),
             Self::VariableDeclaration { pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
                 return if let Some(type_name) = type_annotation {
@@ -246,16 +394,17 @@ impl TryIntoTypeCheckedForm for Statement {
                             AssignableQueryAnswer::Yes => {
                                 match pattern {
                                     AtomicPattern::Discard => {
-                                        Ok(TypedStatement::EvalAndForget { expression: checked })
+                                        Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
                                     }
                                     AtomicPattern::Bind(identifier) => {
                                         checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                                        Ok(TypedStatement::VariableDeclaration {
+                                        Ok(vec![TypedStatement::VariableDeclaration {
                                             identifier,
                                             expression: checked,
-                                        })
+                                        }])
 
                                     }
+                                    AtomicPattern::Tuple(x) => desugar(x, checked, checker)
                                 }
                             },
                             AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
@@ -281,16 +430,17 @@ impl TryIntoTypeCheckedForm for Statement {
                     // no annotations, just set its type (type-inference) from the expr
                     match pattern {
                         AtomicPattern::Discard => {
-                            Ok(TypedStatement::EvalAndForget { expression: checked })
+                            Ok(vec![TypedStatement::EvalAndForget { expression: checked }])
                         }
                         AtomicPattern::Bind(identifier) => {
                             checker.ctx.borrow_mut().add_known_variable(identifier.clone(), checked.actual_type());
-                            Ok(TypedStatement::VariableDeclaration {
+                            Ok(vec![TypedStatement::VariableDeclaration {
                                 identifier,
                                 expression: checked,
-                            })
+                            }])
 
                         }
+                        AtomicPattern::Tuple(x) => desugar(x, checked, checker)
                     }
                 }
             }
@@ -298,10 +448,10 @@ impl TryIntoTypeCheckedForm for Statement {
                 let checked = checker.check(expression)?;
                 let expected_type = checker.ctx.borrow().lookup_variable_type(&identifier)?;
                 if checked.actual_type() == expected_type {
-                    Ok(TypedStatement::VariableAssignment {
+                    Ok(vec![TypedStatement::VariableAssignment {
                         identifier,
                         expression: checked,
-                    })
+                    }])
                 } else {
                     Err(TypeCheckError::GenericTypeMismatch {
                         context: "variable assignment".to_string(),
@@ -313,23 +463,24 @@ impl TryIntoTypeCheckedForm for Statement {
             Self::Block { inner_statements } => {
                 let mut checked = Vec::with_capacity(inner_statements.len());
                 for inner_statement in inner_statements {
-                    checked.push(checker.check(inner_statement)?);
+                    checked.extend(checker.check(inner_statement)?);
                 }
 
-                Ok(TypedStatement::Block {
+                Ok(vec![TypedStatement::Block {
                     inner_statements: checked,
-                })
+                }])
             }
-            Self::Comment { .. } => Ok(TypedStatement::Block {
+            Self::Comment { .. } => Ok(vec![TypedStatement::Block {
                 inner_statements: vec![]
-            }),
-            Self::Exit => Ok(TypedStatement::Exit),
+            }]),
+            Self::Exit => Ok(vec![TypedStatement::Exit]),
             Self::TypeAliasDeclaration { new_name, replace_with } => {
                 checker.ctx.borrow_mut().known_aliases.insert(new_name, checker.lower_type_signature_into_type(&replace_with).map_err(|_| TypeCheckError::UnknownType {
                     name: replace_with,
                 })?);
 
-                Ok(TypedStatement::Empty)
+                // TODO: replace this with vec![]
+                Ok(vec![TypedStatement::Empty])
             }
         }
     }
@@ -343,7 +494,7 @@ impl TryIntoTypeCheckedForm for RootAst {
         let mut vec = Vec::with_capacity(self.statement.len());
 
         for x in self.statement {
-            vec.push(checker.check(x)?);
+            vec.extend(checker.check(x)?);
         }
 
         Ok(TypedRootAst {
@@ -380,6 +531,19 @@ impl TypeChecker {
                 Ok(Type::tuple(types))
             }
         }
+    }
+
+    pub(crate) fn make_fresh_identifier(&self) -> Identifier {
+        // TODO: this implementation is poor. choice more elegant algorithm.
+        let hello = RandomState::new().hash_one(());
+        let m = hello.to_ne_bytes();
+        let m = [
+            b'_', b'_',
+            m[0].clamp(b'a', b'z'), m[1].clamp(b'a', b'z'), m[2].clamp(b'a', b'z'), m[3].clamp(b'a', b'z'),
+            m[4].clamp(b'a', b'z'), m[5].clamp(b'a', b'z'), m[6].clamp(b'a', b'z'), m[7].clamp(b'a', b'z'),
+        ];
+
+        Identifier::new(core::str::from_utf8(&m).expect("not panic").to_owned())
     }
 }
 
@@ -428,6 +592,7 @@ impl Context {
     }
 
     fn add_known_variable(&mut self, variable_ident: Identifier, tp: Type) {
+        debug!("proved: {variable_ident}: {tp}");
         self.known_typed_variables.insert(variable_ident, tp);
     }
 }

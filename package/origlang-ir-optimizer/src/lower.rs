@@ -53,6 +53,11 @@ impl TheTranspiler<'_> {
             TypedExpression::Tuple { expressions } => CompiledTypedExpression::Tuple {
                 expressions: expressions.into_iter().map(|x| self.compile_typed_expression(x)).collect()
             },
+            TypedExpression::ExtractTuple { expr, index } => {
+                CompiledTypedExpression::ExtractTuple {
+                    expr: Box::new(self.compile_typed_expression(*expr)), index
+                }
+            }
         }
     }
 

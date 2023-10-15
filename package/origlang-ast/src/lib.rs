@@ -16,7 +16,25 @@ pub struct RootAst {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum AtomicPattern {
     Discard,
-    Bind(Identifier)
+    Bind(Identifier),
+    Tuple(Vec<Self>),
+}
+
+impl Display for AtomicPattern {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AtomicPattern::Discard => f.write_str("_"),
+            AtomicPattern::Bind(i) => f.write_str(i.as_name()),
+            AtomicPattern::Tuple(v) => {
+                f.write_str("(")?;
+                for i in v {
+                    Display::fmt(i, f)?;
+                    f.write_str(", ")?;
+                }
+                f.write_str(")")
+            }
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
