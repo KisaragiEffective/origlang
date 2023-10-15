@@ -1,5 +1,5 @@
 use std::cell::{Cell, RefCell};
-use std::mem::{MaybeUninit, transmute};
+use std::mem::{MaybeUninit};
 use std::ops::DerefMut;
 
 #[derive(Debug)]

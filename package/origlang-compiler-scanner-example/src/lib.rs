@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use std::cell::{Cell, RefCell};
+    use std::cell::Cell;
     use origlang_compiler_entrypoint::{PreOrPost, Scanner, TheCompiler};
     use origlang_diagnostics::{CauseTree, Diagnostic, DiagnosticSeverity, DiagnosticSink};
     use origlang_ir::IR1;
-    use origlang_ir_optimizer::preset::SimpleOptimization;
     use origlang_source_span::CanonicalSourceSpan;
 
     struct MyScanner;

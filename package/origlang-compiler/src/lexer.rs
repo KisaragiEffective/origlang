@@ -5,7 +5,7 @@ pub mod token;
 
 use std::borrow::Cow;
 use std::cell::Cell;
-use std::fmt::{Display, Formatter};
+
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::panic::RefUnwindSafe;
@@ -365,7 +365,7 @@ impl Lexer {
                     registers = c;
                     self.consume_char()?;
                 }
-                ControlFlow::Break(b) => {
+                ControlFlow::Break(_b) => {
                     break
                 }
             }

@@ -2,8 +2,6 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 use std::fmt::{Display, Formatter};
-use std::num::NonZeroUsize;
-use derive_more::Display;
 use crate::after_parse::Expression;
 
 pub mod after_parse;

@@ -192,12 +192,6 @@ mod tests {
         assert_eq!(set.expect("must be constructed").count_lowers_exclusive(&10), 9);
     }
 
-    use std::collections::{BinaryHeap, BTreeSet};
-    use std::ops::Deref;
-    use std::time::{Instant};
-    use rand::distributions::{Distribution, Standard};
-    use rand::Rng;
-
     // #[test]
     /*
     fn bench() {

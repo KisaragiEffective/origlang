@@ -7,14 +7,14 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter, Write};
 use derive_more::{Display, From};
-use log::{debug, info};
-use tap::{Conv, Pipe};
+use log::debug;
+use tap::Conv;
 use thiserror::Error;
-use origlang_ast::{Identifier};
-use origlang_ast::after_parse::{BinaryOperatorKind};
-use origlang_ir::{CompiledTypedExpression, IntoVerbatimSequencedIR, IR0, IR1, IR2};
-use origlang_ir_optimizer::preset::{OptimizationPreset, SimpleOptimization};
-use origlang_typesystem_model::{DisplayRecordType, Type, TypedExpression, TypedIntLiteral, TypedRootAst};
+use origlang_ast::Identifier;
+use origlang_ast::after_parse::BinaryOperatorKind;
+use origlang_ir::{CompiledTypedExpression, IR2};
+
+use origlang_typesystem_model::{DisplayRecordType, Type, TypedIntLiteral};
 use crate::invoke_once::InvokeOnce;
 
 #[derive(From)]

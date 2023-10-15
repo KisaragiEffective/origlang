@@ -238,7 +238,7 @@ impl TryIntoTypeCheckedForm for Statement {
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::Print { expression } => checker.check(expression).map(|e| TypedStatement::Print { expression: e }),
-            Self::VariableDeclaration { pattern: pattern, expression, type_annotation } => {
+            Self::VariableDeclaration { pattern, expression, type_annotation } => {
                 let checked = checker.check(expression)?;
                 return if let Some(type_name) = type_annotation {
                     if let Ok(dest) = checker.lower_type_signature_into_type(&type_name) {

@@ -1,4 +1,3 @@
-use std::fmt::{Display, Formatter};
 use origlang_ast::{Comment, Identifier};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::lexer::Lexer;
