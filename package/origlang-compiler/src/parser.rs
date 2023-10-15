@@ -880,6 +880,11 @@ impl Parser {
 
             while let Ok(pattern) = self.parse_atomic_pattern() {
                 v.push(pattern);
+
+                if self.lexer.peek().data == Token::SymRightPar {
+                    break
+                }
+
                 self.assert_token_eq_with_consumed(&Token::SymComma);
             }
 
@@ -913,9 +918,11 @@ impl Parser {
 
         match it.data {
             Token::Identifier { inner: name } => {
+                self.lexer.next();
                 Ok(AtomicPattern::Bind(name))
             }
             Token::SymUnderscore => {
+                self.lexer.next();
                 Ok(AtomicPattern::Discard)
             }
             Token::SymLeftPar => {
