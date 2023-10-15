@@ -1,7 +1,9 @@
 pub mod error;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{HashMap, VecDeque};
+use std::hash::BuildHasher;
 use log::debug;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_ast::{AtomicPattern, Identifier, RootAst, Statement, TypeSignature};
@@ -258,8 +260,7 @@ fn helper(
 fn desugar(
     outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
-    debug!("check: {outer_destruction:?}");
-    debug!("check: {rhs:?}");
+    debug!("check: {outer_destruction:?} = {rhs:?}");
 
     match rhs {
         TypedExpression::Variable { ident, tp } => {
@@ -267,37 +268,14 @@ fn desugar(
                 Type::Tuple(tuple_element_types) => {
                     let tuple_element_types = tuple_element_types.0;
                     if outer_destruction.len() == tuple_element_types.len() {
-                        let m = tuple_element_types.iter().enumerate().map(|(i, t)| {
-                            let element_binding = &outer_destruction[i];
-
-                            let t = Type::tuple(tuple_element_types.clone());
-                            // TODO: this method is not great; easy to forget to call add_known_variable
-                            checker.ctx.borrow_mut().add_known_variable(ident.clone(), t.clone());
-                            let v = TypedExpression::Variable {
-                                ident: ident.clone(),
-                                tp: t
-                            };
-
-                            let expr = TypedExpression::ExtractTuple {
-                                expr: Box::new(v),
+                        desugar(outer_destruction, TypedExpression::Tuple {
+                            expressions: tuple_element_types.clone().into_iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
+                                expr: Box::new(
+                                    TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
+                                ),
                                 index: i,
-                            };
-
-                            helper(expr, element_binding, checker)
-                        }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
-
-                        let mut k = vec![];
-
-                        for mx in m {
-                            match mx {
-                                Ok(y) => {
-                                    k.extend(y);
-                                }
-                                Err(x) => return Err(x)
-                            }
-                        }
-
-                        Ok(k)
+                            }).collect(),
+                        }, checker)
                     } else {
                         debug!("tuple arity mismatch");
                         Err(TypeCheckError::UnsatisfiablePattern {
@@ -340,7 +318,55 @@ fn desugar(
             Ok(k)
         }
         TypedExpression::ExtractTuple { expr, index } => {
-            desugar(outer_destruction, *expr, checker)
+            let expr = *expr;
+
+            enum K {
+                RecurseSimply(TypedExpression),
+                InsertTemporary(TypedExpression),
+            }
+            let expr = match expr {
+                TypedExpression::If { condition, then, els, return_type } => {
+                    K::RecurseSimply(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
+                }
+                TypedExpression::Block { inner, final_expression, return_type } => {
+                    K::RecurseSimply(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
+                }
+                TypedExpression::Tuple { expressions } => {
+                    K::RecurseSimply(expressions[index].clone())
+                }
+                TypedExpression::Variable { .. } => {
+                    K::InsertTemporary(expr)
+                }
+                other => K::RecurseSimply(other),
+            };
+
+            match expr {
+                K::RecurseSimply(expr) => {
+                    debug!("recurse");
+                    desugar(outer_destruction, expr, checker)
+                }
+                K::InsertTemporary(expr) => {
+                    let new_ident = checker.make_fresh_identifier();
+                    let tp = expr.actual_type().as_tuple().expect("oh").0[index].clone();
+                    let v = TypedExpression::Variable {
+                        ident: new_ident.clone(), tp: tp.clone()
+                    };
+
+                    checker.ctx.borrow_mut().add_known_variable(new_ident.clone(), tp.clone());
+                    let v = desugar(outer_destruction, v, checker)?;
+                    let mut r = VecDeque::from(v);
+
+                    r.push_front(TypedStatement::VariableDeclaration {
+                        identifier: new_ident.clone(),
+                        expression: TypedExpression::ExtractTuple {
+                            expr: Box::new(expr),
+                            index
+                        },
+                    });
+
+                    Ok(r.into_iter().collect::<Vec<_>>())
+                }
+            }
         }
         other => {
             debug!("unsupported expression");
@@ -505,6 +531,19 @@ impl TypeChecker {
                 Ok(Type::tuple(types))
             }
         }
+    }
+
+    pub(crate) fn make_fresh_identifier(&self) -> Identifier {
+        // TODO: this implementation is poor. choice more elegant algorithm.
+        let hello = RandomState::new().hash_one(());
+        let m = hello.to_ne_bytes();
+        let m = [
+            b'_', b'_',
+            m[0].clamp(b'a', b'z'), m[1].clamp(b'a', b'z'), m[2].clamp(b'a', b'z'), m[3].clamp(b'a', b'z'),
+            m[4].clamp(b'a', b'z'), m[5].clamp(b'a', b'z'), m[6].clamp(b'a', b'z'), m[7].clamp(b'a', b'z'),
+        ];
+
+        Identifier::new(core::str::from_utf8(&m).expect("not panic").to_owned())
     }
 }
 
