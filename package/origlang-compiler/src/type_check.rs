@@ -231,7 +231,7 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
-fn handle_atomic_pattern_tuple(checked: TypedExpression, x: Vec<AtomicPattern>) -> Result<Vec<TypedStatement>, TypeCheckError> {
+fn handle_atomic_pattern_tuple(checked: TypedExpression, x: Vec<AtomicPattern>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
     {
         let TypedExpression::Tuple { expressions } = checked else {
             return Err(TypeCheckError::UnsatisfiablePattern {
@@ -251,14 +251,14 @@ fn handle_atomic_pattern_tuple(checked: TypedExpression, x: Vec<AtomicPattern>) 
             })
         }
 
-        let y = desugar(x, TypedExpression::Tuple { expressions })?;
+        let y = desugar(x, TypedExpression::Tuple { expressions }, checker)?;
 
         Ok(y)
     }
 }
 
 fn helper(
-    expr: TypedExpression, element_binding: &AtomicPattern
+    expr: TypedExpression, element_binding: &AtomicPattern, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     match element_binding {
         AtomicPattern::Discard => {
@@ -267,19 +267,21 @@ fn helper(
             }])
         },
         AtomicPattern::Bind(identifier) => {
+            checker.ctx.borrow_mut().add_known_variable(identifier.clone(), expr.actual_type());
+
             Ok(vec![TypedStatement::VariableDeclaration {
                 identifier: identifier.clone(),
                 expression: expr,
             }])
         }
         AtomicPattern::Tuple(tp) => {
-            desugar(tp.clone(), expr)
+            desugar(tp.clone(), expr, checker)
         }
     }
 }
 
 fn desugar(
-    outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression
+    outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     match rhs {
         TypedExpression::Variable { ident, tp } => {
@@ -290,15 +292,20 @@ fn desugar(
                         let m = tuple_element_types.iter().enumerate().map(|(i, t)| {
                             let element_binding = &outer_destruction[i];
 
+                            let t = Type::tuple(tuple_element_types.clone());
+                            // TODO: this method is not great; easy to forget to call add_known_variable
+                            checker.ctx.borrow_mut().add_known_variable(ident.clone(), t.clone());
+                            let v = TypedExpression::Variable {
+                                ident: ident.clone(),
+                                tp: t
+                            };
+
                             let expr = TypedExpression::ExtractTuple {
-                                expr: Box::new(TypedExpression::Variable {
-                                    ident: ident.clone(),
-                                    tp: Type::tuple(tuple_element_types.clone())
-                                }),
+                                expr: Box::new(v),
                                 index: i,
                             };
 
-                            helper(expr, element_binding)
+                            helper(expr, element_binding, checker)
                         }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
 
                         let mut k = vec![];
@@ -329,11 +336,11 @@ fn desugar(
             }
         }
         TypedExpression::Block { inner, final_expression, return_type } => {
-            desugar(outer_destruction, *final_expression)
+            desugar(outer_destruction, *final_expression, checker)
         }
         TypedExpression::Tuple { expressions } => {
             let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                helper(expressions[i].clone(), &element_binding)
+                helper(expressions[i].clone(), &element_binding, checker)
             }).collect::<Vec<Result<Vec<TypedStatement>, TypeCheckError>>>();
 
             let mut k = vec![];
@@ -350,7 +357,7 @@ fn desugar(
             Ok(k)
         }
         TypedExpression::ExtractTuple { expr, index } => {
-            desugar(outer_destruction, *expr)
+            desugar(outer_destruction, *expr, checker)
         }
         other => Err(TypeCheckError::UnsatisfiablePattern {
             pattern: AtomicPattern::Tuple(outer_destruction),
@@ -385,7 +392,7 @@ impl TryIntoTypeCheckedForm for Statement {
                                         }])
 
                                     }
-                                    AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x)
+                                    AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x, checker)
                                 }
                             },
                             AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
@@ -421,7 +428,7 @@ impl TryIntoTypeCheckedForm for Statement {
                             }])
 
                         }
-                        AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x)
+                        AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x, checker)
                     }
                 }
             }
