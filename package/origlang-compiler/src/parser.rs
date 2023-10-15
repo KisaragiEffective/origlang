@@ -251,9 +251,9 @@ impl Parser {
             }
         };
 
-        // 文は絶対に改行で終わる必要がある
+        // 文は絶対に改行かEOFで終わる必要がある
         let next = self.lexer.next();
-        if next.data != Token::NewLine {
+        if next.data != Token::NewLine && next.data != Token::EndOfFile {
             return Err(SimpleErrorWithPos {
                 position: next.position,
                 kind: ParserError::PartiallyParsed {
