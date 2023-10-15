@@ -480,7 +480,7 @@ impl TryIntoTypeCheckedForm for Statement {
                 })?);
 
                 // TODO: replace this with vec![]
-                Ok(vec![TypedStatement::Empty])
+                Ok(vec![])
             }
         }
     }
