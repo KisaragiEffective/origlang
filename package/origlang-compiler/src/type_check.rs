@@ -479,7 +479,6 @@ impl TryIntoTypeCheckedForm for Statement {
                     name: replace_with,
                 })?);
 
-                // TODO: replace this with vec![]
                 Ok(vec![])
             }
         }
