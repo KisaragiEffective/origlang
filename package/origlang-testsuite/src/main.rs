@@ -1,4 +1,4 @@
-#![forbid(dead_code)]
+#![deny(dead_code)]
 #![allow(clippy::unnecessary_wraps)]
 
 fn main() {
