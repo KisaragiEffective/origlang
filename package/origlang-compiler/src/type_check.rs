@@ -231,32 +231,6 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
-fn handle_atomic_pattern_tuple(checked: TypedExpression, x: Vec<AtomicPattern>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
-    {
-        let TypedExpression::Tuple { expressions } = checked else {
-            return Err(TypeCheckError::UnsatisfiablePattern {
-                pattern: AtomicPattern::Tuple(x),
-                expr_type: checked.actual_type(),
-                expression: checked,
-            })
-        };
-
-        // if arity is different, it will not allow
-        if expressions.len() != x.len() {
-            let checked = TypedExpression::Tuple { expressions };
-            return Err(TypeCheckError::UnsatisfiablePattern {
-                pattern: AtomicPattern::Tuple(x),
-                expr_type: checked.actual_type(),
-                expression: checked,
-            })
-        }
-
-        let y = desugar(x, TypedExpression::Tuple { expressions }, checker)?;
-
-        Ok(y)
-    }
-}
-
 fn helper(
     expr: TypedExpression, element_binding: &AtomicPattern, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
@@ -392,7 +366,7 @@ impl TryIntoTypeCheckedForm for Statement {
                                         }])
 
                                     }
-                                    AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x, checker)
+                                    AtomicPattern::Tuple(x) => desugar(x, checked, checker)
                                 }
                             },
                             AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
@@ -428,7 +402,7 @@ impl TryIntoTypeCheckedForm for Statement {
                             }])
 
                         }
-                        AtomicPattern::Tuple(x) => handle_atomic_pattern_tuple(checked, x, checker)
+                        AtomicPattern::Tuple(x) => desugar(x, checked, checker)
                     }
                 }
             }
