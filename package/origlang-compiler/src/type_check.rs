@@ -269,7 +269,7 @@ fn desugar(
                     let tuple_element_types = tuple_element_types.0;
                     if outer_destruction.len() == tuple_element_types.len() {
                         desugar(outer_destruction, TypedExpression::Tuple {
-                            expressions: tuple_element_types.clone().into_iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
+                            expressions: tuple_element_types.iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
                                 expr: Box::new(
                                     TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
                                 ),
@@ -300,8 +300,8 @@ fn desugar(
             desugar(outer_destruction, *final_expression, checker)
         }
         TypedExpression::Tuple { expressions } => {
-            let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                handle_atomic_pattern(expressions[i].clone(), &element_binding, checker)
+            let m = outer_destruction.iter().enumerate().map(|(i, element_binding)| {
+                handle_atomic_pattern(expressions[i].clone(), element_binding, checker)
             }).collect::<Vec<_>>();
 
             let mut k = vec![];
