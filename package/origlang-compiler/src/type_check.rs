@@ -253,7 +253,7 @@ fn handle_atomic_pattern(
             }])
         }
         AtomicPattern::Tuple(tp) => {
-            desugar(tp.into(), expr, checker)
+            desugar(Cow::Borrowed(tp), expr, checker)
         }
     }
 }
