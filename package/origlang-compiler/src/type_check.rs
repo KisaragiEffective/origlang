@@ -1,5 +1,6 @@
 pub mod error;
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, VecDeque};
@@ -252,13 +253,13 @@ fn handle_atomic_pattern(
             }])
         }
         AtomicPattern::Tuple(tp) => {
-            desugar(tp.clone(), expr, checker)
+            desugar(Cow::Borrowed(tp), expr, checker)
         }
     }
 }
 
 fn desugar(
-    outer_destruction: Vec<AtomicPattern>, rhs: TypedExpression, checker: &TypeChecker,
+    outer_destruction: Cow<'_, [AtomicPattern]>, rhs: TypedExpression, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     debug!("check: {outer_destruction:?} = {rhs:?}");
 
@@ -269,7 +270,7 @@ fn desugar(
                     let tuple_element_types = tuple_element_types.0;
                     if outer_destruction.len() == tuple_element_types.len() {
                         desugar(outer_destruction, TypedExpression::Tuple {
-                            expressions: tuple_element_types.clone().into_iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
+                            expressions: tuple_element_types.iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
                                 expr: Box::new(
                                     TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
                                 ),
@@ -279,7 +280,7 @@ fn desugar(
                     } else {
                         debug!("tuple arity mismatch");
                         Err(TypeCheckError::UnsatisfiablePattern {
-                            pattern: AtomicPattern::Tuple(outer_destruction),
+                            pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
                             expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
                             expr_type: Type::tuple(tuple_element_types.clone()),
                         })
@@ -288,7 +289,7 @@ fn desugar(
                 other => {
                     debug!("non-tuple expression");
                     Err(TypeCheckError::UnsatisfiablePattern {
-                        pattern: AtomicPattern::Tuple(outer_destruction),
+                        pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
                         expression: TypedExpression::Variable { ident, tp: other.clone() },
                         expr_type: other,
                     })
@@ -300,8 +301,8 @@ fn desugar(
             desugar(outer_destruction, *final_expression, checker)
         }
         TypedExpression::Tuple { expressions } => {
-            let m = outer_destruction.into_iter().enumerate().map(|(i, element_binding)| {
-                handle_atomic_pattern(expressions[i].clone(), &element_binding, checker)
+            let m = outer_destruction.iter().zip(expressions).enumerate().map(|(i, (element_binding, expression))| {
+                handle_atomic_pattern(expression, element_binding, checker)
             }).collect::<Vec<_>>();
 
             let mut k = vec![];
@@ -371,7 +372,7 @@ fn desugar(
         other => {
             debug!("unsupported expression");
             Err(TypeCheckError::UnsatisfiablePattern {
-                pattern: AtomicPattern::Tuple(outer_destruction),
+                pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
                 expr_type: other.actual_type(),
                 expression: other,
             })
