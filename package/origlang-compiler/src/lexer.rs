@@ -364,9 +364,9 @@ impl Lexer {
         } else {
             let b = self.source_bytes_nth.get().stride(Utf8CharStride::One);
             if future_index == b && self.current_char_stride() == Ok(Utf8CharStride::One) {
-                return if let Ok(c) = self.current_char() {
+                return if let Ok(c) = self.current_byte() {
                     self.source_bytes_nth.set(b);
-                    if c == '\n' {
+                    if c == b'\n' {
                         // new line, setting $(L + 1):C.
                         self.current_line.set(NonZeroUsize::new(self.current_line.get().get() + 1).expect("we do not support this"));
                         // SAFETY: 1 != 0
