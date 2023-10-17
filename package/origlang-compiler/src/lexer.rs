@@ -39,12 +39,26 @@ impl<T> AssociateWithPos for T {
 pub struct Lexer {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
     source: String,
-    current_line: Cell<NonZeroUsize>,
-    current_column: Cell<NonZeroUsize>,
     newline_codepoint_nth_index: OccurrenceSet<Utf8CharBoundaryStartByte>,
 }
 
 impl Lexer {
+    // TODO: revisit line caching
+    pub fn line(&self) -> NonZeroUsize {
+        NonZeroUsize::new(self.newline_codepoint_nth_index.count_lowers_exclusive(&self.source_bytes_nth.get()) + 1).unwrap()
+    }
+
+    pub fn column(&self) -> NonZeroUsize {
+        let start = self.source_bytes_nth.get().as_usize();
+        let last = self.source[..start].rfind('\n');
+
+        if let Some(last) = last {
+            (self.source[last..start].chars().count()).try_into().unwrap()
+        } else {
+            (start + 1).try_into().unwrap()
+        }
+    }
+
     #[must_use = "Lexer do nothing unless calling parsing function"]
     pub fn create(source: &str) -> Self {
         let src: Cow<'_, str> = if cfg!(windows) {
@@ -69,14 +83,6 @@ impl Lexer {
 
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
-            current_line: Cell::new(
-                // SAFETY: 1 != 0
-                unsafe { NonZeroUsize::new_unchecked(1) }
-            ),
-            current_column: Cell::new(
-                // SAFETY: 1 != 0
-                unsafe { NonZeroUsize::new_unchecked(1) }
-            ),
             source: src.to_string(),
             newline_codepoint_nth_index
         }
@@ -301,8 +307,8 @@ impl Lexer {
 
     fn current_pos(&self) -> SourcePos {
         SourcePos {
-            line: self.current_line.get(),
-            column: self.current_column.get(),
+            line: self.line(),
+            column: self.column(),
         }
     }
 
@@ -378,45 +384,9 @@ impl Lexer {
     #[inline(never)]
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
         debug!("index: requested = {future_index:?}");
-        if future_index == self.source_bytes_nth.get() {
-            // no computation is needed
-            Ok(())
-        } else {
-            let b = self.source_bytes_nth.get().stride(Utf8CharStride::One);
-            if future_index == b && self.current_char_stride() == Ok(Utf8CharStride::One) {
-                return if let Ok(c) = self.current_byte() {
-                    self.source_bytes_nth.set(b);
-                    if c == b'\n' {
-                        // new line, setting $(L + 1):C.
-                        self.current_line.set(NonZeroUsize::new(self.current_line.get().get() + 1).expect("we do not support this"));
-                        // SAFETY: 1 != 0
-                        self.current_column.set(unsafe { NonZeroUsize::new_unchecked(1) });
-                    } else {
-                        // not new line, setting L:$(C + 1).
-                        self.current_column.set(NonZeroUsize::new(self.current_column.get().get() + 1).expect("we do not support this"));
-                    }
-                    Ok(())
-                } else {
-                    // ?
-                    Err(LineComputationError::OutOfRange)
-                }
-            } else {
-                // trace!("set index to: {future_index}");
-                let SourcePos { line, column } =
-                    LineComputation::compute(
-                        future_index.stride(Utf8CharStride::from('\n')),
-                        &self.newline_codepoint_nth_index
-                    )?;
+        self.source_bytes_nth.set(future_index);
 
-                trace!("compute: {line}:{column}");
-                self.source_bytes_nth.set(future_index);
-                self.current_line.set(line);
-                self.current_column.set(column);
-
-                Ok(())
-                // full computation
-            }
-        }
+        Ok(())
     }
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
@@ -519,23 +489,27 @@ impl Lexer {
             plus += 1;
             loop {
                 trace!("lexer:identifier: {plus}");
-                if let Ok(b) = self.byte_skip_n(plus) {
-                    if b.is_ascii_alphanumeric() || b == b'_' {
-                        plus += 1;
-                    } else {
+                match self.byte_skip_n(plus) {
+                    Ok(b) => {
+                        if b.is_ascii_alphanumeric() || b == b'_' {
+                            plus += 1;
+                        } else {
+                            break
+                        }
+                    }
+                    Err(e) => {
+                        warn!("discarding error: {e}");
                         break
                     }
-                } else {
-                    break
                 }
             }
 
-            debug!("lexer:identifier: {plus}");
+            debug!("lexer:identifier: length of {plus}");
             let start = self.source_bytes_nth.get().as_usize();
-            let end_exclusive = start + plus;
-            self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive))?;
+            let s = Identifier::new(self.source[start..(start + plus)].to_string());
+            self.advance_bytes(plus)?;
 
-            Ok(Some(Identifier::new(self.source[start..end_exclusive].to_string())))
+            Ok(Some(s))
         } else {
             Ok(None)
         }
