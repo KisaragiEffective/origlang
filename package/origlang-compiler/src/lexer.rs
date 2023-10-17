@@ -93,6 +93,8 @@ impl Lexer {
         trace!("drain_space: end   ^^^^^^^^^^^^^^^^^^^");
     }
 
+    /// Note
+    /// calling [`Self::advance_bytes`], [`Self::advance`], or [`Self::set_current_index`] is error-prone.
     fn try_and_eat_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
