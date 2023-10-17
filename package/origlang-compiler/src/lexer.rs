@@ -581,20 +581,27 @@ impl Lexer {
     }
 
     fn scan_identifier(&self) -> Result<Option<Identifier>, LexerError> {
+        debug!("lexer:identifier");
+
         let first = self.current_byte()?;
         let mut plus = 0;
 
         if first.is_ascii_alphabetic() || first == b'_' {
             plus += 1;
             loop {
-                let b = self.byte_skip_n(plus)?;
-                if b.is_ascii_alphanumeric() || b == b'_' {
-                    plus += 1;
+                trace!("lexer:identifier: {plus}");
+                if let Ok(b) = self.byte_skip_n(plus) {
+                    if b.is_ascii_alphanumeric() || b == b'_' {
+                        plus += 1;
+                    } else {
+                        break
+                    }
                 } else {
                     break
                 }
             }
 
+            debug!("lexer:identifier: {plus}");
             let start = self.source_bytes_nth.get().as_usize();
             let end_exclusive = start + plus;
             self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive))?;
