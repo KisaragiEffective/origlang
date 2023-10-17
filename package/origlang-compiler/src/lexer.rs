@@ -252,10 +252,30 @@ impl Lexer {
                     })
             })
             // dont eager evaluate
-            .unwrap_or_else(|| Token::UnexpectedChar {
-                // TODO: this is cold path, so may convert boundary to char_nth.
-                index: self.source_bytes_nth.get(),
-                char: self.current_char().expect("unexpected_char"),
+            .unwrap_or_else(|| {
+                fn current_char(this: &Lexer) -> Result<char, LexerError> {
+                    let current_boundary = this.source_bytes_nth.get();
+                    let index = current_boundary.as_usize();
+                    let stride = this.current_char_stride()?;
+
+
+                    let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
+
+                    let c = s.chars().next().ok_or(LexerError::OutOfRange {
+                        current: current_boundary,
+                        // bytes in UTF-8
+                        max: this.source.len(),
+                    })?;
+
+
+                    Ok(c)
+                }
+                
+                Token::UnexpectedChar {
+                    // TODO: this is cold path, so may convert boundary to char_nth.
+                    index: self.source_bytes_nth.get(),
+                    char: current_char(self).expect("unexpected_char"),
+                }
             });
         Ok(v)
     }
@@ -460,24 +480,6 @@ impl Lexer {
         };
 
         Ok(stride)
-    }
-
-    fn current_char(&self) -> Result<char, LexerError> {
-        let current_boundary = self.source_bytes_nth.get();
-        let index = current_boundary.as_usize();
-        let stride = self.current_char_stride()?;
-
-
-        let s = unsafe { self.source.get_unchecked(index..(index + stride.as_usize())) };
-
-        let c = s.chars().next().ok_or(LexerError::OutOfRange {
-            current: current_boundary,
-            // bytes in UTF-8
-            max: self.source.len(),
-        })?;
-
-
-        Ok(c)
     }
 
     fn reached_end(&self) -> bool {
