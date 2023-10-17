@@ -326,10 +326,14 @@ impl Lexer {
             let end_inclusive = start + plus;
             self.set_current_index(Utf8CharBoundaryStartByte::new(end_inclusive))?;
 
+            let scanned = self.source[start..end_inclusive].to_string();
             let builtin_suffix = self.scan_digit_suffix_opt()?;
+
+            debug!("digit: done ({scanned} {builtin_suffix:?})");
+
             Ok(Some(
                 Token::Digits {
-                    sequence: self.source[start..end_inclusive].to_string(),
+                    sequence: scanned,
                     suffix: builtin_suffix,
                 }
             ))
