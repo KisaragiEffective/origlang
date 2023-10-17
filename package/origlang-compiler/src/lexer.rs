@@ -293,7 +293,6 @@ impl Lexer {
             let a = self.try_and_eat_str(s)?;
 
             if let Some(a) = a {
-                self.advance_bytes((s.len() + 1))?;
                 return Ok(Some(a.to_string().into_boxed_str()))
             }
         }
