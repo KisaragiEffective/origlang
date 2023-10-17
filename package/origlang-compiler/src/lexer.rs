@@ -587,7 +587,7 @@ impl Lexer {
 
             let start = self.source_bytes_nth.get().as_usize();
             let end_exclusive = start + plus;
-            self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive + 1))?;
+            self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive))?;
 
             Ok(Some(Identifier::new(self.source[start..end_exclusive].to_string())))
         } else {
