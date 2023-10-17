@@ -480,24 +480,9 @@ impl Lexer {
         Ok(c)
     }
 
-    pub(crate) fn consume_char(&self) -> Result<char, LexerError> {
-        let c = self.current_char()?;
-        // trace!("consume: `{c}` (\\U{{{k:06X}}})", k = c as u32);
-        self.advance();
-        Ok(c)
-    }
-
     fn reached_end(&self) -> bool {
         // <&str>::len() yields length of BYTES, not CHARS
         self.source_bytes_nth.get().as_usize() >= self.source.len()
-    }
-
-    fn advance(&self) {
-        trace!("lexer:advance");
-        let new = self.source_bytes_nth.get().stride(self.current_char_stride().unwrap());
-        self.set_current_index(new).map_err(|e| {
-            warn!("discarding error: {e}");
-        }).unwrap_or_default();
     }
 
     /// パースに失敗するかも知れないものをパースしようと試みる。
