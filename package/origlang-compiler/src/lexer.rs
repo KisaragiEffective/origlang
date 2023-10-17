@@ -343,70 +343,12 @@ impl Lexer {
     }
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
-        fn calc_skip_byte_in_utf8(start: Utf8CharBoundaryStartByte, source: &str) -> Option<Utf8CharBoundaryStartByte> {
-            // well, at least, this code accesses memory to sequential order.
-            const BATCH_SIZE: usize = 32;
-            let sub_slice = &source.as_bytes()[start.as_usize()..];
-            for step in 0..(sub_slice.len() / BATCH_SIZE) {
-                let offset = step * BATCH_SIZE;
-                let chunk = &sub_slice[offset..(offset + BATCH_SIZE)];
-                for (sub_offset, b) in chunk.iter().enumerate() {
-                    if *b == b'"' {
-                        return Some(Utf8CharBoundaryStartByte::new(offset + sub_offset))
-                    }
-                }
-            }
+        let start = self.source_bytes_nth.get().as_usize();
+        let rel_pos = self.source[start..].find('"').unwrap_or(self.source.len() - start);
+        self.advance_bytes(rel_pos + 1)?;
 
-            let last_offset = sub_slice.len() / BATCH_SIZE * BATCH_SIZE;
-            let last_byte = sub_slice.len();
-
-            #[allow(clippy::needless_range_loop)]
-            for offset in last_offset..last_byte {
-                if sub_slice[offset] == b'"' {
-                    return Some(Utf8CharBoundaryStartByte::new(offset));
-                }
-            }
-
-            None
-        }
-        debug!("lexer:lit:string");
-
-        // this search is exact at this point.
-        // However, once we introduce escape sequence or another delimiter for string literal,
-        // this code is likely to needed to be rewritten.
-
-        let Some(skip_byte_in_utf8) = calc_skip_byte_in_utf8(self.source_bytes_nth.get(), &self.source) else {
-            return Err(LexerError::UnclosedStringLiteral)
-        };
-
-        let mut string_char_literal_content = {
-            // the starting quote is handled in `next_inner`, so this boundary is either first
-            // char in the literal, or ending quote.
-            let maybe_first_char_boundary = self.source_bytes_nth.get();
-            let quote_end_boundary = Utf8CharBoundaryStartByte::new(maybe_first_char_boundary.as_usize() + skip_byte_in_utf8.as_usize());
-
-            // assert!(found_boundary_nth >= current_chars_nth, "{found_boundary_nth:?} >= {current_chars_nth:?}");
-
-            let s = &self.source[(maybe_first_char_boundary.as_usize())..(quote_end_boundary.as_usize())];
-            self.source_bytes_nth.set(quote_end_boundary);
-            s.to_string()
-        };
-
-        loop {
-            if self.reached_end() {
-                break
-            }
-
-            let c = self.current_char()?;
-            if c == '"' {
-                // 終わりのダブルクォーテーションは捨てる
-                self.consume_char()?;
-                break
-            }
-            let c = self.consume_char()?;
-            string_char_literal_content.push(c);
-        }
-        Ok(Token::StringLiteral(string_char_literal_content))
+        let s = self.source[start..(start + rel_pos)].to_string();
+        Ok(Token::StringLiteral(s))
     }
 
     fn advance_bytes(&self, advance: usize) -> Result<(), LineComputationError> {
