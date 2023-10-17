@@ -85,7 +85,7 @@ impl Lexer {
     fn drain_space(&self) {
         trace!("drain_space: start vvvvvvvvvvvvvvvvvvv");
         while !self.reached_end() {
-            if self.try_str(" ").unwrap() == Some(" ") || self.try_str("\t").unwrap() == Some("\t") {
+            if self.try_and_eat_str(" ").unwrap() == Some(" ") || self.try_and_eat_str("\t").unwrap() == Some("\t") {
             } else {
                 break
             }
@@ -93,7 +93,7 @@ impl Lexer {
         trace!("drain_space: end   ^^^^^^^^^^^^^^^^^^^");
     }
 
-    fn try_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
+    fn try_and_eat_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
@@ -126,12 +126,12 @@ impl Lexer {
             } else {
                 None
             }
-            .or_else(|| self.try_str("\n").expect("huh?").map(|_| Token::NewLine))
+            .or_else(|| self.try_and_eat_str("\n").expect("huh?").map(|_| Token::NewLine))
             .or_else(||
                 fold!(
-                    self.try_str(r#"="#).expect("huh?"),
+                    self.try_and_eat_str(r#"="#).expect("huh?"),
                     {
-                        let double_eq = self.try_str(r#"="#).expect("huh?");
+                        let double_eq = self.try_and_eat_str(r#"="#).expect("huh?");
                         if double_eq.is_some() {
                             Some(Token::PartEqEq)
                         } else {
@@ -141,31 +141,31 @@ impl Lexer {
                     None
                 )
             )
-            .or_else(|| self.try_str(r#"+"#).expect("huh?").map(|_| Token::SymPlus))
-            .or_else(|| self.try_str(r#"-"#).expect("huh?").map(|_| Token::SymMinus))
-            .or_else(|| self.try_str(r#"*"#).expect("huh?").map(|_| Token::SymAsterisk))
+            .or_else(|| self.try_and_eat_str(r#"+"#).expect("huh?").map(|_| Token::SymPlus))
+            .or_else(|| self.try_and_eat_str(r#"-"#).expect("huh?").map(|_| Token::SymMinus))
+            .or_else(|| self.try_and_eat_str(r#"*"#).expect("huh?").map(|_| Token::SymAsterisk))
             .or_else(||
                 fold!(
-                    self.try_str(r#"/"#).expect("huh?"),
+                    self.try_and_eat_str(r#"/"#).expect("huh?"),
                     fold!(
-                        self.try_str(r#"/"#).expect("huh?"),
+                        self.try_and_eat_str(r#"/"#).expect("huh?"),
                         Some(self.scan_line_comment().expect("unable to parse comment")),
                         Some(Token::SymSlash)
                     ),
                     None
                 )
             )
-            .or_else(|| self.try_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
-            .or_else(|| self.try_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
+            .or_else(|| self.try_and_eat_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
+            .or_else(|| self.try_and_eat_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
             .or_else(|| {
-                if let Some(_) = self.try_str(r#"<"#).expect("huh?") {
-                    if let Some(_) = self.try_str(r#"="#).expect("huh?") {
-                        if let Some(_) = self.try_str(r#">"#).expect("huh?") {
+                if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
+                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
+                        if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
                             Some(Token::PartLessEqMore)
                         } else {
                             Some(Token::PartLessEq)
                         }
-                    } else if let Some(_) = self.try_str(r#"<"#).expect("huh?") {
+                    } else if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
                         Some(Token::PartLessLess)
                     } else {
                         Some(Token::SymLess)
@@ -175,10 +175,10 @@ impl Lexer {
                 }
             })
             .or_else(|| {
-                if let Some(_) = self.try_str(r#">"#).expect("huh?") {
-                    if let Some(_) = self.try_str(r#"="#).expect("huh?") {
+                if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
+                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
                         Some(Token::PartMoreEq)
-                    } else if let Some(_) = self.try_str(r#">"#).expect("huh?") {
+                    } else if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
                         Some(Token::PartMoreMore)
                     } else {
                         Some(Token::SymMore)
@@ -189,9 +189,9 @@ impl Lexer {
             })
             .or_else(|| 
                 fold!(
-                    self.try_str(r#"!"#).expect("huh?"),
+                    self.try_and_eat_str(r#"!"#).expect("huh?"),
                     fold!(
-                        self.try_str(r#"="#).expect("huh?"),
+                        self.try_and_eat_str(r#"="#).expect("huh?"),
                         Some(Token::PartBangEq),
                         Some(Token::SymBang)
                     ),
@@ -200,7 +200,7 @@ impl Lexer {
             )
             .or_else(|| 
                 fold!(
-                    self.try_str(r#"""#).expect("huh?"),
+                    self.try_and_eat_str(r#"""#).expect("huh?"),
                     Some(self.scan_string_literal().expect("unable to parse string literal")),
                     None
                 )
@@ -208,14 +208,14 @@ impl Lexer {
             .or_else(|| self.scan_digits().expect("huh?"))
             .or_else(||
                 fold!(
-                    self.try_str(r#","#).expect("huh?"),
+                    self.try_and_eat_str(r#","#).expect("huh?"),
                     Some(Token::SymComma),
                     None
                 )
             )
             .or_else(||
                 fold!(
-                    self.try_str(r#":"#).expect("huh?"),
+                    self.try_and_eat_str(r#":"#).expect("huh?"),
                     Some(Token::SymColon),
                     None
                 )
@@ -290,7 +290,7 @@ impl Lexer {
         }
 
         for s in ["i8", "i16", "i32", "i64"] {
-            let a = self.try_str(s)?;
+            let a = self.try_and_eat_str(s)?;
 
             if let Some(a) = a {
                 self.advance_bytes((s.len() + 1))?;
@@ -414,6 +414,7 @@ impl Lexer {
 
     #[inline(never)]
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
+        debug!("index: requested = {future_index:?}");
         if future_index == self.source_bytes_nth.get() {
             // no computation is needed
             Ok(())
