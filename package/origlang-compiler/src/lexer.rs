@@ -83,9 +83,14 @@ impl Lexer {
     }
 
     fn drain_space(&self) {
-        while !self.reached_end() && (self.try_str(" ").unwrap() == Some(" ") || self.try_str("\t").unwrap() == Some("\t")) {
-            self.advance_bytes(1).expect("?!")
+        trace!("drain_space: start vvvvvvvvvvvvvvvvvvv");
+        while !self.reached_end() {
+            if self.try_str(" ").unwrap() == Some(" ") || self.try_str("\t").unwrap() == Some("\t") {
+            } else {
+                break
+            }
         }
+        trace!("drain_space: end   ^^^^^^^^^^^^^^^^^^^");
     }
 
     fn try_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
