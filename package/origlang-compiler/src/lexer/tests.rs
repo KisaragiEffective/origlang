@@ -195,3 +195,17 @@ fn token_location() {
         }
     });
 }
+
+#[test]
+fn digit_regression() {
+    const D: &str = "123456";
+    let lexer = Lexer::create(D);
+    assert_eq!(lexer.next().data, Token::Digits {
+        sequence: D.to_string(),
+        suffix: None,
+    });
+
+    const EMPTY: &str = "";
+    let lexer = Lexer::create(EMPTY);
+    assert_eq!(lexer.next().data, Token::EndOfFile);
+}

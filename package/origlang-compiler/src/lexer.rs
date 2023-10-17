@@ -283,6 +283,10 @@ impl Lexer {
     }
 
     fn scan_digit_suffix_opt(&self) -> Result<Option<Box<str>>, LexerError> {
+        if self.reached_end() {
+            return Ok(None)
+        }
+
         for s in ["i8", "i16", "i32", "i64"] {
             let a = self.try_str(s)?;
 
@@ -314,7 +318,7 @@ impl Lexer {
             }
         }
 
-        if b != 0 {
+        if b == 0 {
             Ok(None)
         } else {
             let start = self.source_bytes_nth.get().as_usize();
