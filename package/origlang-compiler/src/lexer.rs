@@ -459,10 +459,10 @@ impl Lexer {
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
         let start = self.source_bytes_nth.get().as_usize();
-        let pos = self.source[start..].find("\n").unwrap_or(self.source.len());
-        self.advance_bytes((pos))?;
+        let rel_pos = self.source[start..].find("\n").unwrap_or(self.source.len());
+        self.advance_bytes(rel_pos)?;
 
-        let content = self.source[start..pos].to_string();
+        let content = self.source[start..(start + rel_pos)].to_string();
         Ok(Token::Comment {
             content: Comment {
                 content
