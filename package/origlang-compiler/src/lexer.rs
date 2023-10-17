@@ -298,7 +298,6 @@ impl Lexer {
 
     fn scan_digits(&self) -> Result<Option<Token>, LexerError> {
         debug!("lexer:digit");
-        let b = self.current_byte()?;
         let mut plus = 0;
 
         loop {
