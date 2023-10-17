@@ -88,7 +88,7 @@ impl Lexer {
         }
     }
 
-    fn try_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LexerError> {
+    fn try_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
@@ -100,10 +100,7 @@ impl Lexer {
                 Ok(None)
             }
         } else {
-            Err(LexerError::OutOfRange {
-                current: start,
-                max: self.source.len(),
-            })
+            Ok(None)
         }
     }
 
