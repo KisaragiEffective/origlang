@@ -124,7 +124,7 @@ impl Lexer {
             } else {
                 None
             }
-            .or_else(|| self.try_str(r#"\n"#).expect("huh?").map(|_| Token::NewLine))
+            .or_else(|| self.try_str("\n").expect("huh?").map(|_| Token::NewLine))
             .or_else(||
                 fold!(
                     self.try_str(r#"="#).expect("huh?"),
