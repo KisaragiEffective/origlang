@@ -83,38 +83,28 @@ impl Lexer {
     }
 
     fn drain_space(&self) {
-        while !self.reached_end() && matches!(self.current_char().expect("drain_space"), ' ' | '\t') {
-            self.consume_char().unwrap();
+        while !self.reached_end() && (self.try_str(" ").unwrap() == Some(" ") || self.try_str("\t").unwrap() == Some("\t")) {
+            self.advance_bytes(1).expect("?!")
         }
     }
 
-    fn try_char(&self, t: char) -> Result<Option<char>, LexerError> {
-        trace!("lexer:try:{t:?}");
-        if !self.reached_end() && self.current_char()? == t {
-            self.consume_char()?;
-            Ok(Some(t))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn try_char_peek(&self, t: char) -> Result<Option<char>, LexerError> {
-        trace!("lexer:try:{t}");
-        if !self.reached_end() && self.current_char()? == t {
-            Ok(Some(t))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn try_any(&self, t: &[char]) -> Result<Option<char>, LexerError> {
-        for c in t {
-            if let Some(x) = self.try_char_peek(*c)? {
-                return Ok(Some(x))
+    fn try_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LexerError> {
+        trace!("lexer:try:{s:?}");
+        let start = self.source_bytes_nth.get();
+        let end_exclusive = start.as_usize() + s.len();
+        if let Some(b) = self.source.get((start.as_usize())..end_exclusive) {
+            if s == b {
+                self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive))?;
+                Ok(Some(s))
+            } else {
+                Ok(None)
             }
+        } else {
+            Err(LexerError::OutOfRange {
+                current: start,
+                max: self.source.len(),
+            })
         }
-
-        Ok(None)
     }
 
     #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
@@ -134,12 +124,12 @@ impl Lexer {
             } else {
                 None
             }
-            .or_else(|| self.try_char('\n').expect("huh?").map(|_| Token::NewLine))
+            .or_else(|| self.try_str(r#"\n"#).expect("huh?").map(|_| Token::NewLine))
             .or_else(||
                 fold!(
-                    self.try_char('=').expect("huh?"),
+                    self.try_str(r#"="#).expect("huh?"),
                     {
-                        let double_eq = self.try_char('=').expect("huh?");
+                        let double_eq = self.try_str(r#"="#).expect("huh?");
                         if double_eq.is_some() {
                             Some(Token::PartEqEq)
                         } else {
@@ -149,31 +139,31 @@ impl Lexer {
                     None
                 )
             )
-            .or_else(|| self.try_char('+').expect("huh?").map(|_| Token::SymPlus))
-            .or_else(|| self.try_char('-').expect("huh?").map(|_| Token::SymMinus))
-            .or_else(|| self.try_char('*').expect("huh?").map(|_| Token::SymAsterisk))
+            .or_else(|| self.try_str(r#"+"#).expect("huh?").map(|_| Token::SymPlus))
+            .or_else(|| self.try_str(r#"-"#).expect("huh?").map(|_| Token::SymMinus))
+            .or_else(|| self.try_str(r#"*"#).expect("huh?").map(|_| Token::SymAsterisk))
             .or_else(||
                 fold!(
-                    self.try_char('/').expect("huh?"),
+                    self.try_str(r#"/"#).expect("huh?"),
                     fold!(
-                        self.try_char('/').expect("huh?"),
+                        self.try_str(r#"/"#).expect("huh?"),
                         Some(self.scan_line_comment().expect("unable to parse comment")),
                         Some(Token::SymSlash)
                     ),
                     None
                 )
             )
-            .or_else(|| self.try_char('(').expect("huh?").map(|_| Token::SymLeftPar))
-            .or_else(|| self.try_char(')').expect("huh?").map(|_| Token::SymRightPar))
+            .or_else(|| self.try_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
+            .or_else(|| self.try_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
             .or_else(|| {
-                if let Some(_) = self.try_char('<').expect("huh?") {
-                    if let Some(_) = self.try_char('=').expect("huh?") {
-                        if let Some(_) = self.try_char('>').expect("huh?") {
+                if let Some(_) = self.try_str(r#"<"#).expect("huh?") {
+                    if let Some(_) = self.try_str(r#"="#).expect("huh?") {
+                        if let Some(_) = self.try_str(r#">"#).expect("huh?") {
                             Some(Token::PartLessEqMore)
                         } else {
                             Some(Token::PartLessEq)
                         }
-                    } else if let Some(_) = self.try_char('<').expect("huh?") {
+                    } else if let Some(_) = self.try_str(r#"<"#).expect("huh?") {
                         Some(Token::PartLessLess)
                     } else {
                         Some(Token::SymLess)
@@ -183,10 +173,10 @@ impl Lexer {
                 }
             })
             .or_else(|| {
-                if let Some(_) = self.try_char('>').expect("huh?") {
-                    if let Some(_) = self.try_char('=').expect("huh?") {
+                if let Some(_) = self.try_str(r#">"#).expect("huh?") {
+                    if let Some(_) = self.try_str(r#"="#).expect("huh?") {
                         Some(Token::PartMoreEq)
-                    } else if let Some(_) = self.try_char('>').expect("huh?") {
+                    } else if let Some(_) = self.try_str(r#">"#).expect("huh?") {
                         Some(Token::PartMoreMore)
                     } else {
                         Some(Token::SymMore)
@@ -197,9 +187,9 @@ impl Lexer {
             })
             .or_else(|| 
                 fold!(
-                    self.try_char('!').expect("huh?"),
+                    self.try_str(r#"!"#).expect("huh?"),
                     fold!(
-                        self.try_char('=').expect("huh?"),
+                        self.try_str(r#"="#).expect("huh?"),
                         Some(Token::PartBangEq),
                         Some(Token::SymBang)
                     ),
@@ -208,62 +198,34 @@ impl Lexer {
             )
             .or_else(|| 
                 fold!(
-                    self.try_char('"').expect("huh?"),
+                    self.try_str(r#"""#).expect("huh?"),
                     Some(self.scan_string_literal().expect("unable to parse string literal")),
                     None
                 )
             )
-            .or_else(|| 
-                fold!(
-                    self.try_any(&ASCII_NUMERIC_CHARS).expect("huh?"),
-                    Some(self.scan_digits().expect("huh?")),
-                    None
-                )
-            )
+            .or_else(|| self.scan_digits().expect("huh?"))
             .or_else(||
                 fold!(
-                    self.try_char(',').expect("huh?"),
+                    self.try_str(r#","#).expect("huh?"),
                     Some(Token::SymComma),
                     None
                 )
             )
             .or_else(||
                 fold!(
-                    self.try_char(':').expect("huh?"),
+                    self.try_str(r#":"#).expect("huh?"),
                     Some(Token::SymColon),
                     None
                 )
             )
             .or_else(|| {
-                self.one_or_many_accumulator(
-                    String::new(),
-                    (true, false),
-                    |x, (first, exit_on_next_iteration)| {
-                        if exit_on_next_iteration {
-                            return ControlFlow::Break(())
-                        }
-
-                        let discarding = x == '_' && first;
-                        let is_identifier = x.is_ascii_alphabetic() || (!first && x.is_ascii_digit());
-
-                        if is_identifier {
-                            ControlFlow::Continue((false, false))
-                        } else if discarding {
-                            ControlFlow::Continue((false, true))
-                        } else {
-                            ControlFlow::Break(())
-                        }
-                    },
-                    |x, identifier| {
-                        identifier.push(x);
-                        debug!("identifier: {identifier:?}");
-                    }
-                )
+                self.scan_identifier()
                     .ok()
+                    .flatten()
                     .map(|scanned| {
-                        let is_keyword = KEYWORDS.contains(&scanned.as_str());
+                        let is_keyword = KEYWORDS.contains(&scanned.as_name());
                         if is_keyword {
-                            match scanned.as_str() {
+                            match scanned.as_name() {
                                 "var" => Token::VarKeyword,
                                 "true" => Token::KeywordTrue,
                                 "false" => Token::KeywordFalse,
@@ -281,7 +243,7 @@ impl Lexer {
                                 }
                             }
                         } else {
-                            Token::Identifier { inner: Identifier::new(scanned) }
+                            Token::Identifier { inner: scanned }
                         }
                     })
             })
@@ -320,111 +282,54 @@ impl Lexer {
         }
     }
 
-    fn one_or_many(&self, scan_while: impl Fn(char) -> bool, ignore_trailing_char_on_exit: bool) -> Result<String, LexerError> {
-        let mut buf = String::new();
-        loop {
-            if self.reached_end() {
-                break
+    fn scan_digit_suffix_opt(&self) -> Result<Option<Box<str>>, LexerError> {
+        for s in ["i8", "i16", "i32", "i64"] {
+            let a = self.try_str(s)?;
+
+            if let Some(a) = a {
+                self.advance_bytes((s.len() + 1))?;
+                return Ok(Some(a.to_string().into_boxed_str()))
             }
-
-            let c = self.current_char()?;
-            if !scan_while(c) {
-                if ignore_trailing_char_on_exit {
-                    self.consume_char()?;
-                }
-
-                break
-            }
-            let c = self.consume_char()?;
-
-            buf.push(c);
         }
 
-        Ok(buf)
+        Ok(None)
     }
 
-    fn one_or_many_accumulator<Acc, R: RefUnwindSafe>(
-        &self,
-        scan_sequence_accumulator: Acc,
-        registers: R,
-        judge: impl Fn(char, R) -> ControlFlow<(), R>,
-        accumulate_before_next_iteration_after_break: impl Fn(char, &mut Acc)
-    ) -> Result<Acc, LexerError> {
-        let mut acc = scan_sequence_accumulator;
-        let mut registers = registers;
+    fn scan_digits(&self) -> Result<Option<Token>, LexerError> {
+        debug!("lexer:digit");
+        let b = self.current_byte()?;
+        let mut plus = 0;
 
         loop {
-            if self.reached_end() {
-                break
-            }
+            let r = self.byte_skip_n(plus);
 
-            let c = self.current_char()?;
-            let cf = judge(c, registers);
-            match cf {
-                ControlFlow::Continue(c) => {
-                    registers = c;
-                    self.consume_char()?;
-                }
-                ControlFlow::Break(_b) => {
+            if let Ok(b) = r {
+                if (b'0'..b'9').contains(&b) {
+                    plus += 1;
+                } else {
                     break
                 }
+            } else {
+                break
             }
-
-            accumulate_before_next_iteration_after_break(c, &mut acc);
         }
 
-        Ok(acc)
-    }
-
-    fn scan_digit_suffix_opt(&self) -> Result<Option<Box<str>>, LexerError> {
-        let v = if self.current_char()? == 'i' {
-            self.consume_char()?;
-            if self.current_char()? == '8' {
-                self.consume_char()?;
-                Some("i8".to_string().into_boxed_str())
-            } else if self.current_char()? == '1' {
-                self.consume_char()?;
-                if self.current_char()? == '6' {
-                    self.consume_char()?;
-                    Some("i16".to_string().into_boxed_str())
-                } else {
-                    return Err(LexerError::InvalidSuffix);
-                }
-            } else if self.current_char()? == '3' {
-                self.consume_char()?;
-                if self.current_char()? == '2' {
-                    self.consume_char()?;
-                    Some("i32".to_string().into_boxed_str())
-                } else {
-                    return Err(LexerError::InvalidSuffix);
-                }
-            } else if self.current_char()? == '6' {
-                self.consume_char()?;
-                if self.current_char()? == '4' {
-                    self.consume_char()?;
-                    Some("i64".to_string().into_boxed_str())
-                } else {
-                    return Err(LexerError::InvalidSuffix);
-                }
-            } else {
-                return Err(LexerError::InvalidSuffix);
-            }
+        if b != 0 {
+            Ok(None)
         } else {
-            None
-        };
+            let start = self.source_bytes_nth.get().as_usize();
+            let end_inclusive = start + plus;
+            self.advance_bytes(end_inclusive)?;
 
-        Ok(v)
-    }
+            let builtin_suffix = self.scan_digit_suffix_opt()?;
+            Ok(Some(
+                Token::Digits {
+                    sequence: self.source[start..end_inclusive].to_string(),
+                    suffix: builtin_suffix,
+                }
+            ))
+        }
 
-    fn scan_digits(&self) -> Result<Token, LexerError> {
-        debug!("lexer:digit");
-        let buf = self.one_or_many(|c| ASCII_NUMERIC_CHARS.contains(&c), false)?;
-        let builtin_suffix = self.scan_digit_suffix_opt()?;
-
-        Ok(Token::Digits {
-            sequence: buf,
-            suffix: builtin_suffix,
-        })
     }
 
     fn scan_string_literal(&self) -> Result<Token, LexerError> {
@@ -494,6 +399,10 @@ impl Lexer {
         Ok(Token::StringLiteral(string_char_literal_content))
     }
 
+    fn advance_bytes(&self, advance: usize) -> Result<(), LineComputationError> {
+        self.set_current_index(Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + advance))
+    }
+
     #[inline(never)]
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
         if future_index == self.source_bytes_nth.get() {
@@ -538,12 +447,15 @@ impl Lexer {
     }
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
-        let content = self.one_or_many(|c| c != '\n', false)?;
+        let start = self.source_bytes_nth.get().as_usize();
+        let pos = self.source[start..].find("\n").unwrap_or(self.source.len());
+        self.advance_bytes((pos))?;
 
+        let content = self.source[start..pos].to_string();
         Ok(Token::Comment {
             content: Comment {
-                content,
-            },
+                content
+            }
         })
     }
 
@@ -655,5 +567,45 @@ impl Lexer {
     #[must_use = "Dropping token do nothing"]
     fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
+    }
+
+    fn scan_identifier(&self) -> Result<Option<Identifier>, LexerError> {
+        let first = self.current_byte()?;
+        let mut plus = 0;
+
+        if first.is_ascii_alphabetic() || first == b'_' {
+            plus += 1;
+            loop {
+                let b = self.byte_skip_n(plus)?;
+                if b.is_ascii_alphanumeric() || b == b'_' {
+                    plus += 1;
+                } else {
+                    break
+                }
+            }
+
+            let start = self.source_bytes_nth.get().as_usize();
+            let end_exclusive = start + plus;
+            self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive + 1))?;
+
+            Ok(Some(Identifier::new(self.source[start..end_exclusive].to_string())))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn current_byte(&self) -> Result<u8, LexerError> {
+        self.source.bytes().nth(self.source_bytes_nth.get().as_usize()).ok_or_else(|| self.report_out_of_range_error())
+    }
+
+    fn byte_skip_n(&self, skip: usize) -> Result<u8, LexerError> {
+        self.source.bytes().nth(self.source_bytes_nth.get().as_usize() + skip).ok_or_else(|| self.report_out_of_range_error())
+    }
+
+    fn report_out_of_range_error(&self) -> LexerError {
+        LexerError::OutOfRange {
+            current: self.source_bytes_nth.get(),
+            max: self.source.len(),
+        }
     }
 }
