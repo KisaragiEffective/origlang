@@ -318,12 +318,12 @@ impl Lexer {
             }
         }
 
-        if b == 0 {
+        if plus == 0 {
             Ok(None)
         } else {
             let start = self.source_bytes_nth.get().as_usize();
             let end_inclusive = start + plus;
-            self.advance_bytes(end_inclusive)?;
+            self.set_current_index(Utf8CharBoundaryStartByte::new(end_inclusive))?;
 
             let builtin_suffix = self.scan_digit_suffix_opt()?;
             Ok(Some(
