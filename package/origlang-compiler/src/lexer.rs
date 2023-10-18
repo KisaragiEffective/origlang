@@ -40,25 +40,11 @@ pub struct Lexer {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
     source: String,
     newline_codepoint_nth_index: OccurrenceSet<Utf8CharBoundaryStartByte>,
+    line: Cell<NonZeroUsize>,
+    column: Cell<NonZeroUsize>,
 }
 
 impl Lexer {
-    // TODO: revisit line caching
-    pub fn line(&self) -> NonZeroUsize {
-        NonZeroUsize::new(self.newline_codepoint_nth_index.count_lowers_exclusive(&self.source_bytes_nth.get()) + 1).unwrap()
-    }
-
-    pub fn column(&self) -> NonZeroUsize {
-        let start = self.source_bytes_nth.get().as_usize();
-        let last = self.source[..start].rfind('\n');
-
-        if let Some(last) = last {
-            (self.source[last..start].chars().count()).try_into().unwrap()
-        } else {
-            (start + 1).try_into().unwrap()
-        }
-    }
-
     #[must_use = "Lexer do nothing unless calling parsing function"]
     pub fn create(source: &str) -> Self {
         let src: Cow<'_, str> = if cfg!(windows) {
@@ -84,7 +70,9 @@ impl Lexer {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source: src.to_string(),
-            newline_codepoint_nth_index
+            newline_codepoint_nth_index,
+            line: Cell::new(NonZeroUsize::new(1).unwrap()),
+            column: Cell::new(NonZeroUsize::new(1).unwrap()),
         }
     }
 
@@ -307,8 +295,8 @@ impl Lexer {
 
     fn current_pos(&self) -> SourcePos {
         SourcePos {
-            line: self.line(),
-            column: self.column(),
+            line: self.line.get(),
+            column: self.column.get(),
         }
     }
 
@@ -383,6 +371,62 @@ impl Lexer {
 
     #[inline(never)]
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
+        let old = self.source_bytes_nth.get().as_usize();
+        let new = future_index.as_usize();
+
+        if old == new {
+            return Ok(())
+        }
+
+        let current_line = self.line.get().get();
+
+        let src = &self.source;
+        if old < new {
+            // forward
+            let new_line = current_line + src[old..new].bytes().filter(|x| *x == b'\n').count();
+            let new_col = if let Some(old_relative) = src[old..new].rfind('\n') {
+                // .......................OLD.................NEW
+                //                         |<--------N------>|
+                new - (old + old_relative)
+            } else {
+                let mut c = self.column.get().get();
+                c += (new - old);
+
+                c
+            };
+
+            self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
+            self.column.set(NonZeroUsize::new(new_col).expect("overflow"))
+        } else {
+            // back
+            let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
+            let new_col = if let Some(new_relative) = src[new..old].find('\n') {
+                // .......................NEW.................OLD
+                //                         |<--------N------>|
+                let nr = new + new_relative;
+                if let Some(most_recent_nl) = src[..nr].rfind('\n') {
+                    // ..............NEW.................OLD
+                    //                |<--------N------>|
+                    // |<-----MRN-------------->|
+
+                    // this is effectively static assertion, should not
+                    // cost on runtime.
+                    assert!(most_recent_nl < nr);
+                    nr - most_recent_nl
+                } else {
+                    nr
+                }
+            } else {
+                let mut c = self.column.get().get();
+                c += old - new;
+
+                c
+            };
+
+            self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
+            self.column.set(NonZeroUsize::new(new_col).expect("overflow"))
+        }
+
         debug!("index: requested = {future_index:?}");
         self.source_bytes_nth.set(future_index);
 
