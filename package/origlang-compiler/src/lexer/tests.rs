@@ -93,17 +93,6 @@ fn parse_string_literal_mixed_4_3() {
     test("\u{10000}あ")
 }
 
-#[test]
-fn avoid_off_read() {
-    const S: &str = r#"var x = "4あ"
-"#;
-    let lexer = Lexer::create(S);
-    let k = S.chars().count();
-    for i in 0..k {
-        assert_eq!(lexer.consume_char().expect("oops"), S.chars().nth(i).expect("out of bounds from literal"))
-    }
-}
-
 use std::num::NonZeroUsize;
 use origlang_source_span::{Pointed, SourcePosition};
 
@@ -194,4 +183,18 @@ fn token_location() {
             column: NonZeroUsize::new(9).unwrap()
         }
     });
+}
+
+#[test]
+fn digit_regression() {
+    const D: &str = "123456";
+    let lexer = Lexer::create(D);
+    assert_eq!(lexer.next().data, Token::Digits {
+        sequence: D.to_string(),
+        suffix: None,
+    });
+
+    const EMPTY: &str = "";
+    let lexer = Lexer::create(EMPTY);
+    assert_eq!(lexer.next().data, Token::EndOfFile);
 }
