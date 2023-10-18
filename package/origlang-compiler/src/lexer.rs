@@ -5,6 +5,7 @@ pub mod token;
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::convert::Infallible;
 
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
@@ -15,8 +16,6 @@ use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::char_list::ASCII_NUMERIC_CHARS;
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
-use crate::chars::line::{LineComputation, LineComputationError};
-use crate::chars::occurrence::OccurrenceSet;
 use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 
 static KEYWORDS: [&str; 12] =
@@ -39,7 +38,6 @@ impl<T> AssociateWithPos for T {
 pub struct Lexer {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
     source: String,
-    newline_codepoint_nth_index: OccurrenceSet<Utf8CharBoundaryStartByte>,
     line: Cell<NonZeroUsize>,
     column: Cell<NonZeroUsize>,
 }
@@ -53,24 +51,9 @@ impl Lexer {
             Cow::Borrowed(source)
         };
 
-        let newline_codepoint_nth_index = src.bytes().enumerate()
-            .filter(|(_, x)| *x == b'\n')
-            .map(|(i, _)| Utf8CharBoundaryStartByte::new(i))
-            // we can't use try_collect because it requires nightly compiler.
-            // we also can't have FromIterator<T> for OccurrenceSet<T> where T: Ord because doing so may
-            // break invariant of OccurrenceSet (i.e. the underlying iterator was not sorted.)
-            .collect::<Vec<_>>();
-
-        // SAFETY: inner value has sorted, because:
-        //     char_indices yields sorted index.
-        let newline_codepoint_nth_index = unsafe {
-            OccurrenceSet::new_unchecked(newline_codepoint_nth_index)
-        };
-
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source: src.to_string(),
-            newline_codepoint_nth_index,
             line: Cell::new(NonZeroUsize::new(1).unwrap()),
             column: Cell::new(NonZeroUsize::new(1).unwrap()),
         }
@@ -89,7 +72,7 @@ impl Lexer {
 
     /// Note
     /// calling [`Self::advance_bytes`], [`Self::advance`], or [`Self::set_current_index`] is error-prone.
-    fn try_and_eat_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, LineComputationError> {
+    fn try_and_eat_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, Infallible> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
@@ -365,12 +348,12 @@ impl Lexer {
         Ok(Token::StringLiteral(s))
     }
 
-    fn advance_bytes(&self, advance: usize) -> Result<(), LineComputationError> {
+    fn advance_bytes(&self, advance: usize) -> Result<(), Infallible> {
         self.set_current_index(Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + advance))
     }
 
     #[inline(never)]
-    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), LineComputationError> {
+    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), Infallible> {
         let old = self.source_bytes_nth.get().as_usize();
         let new = future_index.as_usize();
 

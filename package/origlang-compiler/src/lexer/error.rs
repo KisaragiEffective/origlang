@@ -1,6 +1,6 @@
+use std::convert::Infallible;
 use thiserror::Error;
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
-use crate::chars::line::LineComputationError;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
@@ -18,6 +18,6 @@ pub enum LexerError {
     MalformedAsUtf8 {
         boundary: Utf8CharBoundaryStartByte,
     },
-    #[error("fatal: internal bug: {0}")]
-    FatalLineComputationError(#[from] LineComputationError)
+    #[error("never: {0}")]
+    Never(#[from] Infallible)
 }
