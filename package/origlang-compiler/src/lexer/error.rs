@@ -7,11 +7,8 @@ use crate::chars::boundary::Utf8CharBoundaryStartByte;
 pub enum LexerError {
     #[error("Invalid suffix for integer literal. Supported suffixes are [`i8`, `i16`, `i32`, `i64`]")]
     InvalidSuffix,
-    #[error("Internal compiler error: lexer index overflow: {current:?} > {max}")]
-    OutOfRange {
-        current: Utf8CharBoundaryStartByte,
-        max: usize,
-    },
+    #[error("Internal compiler error: {0}")]
+    OutOfRange(#[from] OutOfRangeError),
     #[error("Unclosed string literal was found")]
     UnclosedStringLiteral,
     #[error("Input is malformed UTF-8")]
@@ -20,4 +17,11 @@ pub enum LexerError {
     },
     #[error("never: {0}")]
     Never(#[from] Infallible)
+}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+#[error("lexer index overflow: {current:?} > {max}")]
+pub struct OutOfRangeError {
+    pub current: Utf8CharBoundaryStartByte,
+    pub max: usize,
 }

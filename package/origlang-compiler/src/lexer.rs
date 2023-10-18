@@ -16,6 +16,7 @@ use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::char_list::ASCII_NUMERIC_CHARS;
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
+use crate::lexer::error::OutOfRangeError;
 use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 
 static KEYWORDS: [&str; 12] =
@@ -78,8 +79,10 @@ impl Lexer {
         let end_exclusive = start.as_usize() + s.len();
         if let Some(b) = self.source.get((start.as_usize())..end_exclusive) {
             if s == b {
-                self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive))?;
-                Ok(Some(s))
+                match self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive)) {
+                    Ok(_) => Ok(Some(s)),
+                    Err(OutOfRangeError { .. }) => Ok(None),
+                }
             } else {
                 Ok(None)
             }
@@ -238,11 +241,7 @@ impl Lexer {
 
                     let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
 
-                    let c = s.chars().next().ok_or(LexerError::OutOfRange {
-                        current: current_boundary,
-                        // bytes in UTF-8
-                        max: this.source.len(),
-                    })?;
+                    let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
 
 
                     Ok(c)
@@ -348,12 +347,12 @@ impl Lexer {
         Ok(Token::StringLiteral(s))
     }
 
-    fn advance_bytes(&self, advance: usize) -> Result<(), Infallible> {
+    fn advance_bytes(&self, advance: usize) -> Result<(), OutOfRangeError> {
         self.set_current_index(Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + advance))
     }
 
     #[inline(never)]
-    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), Infallible> {
+    fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), OutOfRangeError> {
         let old = self.source_bytes_nth.get().as_usize();
         let new = future_index.as_usize();
 
@@ -551,9 +550,9 @@ impl Lexer {
     }
 
     fn report_out_of_range_error(&self) -> LexerError {
-        LexerError::OutOfRange {
+        LexerError::OutOfRange(OutOfRangeError {
             current: self.source_bytes_nth.get(),
             max: self.source.len(),
-        }
+        })
     }
 }
