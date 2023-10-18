@@ -32,7 +32,7 @@ gen_cast_from!(Ordering, i64);
 
 impl<T: PartialOrd + PartialEq + CastFrom<Ordering>> OutputCompareResultAsSelf for T {
     fn compare_self(&self, other: &Self) -> Option<Self> {
-        self.partial_cmp(&other).map(T::cast_from)
+        self.partial_cmp(other).map(T::cast_from)
     }
 }
 
