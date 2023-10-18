@@ -6,9 +6,11 @@ pub mod token;
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::convert::Infallible;
+use std::fmt::{Debug, Formatter};
 
 use std::num::NonZeroUsize;
 use log::{debug, trace, warn};
+use radix_trie::Trie;
 use self::error::LexerError;
 use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
@@ -38,6 +40,7 @@ pub struct Lexer {
     source: String,
     line: Cell<NonZeroUsize>,
     column: Cell<NonZeroUsize>,
+    punctuation_trie_tree: Trie<String, Token>,
 }
 
 impl Lexer {
@@ -54,6 +57,11 @@ impl Lexer {
             source: src.to_string(),
             line: Cell::new(NonZeroUsize::new(1).unwrap()),
             column: Cell::new(NonZeroUsize::new(1).unwrap()),
+            punctuation_trie_tree: Trie::from_iter(
+                [
+                    ("\n".to_string(), Token::NewLine),
+                ],
+            )
         }
     }
 
@@ -69,7 +77,7 @@ impl Lexer {
     }
 
     /// Note
-    /// calling [`Self::advance_bytes`], [`Self::advance`], or [`Self::set_current_index`] is error-prone.
+    /// calling [`Self::advance_bytes`] or [`Self::set_current_index`] is error-prone.
     fn try_and_eat_str<'s>(&self, s: &'s str) -> Result<Option<&'s str>, Infallible> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
@@ -90,166 +98,82 @@ impl Lexer {
 
     #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
     fn next_inner(&self) -> Result<Token, LexerError> {
-        macro_rules! fold {
-            ($e:expr, $t:expr, $f:expr) => {
-                if $e.is_some() {
-                    $t
-                } else {
-                    $f
-                }
-            };
-        }
         let v =
-            if self.reached_end() {
-                Some(Token::EndOfFile)
-            } else {
-                None
-            }
-            .or_else(|| self.try_and_eat_str("\n").expect("huh?").map(|_| Token::NewLine))
-            .or_else(||
-                fold!(
-                    self.try_and_eat_str(r#"="#).expect("huh?"),
-                    {
-                        let double_eq = self.try_and_eat_str(r#"="#).expect("huh?");
-                        if double_eq.is_some() {
-                            Some(Token::PartEqEq)
-                        } else {
-                            Some(Token::SymEq)
-                        }
-                    },
-                    None
-                )
-            )
-            .or_else(|| self.try_and_eat_str(r#"+"#).expect("huh?").map(|_| Token::SymPlus))
-            .or_else(|| self.try_and_eat_str(r#"-"#).expect("huh?").map(|_| Token::SymMinus))
-            .or_else(|| self.try_and_eat_str(r#"*"#).expect("huh?").map(|_| Token::SymAsterisk))
-            .or_else(||
-                fold!(
-                    self.try_and_eat_str(r#"/"#).expect("huh?"),
-                    fold!(
-                        self.try_and_eat_str(r#"/"#).expect("huh?"),
-                        Some(self.scan_line_comment().expect("unable to parse comment")),
-                        Some(Token::SymSlash)
-                    ),
-                    None
-                )
-            )
-            .or_else(|| self.try_and_eat_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
-            .or_else(|| self.try_and_eat_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
-            .or_else(|| {
-                if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
-                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
-                        if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
-                            Some(Token::PartLessEqMore)
-                        } else {
-                            Some(Token::PartLessEq)
-                        }
-                    } else if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
-                        Some(Token::PartLessLess)
-                    } else {
-                        Some(Token::SymLess)
-                    }
-                } else {
-                    None
-                }
-            })
-            .or_else(|| {
-                if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
-                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
-                        Some(Token::PartMoreEq)
-                    } else if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
-                        Some(Token::PartMoreMore)
-                    } else {
-                        Some(Token::SymMore)
-                    }
-                } else {
-                    None
-                }
-            })
-            .or_else(|| 
-                fold!(
-                    self.try_and_eat_str(r#"!"#).expect("huh?"),
-                    fold!(
-                        self.try_and_eat_str(r#"="#).expect("huh?"),
-                        Some(Token::PartBangEq),
-                        Some(Token::SymBang)
-                    ),
-                    None
-                )
-            )
-            .or_else(|| 
-                fold!(
-                    self.try_and_eat_str(r#"""#).expect("huh?"),
-                    Some(self.scan_string_literal().expect("unable to parse string literal")),
-                    None
-                )
-            )
-            .or_else(|| self.scan_digits().expect("huh?"))
-            .or_else(||
-                fold!(
-                    self.try_and_eat_str(r#","#).expect("huh?"),
-                    Some(Token::SymComma),
-                    None
-                )
-            )
-            .or_else(||
-                fold!(
-                    self.try_and_eat_str(r#":"#).expect("huh?"),
-                    Some(Token::SymColon),
-                    None
-                )
-            )
-            .or_else(|| {
-                self.scan_identifier()
-                    .ok()
-                    .flatten()
-                    .map(|scanned| {
-                        let is_keyword = KEYWORDS.contains(&scanned.as_name());
-                        if is_keyword {
-                            match scanned.as_name() {
-                                "var" => Token::VarKeyword,
-                                "true" => Token::KeywordTrue,
-                                "false" => Token::KeywordFalse,
-                                "if" => Token::KeywordIf,
-                                "then" => Token::KeywordThen,
-                                "else" => Token::KeywordElse,
-                                "print" => Token::KeywordPrint,
-                                "block" => Token::KeywordBlock,
-                                "end" => Token::KeywordEnd,
-                                "exit" => Token::KeywordExit,
-                                "type" => Token::KeywordType,
-                                "_" => Token::SymUnderscore,
-                                other => Token::Reserved {
-                                    matched: other.to_string(),
+            self.reached_end().then(|| Token::EndOfFile)
+                .or_else(|| self.try_and_eat_str("\n").expect("huh?").map(|_| Token::NewLine))
+                .or_else(|| self.try_and_eat_str("==").expect("huh?").map(|_| Token::PartEqEq))
+                .or_else(|| self.try_and_eat_str("=").expect("huh?").map(|_| Token::SymEq))
+                .or_else(|| self.try_and_eat_str(r#"+"#).expect("huh?").map(|_| Token::SymPlus))
+                .or_else(|| self.try_and_eat_str(r#"-"#).expect("huh?").map(|_| Token::SymMinus))
+                .or_else(|| self.try_and_eat_str(r#"*"#).expect("huh?").map(|_| Token::SymAsterisk))
+                .or_else(|| self.try_and_eat_str("//").expect("huh?").map(|_| self.scan_line_comment().expect("unable to parse comment")))
+                .or_else(|| self.try_and_eat_str("/").expect("huh?").map(|_| Token::SymSlash))
+                .or_else(|| self.try_and_eat_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
+                .or_else(|| self.try_and_eat_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
+                .or_else(|| self.try_and_eat_str("<=>").expect("huh?").map(|_| Token::PartLessEqMore))
+                .or_else(|| self.try_and_eat_str("<=").expect("huh?").map(|_| Token::PartLessEq))
+                .or_else(|| self.try_and_eat_str("<<").expect("huh?").map(|_| Token::PartLessLess))
+                .or_else(|| self.try_and_eat_str("<").expect("huh?").map(|_| Token::SymLess))
+                .or_else(|| self.try_and_eat_str(">=").expect("huh?").map(|_| Token::PartMoreEq))
+                .or_else(|| self.try_and_eat_str(">>").expect("huh?").map(|_| Token::PartMoreMore))
+                .or_else(|| self.try_and_eat_str(">").expect("huh?").map(|_| Token::SymMore))
+                .or_else(|| self.try_and_eat_str("!=").expect("huh?").map(|_| Token::PartBangEq))
+                .or_else(|| self.try_and_eat_str("!").expect("huh?").map(|_| Token::SymBang))
+                .or_else(|| self.try_and_eat_str(",").expect("huh?").map(|_| Token::SymComma))
+                .or_else(|| self.try_and_eat_str(":").expect("huh?").map(|_| Token::SymColon))
+                .or_else(|| self.try_and_eat_str("\"").expect("huh?").map(|_| self.scan_string_literal().expect("unable to parse string literal")))
+                .or_else(|| self.scan_digits().expect("huh?"))
+                .or_else(|| {
+                    self.scan_identifier()
+                        .ok()
+                        .flatten()
+                        .map(|scanned| {
+                            let is_keyword = KEYWORDS.contains(&scanned.as_name());
+                            if is_keyword {
+                                match scanned.as_name() {
+                                    "var" => Token::VarKeyword,
+                                    "true" => Token::KeywordTrue,
+                                    "false" => Token::KeywordFalse,
+                                    "if" => Token::KeywordIf,
+                                    "then" => Token::KeywordThen,
+                                    "else" => Token::KeywordElse,
+                                    "print" => Token::KeywordPrint,
+                                    "block" => Token::KeywordBlock,
+                                    "end" => Token::KeywordEnd,
+                                    "exit" => Token::KeywordExit,
+                                    "type" => Token::KeywordType,
+                                    "_" => Token::SymUnderscore,
+                                    other => Token::Reserved {
+                                        matched: other.to_string(),
+                                    }
                                 }
+                            } else {
+                                Token::Identifier { inner: scanned }
                             }
-                        } else {
-                            Token::Identifier { inner: scanned }
-                        }
-                    })
-            })
-            // dont eager evaluate
-            .unwrap_or_else(|| {
-                fn current_char(this: &Lexer) -> Result<char, LexerError> {
-                    let current_boundary = this.source_bytes_nth.get();
-                    let index = current_boundary.as_usize();
-                    let stride = this.current_char_stride()?;
+                        })
+                })
+                // dont eager evaluate
+                .unwrap_or_else(|| {
+                    fn current_char(this: &Lexer) -> Result<char, LexerError> {
+                        let current_boundary = this.source_bytes_nth.get();
+                        let index = current_boundary.as_usize();
+                        let stride = this.current_char_stride()?;
 
 
-                    let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
+                        let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
 
-                    let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
+                        let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
 
 
-                    Ok(c)
-                }
-                
-                Token::UnexpectedChar {
-                    // TODO: this is cold path, so may convert boundary to char_nth.
-                    index: self.source_bytes_nth.get(),
-                    char: current_char(self).expect("unexpected_char"),
-                }
-            });
+                        Ok(c)
+                    }
+
+                    Token::UnexpectedChar {
+                        // TODO: this is cold path, so may convert boundary to char_nth.
+                        index: self.source_bytes_nth.get(),
+                        char: current_char(self).expect("unexpected_char"),
+                    }
+                });
         Ok(v)
     }
 
