@@ -14,7 +14,6 @@ use log::{debug, trace, warn};
 use self::error::LexerError;
 use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
-use crate::char_list::ASCII_NUMERIC_CHARS;
 use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::lexer::error::OutOfRangeError;
 use crate::lexer::token::{TemporalLexerUnwindToken, Token};
