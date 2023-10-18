@@ -32,7 +32,7 @@ gen_cast_from!(Ordering, i64);
 
 impl<T: PartialOrd + PartialEq + CastFrom<Ordering>> OutputCompareResultAsSelf for T {
     fn compare_self(&self, other: &Self) -> Option<Self> {
-        self.partial_cmp(&other).map(T::cast_from)
+        self.partial_cmp(other).map(T::cast_from)
     }
 }
 
@@ -89,7 +89,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
         }).collect()
     }
 
-    #[allow(clippy::cast_lossless)]
+    #[allow(clippy::cast_lossless, clippy::too_many_lines)]
     #[deny(clippy::as_underscore)]
     #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
@@ -206,6 +206,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
         }
     }
 
+    #[allow(clippy::redundant_closure_call)]
     fn fold_compare_into_bool_literal(lhs: &TypedIntLiteral, rhs: &TypedIntLiteral, compare: BinaryOperatorKind) -> TypedExpression {
         // [T, O] =>> (T, T) => O
         macro_rules! poly_input_lambda {

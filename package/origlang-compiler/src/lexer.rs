@@ -88,7 +88,7 @@ impl Lexer {
         }
     }
 
-    #[allow(clippy::too_many_lines, clippy::unnecessary_wraps)]
+    #[allow(clippy::unnecessary_wraps)]
     fn next_inner(&self) -> Result<Token, LexerError> {
         macro_rules! fold {
             ($e:expr, $t:expr, $f:expr) => {
