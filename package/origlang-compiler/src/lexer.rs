@@ -8,8 +8,6 @@ use std::cell::Cell;
 use std::convert::Infallible;
 
 use std::num::NonZeroUsize;
-use std::ops::ControlFlow;
-use std::panic::RefUnwindSafe;
 use log::{debug, trace, warn};
 use self::error::LexerError;
 use origlang_ast::{Comment, Identifier};
