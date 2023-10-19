@@ -13,4 +13,4 @@ origlang-compiler = { version = "0.1.0", path = "../origlang-compiler" }
 origlang-ir = { version = "0.1.0", path = "../origlang-ir" }
 origlang-ir-optimizer = { version = "0.1.0", path = "../origlang-ir-optimizer" }
 origlang-runtime = { version = "0.1.0", path = "../origlang-runtime" }
-thiserror = "1.0.49"
+thiserror = "1.0.50"
