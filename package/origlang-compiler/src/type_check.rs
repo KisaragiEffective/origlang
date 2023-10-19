@@ -25,7 +25,7 @@ impl TryIntoTypeCheckedForm for Expression {
     type Success = TypedExpression;
     type Err = TypeCheckError;
 
-    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines, clippy::cast_possible_truncation)]
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::IntLiteral { value, suffix } => {
@@ -380,10 +380,10 @@ fn desugar(
     }
 }
 
-fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annotation: Option<TypeSignature>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
+fn extract_pattern(expr: TypedExpression, pattern: &AtomicPattern, type_annotation: Option<TypeSignature>, checker: &TypeChecker) -> Result<Vec<TypedStatement>, TypeCheckError> {
     let Some(type_name) = type_annotation else {
         // no annotations, just set its type (type-inference) from the expr
-        return handle_atomic_pattern(checked, pattern, checker)
+        return handle_atomic_pattern(expr, pattern, checker)
     };
 
     let Ok(dest) = checker.lower_type_signature_into_type(&type_name) else {
@@ -392,19 +392,19 @@ fn extract_pattern(checked: TypedExpression, pattern: &AtomicPattern, type_annot
         })
     };
 
-    match dest.is_assignable(&checked.actual_type()) {
+    match dest.is_assignable(&expr.actual_type()) {
         AssignableQueryAnswer::Yes => {
-            handle_atomic_pattern(checked, pattern, checker)
+            handle_atomic_pattern(expr, pattern, checker)
         },
         AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly => {
             Err(TypeCheckError::UnassignableType {
-                from: checked.actual_type(),
+                from: expr.actual_type(),
                 to: dest,
             })
         }
         AssignableQueryAnswer::No => {
             Err(TypeCheckError::UnassignableType {
-                from: checked.actual_type(),
+                from: expr.actual_type(),
                 to: dest,
             })
         }

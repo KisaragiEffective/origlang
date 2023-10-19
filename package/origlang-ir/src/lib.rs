@@ -34,15 +34,8 @@ impl IntoVerbatimSequencedIR for TypedStatement {
                     IR0::Normal(IR1::Output(expression))
                 ]
             }
-            Self::VariableDeclaration { identifier, expression } => {
-                vec![
-                    IR0::Normal(IR1::UpdateVariable {
-                        ident: identifier,
-                        value: expression,
-                    })
-                ]
-            }
-            Self::VariableAssignment { identifier, expression } => {
+            Self::VariableDeclaration { identifier, expression }
+            | Self::VariableAssignment { identifier, expression } => {
                 vec![
                     IR0::Normal(IR1::UpdateVariable {
                         ident: identifier,

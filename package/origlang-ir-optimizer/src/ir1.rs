@@ -249,6 +249,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
 pub struct FoldIfWithConstantCondition(pub Vec<IR1>);
 
 impl FoldIfWithConstantCondition {
+    #[must_use = "return value is optimized IR, dropping it will waste it"]
     pub fn optimize(self) -> Vec<IR1> {
         self.0.into_iter().map(|x| {
             match x {
@@ -286,6 +287,7 @@ impl FoldIfWithConstantCondition {
 pub struct InlineSimpleBlock(pub Vec<IR1>);
 
 impl InlineSimpleBlock {
+    #[must_use = "return value is optimized IR, dropping it will waste it"]
     pub fn optimize(self) -> Vec<IR1> {
         self.0.into_iter().map(|x| match x {
             IR1::Output(x) => IR1::Output(Self::walk_expression(x)),

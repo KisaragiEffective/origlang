@@ -21,6 +21,7 @@ pub enum LexerError {
 
 #[derive(Debug, Error, Eq, PartialEq)]
 #[error("lexer index overflow: {current:?} > {max}")]
+#[allow(clippy::module_name_repetitions)]
 pub struct OutOfRangeError {
     pub current: Utf8CharBoundaryStartByte,
     pub max: usize,

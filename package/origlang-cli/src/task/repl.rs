@@ -28,28 +28,6 @@ impl ariadne::Cache<()> for Dummy {
 pub struct Repl;
 
 impl Repl {
-    fn type_box_to_final_evaluated_form(tb: &TypeBox) -> String {
-        match tb {
-            TypeBox::Int8(i) => i.to_string(),
-            TypeBox::Int16(i) => i.to_string(),
-            TypeBox::Int32(i) => i.to_string(),
-            TypeBox::Int64(i) | TypeBox::NonCoercedInteger(i) => i.to_string(),
-            TypeBox::Boolean(b) => b.to_string(),
-            TypeBox::String(s) => format!(r#""{s}""#),
-            TypeBox::Unit => "()".to_string(),
-            TypeBox::Tuple(tp) => {
-                let elements = tp.boxes.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
-                format!("({elements})")
-            }
-            TypeBox::Record(r) => {
-                let elements = r.values.iter().map(Self::type_box_to_final_evaluated_form).collect::<Vec<_>>().join(", ");
-                let identifier = r.name.clone();
-
-                format!("{identifier} {{{elements}}}")
-            }
-        }
-    }
-
     fn naive_lower(tra: TypedRootAst) -> Vec<IR2> {
         let ir = tra.into_ir();
         let trans = TheTranspiler::new(&NoOptimization);

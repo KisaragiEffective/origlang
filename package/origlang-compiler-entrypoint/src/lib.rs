@@ -32,6 +32,7 @@ impl TheCompiler {
         }
     }
 
+    #[must_use]
     pub fn scanners(mut self, modify: impl FnOnce(&mut ScannerRegistry)) -> Self {
         modify(&mut self.scanner);
 
@@ -46,6 +47,7 @@ impl TheCompiler {
         self
     }
 
+    #[must_use]
     pub fn optimization_preset(mut self, modify: impl FnOnce(&mut OptimizationPresetCollection)) -> Self {
         modify(&mut self.optimization_preset);
 

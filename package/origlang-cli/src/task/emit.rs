@@ -3,7 +3,7 @@ use origlang_compiler::lexer::Lexer;
 use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
-use origlang_ir::{IR1, IR2};
+use origlang_ir::{IR1, IR2, IntoVerbatimSequencedIR};
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
 use crate::args::{EmitPhase, OptimizeLevel, ParseSource};
@@ -57,15 +57,14 @@ impl Task for UnstableEmit {
         }
 
         let checker = TypeChecker::new();
-        let checked = checker.check(root)?;
+        let expr = checker.check(root)?;
 
         if self.phase == EmitPhase::TypedAst {
-            println!("{checked:#?}");
+            println!("{expr:#?}");
             return Ok(())
         }
 
-        use origlang_ir::IntoVerbatimSequencedIR;
-        let ir_sequence = checked.into_ir();
+        let ir_sequence = expr.into_ir();
 
         let optimizer = match optimize_level {
             OptimizeLevel::None => &NoOptimization as &dyn EachStep,

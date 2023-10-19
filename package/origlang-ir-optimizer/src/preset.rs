@@ -6,6 +6,7 @@ pub trait OptimizationPreset<IR> {
     ///
     /// # Panics
     /// しない。
+    #[must_use = "return value is optimized IR, dropping it will waste it"]
     fn optimize(&self, seq: Vec<IR>) -> Vec<IR>;
 }
 
@@ -13,7 +14,9 @@ pub trait OptimizationPreset<IR> {
 pub struct NoOptimization;
 
 impl OptimizationPreset<IR0> for NoOptimization {
+    #[allow(clippy::redundant_closure_for_method_calls)]
     fn optimize(&self, seq: Vec<IR0>) -> Vec<IR0> {
+        #[allow(clippy::wildcard_imports)]
         use crate::ir0::*;
 
         seq
@@ -40,7 +43,9 @@ impl OptimizationPreset<IR2> for NoOptimization {
 pub struct SimpleOptimization;
 
 impl OptimizationPreset<IR0> for SimpleOptimization {
+    #[allow(clippy::redundant_closure_for_method_calls)]
     fn optimize(&self, seq: Vec<IR0>) -> Vec<IR0> {
+        #[allow(clippy::wildcard_imports)]
         use crate::ir0::*;
 
         seq
@@ -49,7 +54,9 @@ impl OptimizationPreset<IR0> for SimpleOptimization {
 }
 
 impl OptimizationPreset<IR1> for SimpleOptimization {
+    #[allow(clippy::redundant_closure_for_method_calls)]
     fn optimize(&self, seq: Vec<IR1>) -> Vec<IR1> {
+        #[allow(clippy::wildcard_imports)]
         use crate::ir1::*;
 
         seq

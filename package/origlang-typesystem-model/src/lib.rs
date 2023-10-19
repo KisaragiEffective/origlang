@@ -96,7 +96,7 @@ impl Type {
         }
     }
 
-    #[must_use] pub fn as_tuple(&self) -> Option<&DisplayTupleType> {
+    #[must_use] pub const fn as_tuple(&self) -> Option<&DisplayTupleType> {
         if let Self::Tuple(x) = self {
             Some(x)
         } else {
@@ -183,9 +183,7 @@ impl TypedExpression {
             Self::StringLiteral(_) => Type::String,
             Self::UnitLiteral => Type::Unit,
             Self::Variable { tp, .. } => tp.clone(),
-            Self::BinaryOperator { return_type, .. } => return_type.clone(),
-            Self::If { return_type, .. } => return_type.clone(),
-            Self::Block { return_type, .. } => return_type.clone(),
+            Self::BinaryOperator { return_type, .. } | Self::If { return_type, .. } | Self::Block { return_type, .. } => return_type.clone(),
             Self::Tuple { expressions } => Type::tuple(expressions.iter().map(Self::actual_type).collect()),
             Self::ExtractTuple { expr, index } => {
                 expr.actual_type().as_tuple().map(|y| y.0[*index].clone()).expect("the underlying expression must be tuple and index must be within its bound")
