@@ -217,3 +217,19 @@ fn crlf_negative() {
         char: '\r',
     });
 }
+
+#[test]
+fn off_by_one_range_regression() {
+    const S: &str = "9";
+    let lexer = Lexer::create(S);
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Digits {
+            sequence: "9".to_string(),
+            suffix: None,
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(1).unwrap(),
+        }
+    })
+}
