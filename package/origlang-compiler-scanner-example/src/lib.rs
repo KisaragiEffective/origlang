@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;

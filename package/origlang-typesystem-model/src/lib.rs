@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::fmt::{Display, Formatter};
 use derive_more::Display;
 use origlang_ast::after_parse::BinaryOperatorKind;
