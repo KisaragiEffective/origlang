@@ -93,6 +93,12 @@ impl TheCompiler {
     }
 }
 
+impl Default for TheCompiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Error)]
 pub enum PartialCompilation {
     #[error("syntax error: {0}")]
