@@ -300,7 +300,7 @@ impl Lexer<'_> {
             let r = self.byte_skip_n(plus);
 
             if let Ok(b) = r {
-                if (b'0'..b'9').contains(&b) {
+                if (b'0'..=b'9').contains(&b) {
                     plus += 1;
                 } else {
                     break
