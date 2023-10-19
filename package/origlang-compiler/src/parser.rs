@@ -206,7 +206,7 @@ impl Parser<'_> {
                 if let Token::Identifier { inner: aliased } = aliased.data {
                     let except_eq = self.lexer.next();
 
-                    if let Token::SymEq = except_eq.data {
+                    if except_eq.data == Token::SymEq {
 
                         let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
                             return Err(SimpleErrorWithPos {
@@ -729,7 +729,7 @@ impl Parser<'_> {
                     }
                 })
             }
-            other_token => return Err(SimpleErrorWithPos {
+            other_token => Err(SimpleErrorWithPos {
                 kind: ParserError::UnexpectedToken {
                     pat: TokenKind::StartOfTypeSignature,
                     unmatch: other_token,

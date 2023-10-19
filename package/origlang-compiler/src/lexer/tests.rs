@@ -15,82 +15,82 @@ fn test(str_lit: &str) {
 
 #[test]
 fn parse_string_literal_ascii() {
-    test("123456")
+    test("123456");
 }
 
 #[test]
 fn parse_string_literal_empty() {
-    test("")
+    test("");
 }
 
 #[test]
 fn parse_string_literal_two_bytes() {
-    test("\u{80}")
+    test("\u{80}");
 }
 
 #[test]
 fn parse_string_literal_three_bytes() {
-    test("\u{800}")
+    test("\u{800}");
 }
 
 #[test]
 fn parse_string_literal_mixed_1_2() {
-    test("1\u{80}")
+    test("1\u{80}");
 }
 
 #[test]
 fn parse_string_literal_mixed_1_3() {
-    test("1あ")
+    test("1あ");
 }
 
 #[test]
 fn parse_string_literal_mixed_1_4() {
-    test("1\u{10000}")
+    test("1\u{10000}");
 }
 
 #[test]
 fn parse_string_literal_mixed_2_1() {
-    test("\u{80}1")
+    test("\u{80}1");
 }
 
 #[test]
 fn parse_string_literal_mixed_2_3() {
-    test("\u{80}あ")
+    test("\u{80}あ");
 }
 
 #[test]
 fn parse_string_literal_mixed_2_4() {
-    test("\u{80}\u{10000}")
+    test("\u{80}\u{10000}");
 }
 
 #[test]
 fn parse_string_literal_mixed_3_1() {
-    test("あ1")
+    test("あ1");
 }
 
 #[test]
 fn parse_string_literal_mixed_3_2() {
-    test("あ\u{80}")
+    test("あ\u{80}");
 }
 
 #[test]
 fn parse_string_literal_mixed_3_4() {
-    test("あ\u{10000}")
+    test("あ\u{10000}");
 }
 
 #[test]
 fn parse_string_literal_mixed_4_1() {
-    test("\u{10000}1")
+    test("\u{10000}1");
 }
 
 #[test]
 fn parse_string_literal_mixed_4_2() {
-    test("\u{10000}\u{80}")
+    test("\u{10000}\u{80}");
 }
 
 #[test]
 fn parse_string_literal_mixed_4_3() {
-    test("\u{10000}あ")
+    test("\u{10000}あ");
 }
 
 use std::num::NonZeroUsize;
@@ -231,5 +231,5 @@ fn off_by_one_range_regression() {
             line: NonZeroUsize::new(1).unwrap(),
             column: NonZeroUsize::new(1).unwrap(),
         }
-    })
+    });
 }

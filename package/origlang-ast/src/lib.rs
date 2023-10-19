@@ -23,9 +23,9 @@ pub enum AtomicPattern {
 impl Display for AtomicPattern {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AtomicPattern::Discard => f.write_str("_"),
-            AtomicPattern::Bind(i) => f.write_str(i.as_name()),
-            AtomicPattern::Tuple(v) => {
+            Self::Discard => f.write_str("_"),
+            Self::Bind(i) => f.write_str(i.as_name()),
+            Self::Tuple(v) => {
                 f.write_str("(")?;
                 for i in v {
                     Display::fmt(i, f)?;
@@ -112,8 +112,8 @@ impl From<Identifier> for TypeSignature {
 impl Display for TypeSignature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeSignature::Simple(x) => <Identifier as Display>::fmt(x, f),
-            TypeSignature::Tuple(v) => {
+            Self::Simple(x) => <Identifier as Display>::fmt(x, f),
+            Self::Tuple(v) => {
                 for x in v {
                     <Self as Display>::fmt(x, f)?;
                 }

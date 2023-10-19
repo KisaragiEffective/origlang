@@ -14,7 +14,7 @@ impl Utf8CharBoundaryStartByte {
         self.0
     }
 
-    pub const fn stride(self, stride: Utf8CharStride) -> Utf8CharBoundaryStartByte {
+    pub const fn stride(self, stride: Utf8CharStride) -> Self {
         Self::new(self.as_usize() + stride.as_usize())
     }
 }

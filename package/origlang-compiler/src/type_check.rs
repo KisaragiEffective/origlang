@@ -164,7 +164,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                 lhs: Box::new(lhs_expr),
                                 rhs: Box::new(rhs_expr),
                                 operator,
-                                return_type: lhs_type.clone()
+                                return_type: lhs_type
                             })
                         } else {
                             Err(TypeCheckError::UnableToUnifyEqualityQuery {
@@ -282,7 +282,7 @@ fn desugar(
                         Err(TypeCheckError::UnsatisfiablePattern {
                             pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
                             expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
-                            expr_type: Type::tuple(tuple_element_types.clone()),
+                            expr_type: Type::tuple(tuple_element_types),
                         })
                     }
                 }
@@ -296,12 +296,12 @@ fn desugar(
                 }
             }
         }
-        TypedExpression::Block { inner, final_expression, return_type } => {
+        TypedExpression::Block { inner: _, final_expression, return_type: _ } => {
             // TODO: how can we handle inner statement?
             desugar(outer_destruction, *final_expression, checker)
         }
         TypedExpression::Tuple { expressions } => {
-            let m = outer_destruction.iter().zip(expressions).enumerate().map(|(i, (element_binding, expression))| {
+            let m = outer_destruction.iter().zip(expressions).enumerate().map(|(_i, (element_binding, expression))| {
                 handle_atomic_pattern(expression, element_binding, checker)
             }).collect::<Vec<_>>();
 
@@ -353,12 +353,12 @@ fn desugar(
                         ident: new_ident.clone(), tp: tp.clone()
                     };
 
-                    checker.ctx.borrow_mut().add_known_variable(new_ident.clone(), tp.clone());
+                    checker.ctx.borrow_mut().add_known_variable(new_ident.clone(), tp);
                     let v = desugar(outer_destruction, v, checker)?;
                     let mut r = VecDeque::from(v);
 
                     r.push_front(TypedStatement::VariableDeclaration {
-                        identifier: new_ident.clone(),
+                        identifier: new_ident,
                         expression: TypedExpression::ExtractTuple {
                             expr: Box::new(expr),
                             index
@@ -454,7 +454,7 @@ impl TryIntoTypeCheckedForm for Statement {
             }]),
             Self::Exit => Ok(vec![TypedStatement::Exit]),
             Self::TypeAliasDeclaration { new_name, replace_with } => {
-                checker.ctx.borrow_mut().known_aliases.insert(new_name, checker.lower_type_signature_into_type(&replace_with).map_err(|_| TypeCheckError::UnknownType {
+                checker.ctx.borrow_mut().known_aliases.insert(new_name, checker.lower_type_signature_into_type(&replace_with).map_err(|()| TypeCheckError::UnknownType {
                     name: replace_with,
                 })?);
 

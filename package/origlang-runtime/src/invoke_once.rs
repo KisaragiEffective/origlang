@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::mem::{MaybeUninit};
-use std::ops::DerefMut;
+
 
 #[derive(Debug)]
 pub struct InvokeOnce<T> {
@@ -22,7 +22,7 @@ impl<T> InvokeOnce<T> {
         if self.owned.get() {
             self.owned.set(false);
             let mut ret: MaybeUninit<T> = MaybeUninit::uninit();
-            std::mem::swap(self.inner.borrow_mut().deref_mut(), &mut ret);
+            std::mem::swap(&mut *self.inner.borrow_mut(), &mut ret);
 
             // SAFETY: The only way to initialize Self type is calling `new` constructor.
             //         It moves into already-initialized value to us.

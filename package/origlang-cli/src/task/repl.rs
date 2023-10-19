@@ -54,9 +54,9 @@ impl Repl {
         let ir = tra.into_ir();
         let trans = TheTranspiler::new(&NoOptimization);
         let ir = trans.lower(ir);
-        let ir = trans.lower(ir);
+        
 
-        ir
+        trans.lower(ir)
     }
 }
 
