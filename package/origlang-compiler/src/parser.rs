@@ -128,18 +128,20 @@ impl TokenKind {
     }
 }
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<'src> {
+    lexer: Lexer<'src>,
 }
 
-impl Parser {
+impl<'src> Parser<'src> {
     #[must_use = "Parser do nothing unless calling parsing function"]
-    pub fn create(source: &str) -> Self {
+    pub fn create(source: &'src str) -> Self {
         Self {
             lexer: Lexer::create(source)
         }
     }
+}
 
+impl Parser<'_> {
     /// プログラムが文の列とみなしてパースを試みる。
     /// 事前条件: プログラム全体が任意個の文として分解できる
     /// # Errors

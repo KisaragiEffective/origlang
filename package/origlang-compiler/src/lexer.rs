@@ -33,30 +33,26 @@ impl<T> AssociateWithPos for T {
 }
 
 #[derive(Debug)]
-pub struct Lexer {
+pub struct Lexer<'src> {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
-    source: String,
+    source: &'src str,
     line: Cell<NonZeroUsize>,
     column: Cell<NonZeroUsize>,
 }
 
-impl Lexer {
+impl<'src> Lexer<'src> {
     #[must_use = "Lexer do nothing unless calling parsing function"]
-    pub fn create(source: &str) -> Self {
-        let src: Cow<'_, str> = if cfg!(windows) {
-            source.replace("\r\n", "\n").into()
-        } else {
-            Cow::Borrowed(source)
-        };
-
+    pub fn create(source: &'src str) -> Self {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
-            source: src.to_string(),
+            source,
             line: Cell::new(NonZeroUsize::new(1).unwrap()),
             column: Cell::new(NonZeroUsize::new(1).unwrap()),
         }
     }
+}
 
+impl Lexer<'_> {
     fn drain_space(&self) {
         trace!("drain_space: start vvvvvvvvvvvvvvvvvvv");
         while !self.reached_end() {
@@ -105,6 +101,7 @@ impl Lexer {
             } else {
                 None
             }
+            .or_else(|| self.try_and_eat_str("\r\n").expect("huh?").map(|_| Token::NewLine))
             .or_else(|| self.try_and_eat_str("\n").expect("huh?").map(|_| Token::NewLine))
             .or_else(||
                 fold!(
