@@ -3,7 +3,7 @@ pub(crate) mod error;
 mod tests;
 pub mod token;
 
-use std::borrow::Cow;
+
 use std::cell::Cell;
 use std::convert::Infallible;
 
@@ -73,7 +73,7 @@ impl Lexer<'_> {
         if let Some(b) = self.source.get((start.as_usize())..end_exclusive) {
             if s == b {
                 match self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive)) {
-                    Ok(_) => Ok(Some(s)),
+                    Ok(()) => Ok(Some(s)),
                     Err(OutOfRangeError { .. }) => Ok(None),
                 }
             } else {
@@ -134,14 +134,14 @@ impl Lexer<'_> {
             .or_else(|| self.try_and_eat_str(r#"("#).expect("huh?").map(|_| Token::SymLeftPar))
             .or_else(|| self.try_and_eat_str(r#")"#).expect("huh?").map(|_| Token::SymRightPar))
             .or_else(|| {
-                if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
-                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
-                        if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
+                if self.try_and_eat_str(r#"<"#).expect("huh?").is_some() {
+                    if self.try_and_eat_str(r#"="#).expect("huh?").is_some() {
+                        if self.try_and_eat_str(r#">"#).expect("huh?").is_some() {
                             Some(Token::PartLessEqMore)
                         } else {
                             Some(Token::PartLessEq)
                         }
-                    } else if let Some(_) = self.try_and_eat_str(r#"<"#).expect("huh?") {
+                    } else if self.try_and_eat_str(r#"<"#).expect("huh?").is_some() {
                         Some(Token::PartLessLess)
                     } else {
                         Some(Token::SymLess)
@@ -151,10 +151,10 @@ impl Lexer<'_> {
                 }
             })
             .or_else(|| {
-                if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
-                    if let Some(_) = self.try_and_eat_str(r#"="#).expect("huh?") {
+                if self.try_and_eat_str(r#">"#).expect("huh?").is_some() {
+                    if self.try_and_eat_str(r#"="#).expect("huh?").is_some() {
                         Some(Token::PartMoreEq)
-                    } else if let Some(_) = self.try_and_eat_str(r#">"#).expect("huh?") {
+                    } else if self.try_and_eat_str(r#">"#).expect("huh?").is_some() {
                         Some(Token::PartMoreMore)
                     } else {
                         Some(Token::SymMore)
@@ -300,7 +300,7 @@ impl Lexer<'_> {
             let r = self.byte_skip_n(plus);
 
             if let Ok(b) = r {
-                if (b'0'..=b'9').contains(&b) {
+                if b.is_ascii_digit() {
                     plus += 1;
                 } else {
                     break
@@ -366,13 +366,13 @@ impl Lexer<'_> {
                 new - (old + old_relative)
             } else {
                 let mut c = self.column.get().get();
-                c += (new - old);
+                c += new - old;
 
                 c
             };
 
             self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
-            self.column.set(NonZeroUsize::new(new_col).expect("overflow"))
+            self.column.set(NonZeroUsize::new(new_col).expect("overflow"));
         } else {
             // back
             let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
@@ -400,7 +400,7 @@ impl Lexer<'_> {
             };
 
             self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
-            self.column.set(NonZeroUsize::new(new_col).expect("overflow"))
+            self.column.set(NonZeroUsize::new(new_col).expect("overflow"));
         }
 
         debug!("index: requested = {future_index:?}");
@@ -411,7 +411,7 @@ impl Lexer<'_> {
 
     fn scan_line_comment(&self) -> Result<Token, LexerError> {
         let start = self.source_bytes_nth.get().as_usize();
-        let rel_pos = self.source[start..].find("\n").unwrap_or(self.source.len());
+        let rel_pos = self.source[start..].find('\n').unwrap_or(self.source.len());
         self.advance_bytes(rel_pos)?;
 
         let content = self.source[start..(start + rel_pos)].to_string();
@@ -536,11 +536,11 @@ impl Lexer<'_> {
     }
 
     fn current_byte(&self) -> Result<u8, LexerError> {
-        self.source.bytes().nth(self.source_bytes_nth.get().as_usize()).ok_or_else(|| self.report_out_of_range_error())
+        self.source.as_bytes().get(self.source_bytes_nth.get().as_usize()).copied().ok_or_else(|| self.report_out_of_range_error())
     }
 
     fn byte_skip_n(&self, skip: usize) -> Result<u8, LexerError> {
-        self.source.bytes().nth(self.source_bytes_nth.get().as_usize() + skip).ok_or_else(|| self.report_out_of_range_error())
+        self.source.as_bytes().get(self.source_bytes_nth.get().as_usize() + skip).copied().ok_or_else(|| self.report_out_of_range_error())
     }
 
     fn report_out_of_range_error(&self) -> LexerError {

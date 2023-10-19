@@ -2,7 +2,7 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 use std::any::type_name;
-use std::ops::Deref;
+
 use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
@@ -24,7 +24,7 @@ pub struct TheCompiler {
 
 impl TheCompiler {
     /// Creates new instance without any optimization, scanner, nor diagnostic receiver.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             scanner: ScannerRegistry::default(),
             optimization_preset: OptimizationPresetCollection::none(),
@@ -38,7 +38,7 @@ impl TheCompiler {
         self
     }
 
-    pub fn register_diagnostic_receiver<DS: DiagnosticSink + 'static>(mut self, receiver: Box<DS>) -> Self {
+    #[must_use] pub fn register_diagnostic_receiver<DS: DiagnosticSink + 'static>(mut self, receiver: Box<DS>) -> Self {
         debug!("registered {ds}", ds = type_name::<DS>());
 
         self.diagnostic_receivers.push(receiver as _);
@@ -71,7 +71,7 @@ impl TheCompiler {
                 let diagnostics = diags.iter();
                 for diag in diagnostics {
                     for receiver in &self.diagnostic_receivers {
-                        receiver.handle_diagnostic(diag.deref())
+                        receiver.handle_diagnostic(&**diag);
                     }
                 }
             }
@@ -83,7 +83,7 @@ impl TheCompiler {
                 let diagnostics = diags.iter();
                 for diag in diagnostics {
                     for receiver in &self.diagnostic_receivers {
-                        receiver.handle_diagnostic(diag.deref())
+                        receiver.handle_diagnostic(&**diag);
                     }
                 }
             }
@@ -145,7 +145,7 @@ pub struct OptimizationPresetCollection {
 
 impl OptimizationPresetCollection {
     fn none() -> Self {
-        OptimizationPresetCollection {
+        Self {
             ir0: Box::new(NoOptimization) as Box<_>,
             ir1: Box::new(NoOptimization) as Box<_>,
             ir2: Box::new(NoOptimization) as Box<_>,

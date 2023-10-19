@@ -225,7 +225,7 @@ impl Runtime {
             }
             IR2::Exit => {
                 if let Some(x) = self.on_exit.as_ref() {
-                    x.try_get().expect("exit receiver is already called!").on_exit()
+                    x.try_get().expect("exit receiver is already called!").on_exit();
                 }
             }
             IR2::EvalAndForget { expression } => {
@@ -436,7 +436,7 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     boxes: res
                 }))
             }
-            CompiledTypedExpression::ExtractTuple { expr, index } => {
+            Self::ExtractTuple { expr, index } => {
                 let x = expr.evaluate(runtime)?;
                 match x {
                     TypeBox::Tuple(x) => {
@@ -446,7 +446,7 @@ impl CanBeEvaluated for CompiledTypedExpression {
                             indicate_type_checker_bug!(context = "tuple_destruction: out of bounds")
                         }
                     }
-                    other => indicate_type_checker_bug!(context = "must be tuple")
+                    _other => indicate_type_checker_bug!(context = "must be tuple")
                 }
             }
         }

@@ -29,12 +29,12 @@ impl IntoVerbatimSequencedIR for TypedStatement {
         let statement = self;
 
         match statement {
-            TypedStatement::Print { expression } => {
+            Self::Print { expression } => {
                 vec![
                     IR0::Normal(IR1::Output(expression))
                 ]
             }
-            TypedStatement::VariableDeclaration { identifier, expression } => {
+            Self::VariableDeclaration { identifier, expression } => {
                 vec![
                     IR0::Normal(IR1::UpdateVariable {
                         ident: identifier,
@@ -42,7 +42,7 @@ impl IntoVerbatimSequencedIR for TypedStatement {
                     })
                 ]
             }
-            TypedStatement::VariableAssignment { identifier, expression } => {
+            Self::VariableAssignment { identifier, expression } => {
                 vec![
                     IR0::Normal(IR1::UpdateVariable {
                         ident: identifier,
@@ -50,16 +50,16 @@ impl IntoVerbatimSequencedIR for TypedStatement {
                     })
                 ]
             }
-            TypedStatement::Block { inner_statements } => {
+            Self::Block { inner_statements } => {
                 let mut vec = inner_statements.into_iter()
-                    .flat_map(<TypedStatement as IntoVerbatimSequencedIR>::into_ir)
+                    .flat_map(<Self as IntoVerbatimSequencedIR>::into_ir)
                     .collect::<VecDeque<_>>();
                 vec.push_front(IR0::Normal(IR1::PushScope));
                 vec.push_back(IR0::Normal(IR1::PopScope));
                 vec.into()
             }
-            TypedStatement::Exit => vec![IR0::Exit],
-            TypedStatement::EvalAndForget { expression } => {
+            Self::Exit => vec![IR0::Exit],
+            Self::EvalAndForget { expression } => {
                 vec![IR0::Normal(IR1::EvalAndForget { expression })]
             },
         }
@@ -76,7 +76,7 @@ impl IntoVerbatimSequencedIR for TypedRootAst {
 
 impl<T: IntoVerbatimSequencedIR> IntoVerbatimSequencedIR for Vec<T> {
     fn into_ir(self) -> Vec<IR0> {
-        self.into_iter().flat_map(|x| x.into_ir()).collect()
+        self.into_iter().flat_map(IntoVerbatimSequencedIR::into_ir).collect()
     }
 }
 

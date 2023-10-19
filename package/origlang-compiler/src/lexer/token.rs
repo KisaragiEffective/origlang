@@ -8,6 +8,7 @@ pub struct TemporalLexerUnwindToken {
 }
 
 impl TemporalLexerUnwindToken {
+    #[must_use]
     pub fn new(reset_to: Utf8CharBoundaryStartByte) -> Self {
         Self {
             unwind_index: reset_to
@@ -159,12 +160,14 @@ impl Token {
         }
     }
 
+    #[must_use]
     pub const fn is_error(&self) -> bool {
-        matches!(self, Token::UnexpectedChar { .. })
+        matches!(self, Self::UnexpectedChar { .. })
     }
 
+    #[must_use]
     pub const fn is_end(&self) -> bool {
-        matches!(self, Token::EndOfFile)
+        matches!(self, Self::EndOfFile)
     }
 }
 
