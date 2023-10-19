@@ -95,6 +95,7 @@ fn parse_string_literal_mixed_4_3() {
 
 use std::num::NonZeroUsize;
 use origlang_source_span::{Pointed, SourcePosition};
+use crate::chars::boundary::Utf8CharBoundaryStartByte;
 
 #[test]
 fn token_location() {
@@ -197,4 +198,22 @@ fn digit_regression() {
     const EMPTY: &str = "";
     let lexer = Lexer::create(EMPTY);
     assert_eq!(lexer.next().data, Token::EndOfFile);
+}
+
+#[test]
+fn crlf_positive() {
+    const S: &str = "\r\n";
+    let lexer = Lexer::create(S);
+    assert_eq!(lexer.next().data, Token::NewLine);
+    assert_eq!(lexer.next().data, Token::EndOfFile);
+}
+
+#[test]
+fn crlf_negative() {
+    const S: &str = "\r";
+    let lexer = Lexer::create(S);
+    assert_eq!(lexer.next().data, Token::UnexpectedChar {
+        index: Utf8CharBoundaryStartByte::new(0),
+        char: '\r',
+    });
 }
