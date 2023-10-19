@@ -33,7 +33,7 @@ pub struct DisplayRecordType {
 }
 
 impl DisplayRecordType {
-    pub fn new(identifier: Identifier, components: Vec<Type>) -> Self {
+    #[must_use] pub fn new(identifier: Identifier, components: Vec<Type>) -> Self {
         Self {
             identifier, components
         }
@@ -78,15 +78,15 @@ pub enum Type {
 }
 
 impl Type {
-    pub const fn is_int_family(&self) -> bool {
+    #[must_use] pub const fn is_int_family(&self) -> bool {
         matches!(self, Self::GenericInteger | Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64)
     }
 
-    pub fn tuple(tuple_elements: Vec<Type>) -> Self {
+    #[must_use] pub fn tuple(tuple_elements: Vec<Self>) -> Self {
         Self::Tuple(DisplayTupleType(tuple_elements))
     }
     
-    pub fn is_assignable(&self, from: &Self) -> AssignableQueryAnswer {
+    #[must_use] pub fn is_assignable(&self, from: &Self) -> AssignableQueryAnswer {
         if self.is_int_family() && from == &Self::GenericInteger {
             AssignableQueryAnswer::PossibleIfCoerceSourceImplicitly
         } else if self == from {
@@ -96,7 +96,7 @@ impl Type {
         }
     }
 
-    pub fn as_tuple(&self) -> Option<&DisplayTupleType> {
+    #[must_use] pub const fn as_tuple(&self) -> Option<&DisplayTupleType> {
         if let Self::Tuple(x) = self {
             Some(x)
         } else {
@@ -176,25 +176,23 @@ pub enum TypedExpression {
 }
 
 impl TypedExpression {
-    pub fn actual_type(&self) -> Type {
+    #[must_use] pub fn actual_type(&self) -> Type {
         match self {
-            TypedExpression::IntLiteral(i) => i.actual_type(),
-            TypedExpression::BooleanLiteral(_) => Type::Boolean,
-            TypedExpression::StringLiteral(_) => Type::String,
-            TypedExpression::UnitLiteral => Type::Unit,
-            TypedExpression::Variable { tp, .. } => tp.clone(),
-            TypedExpression::BinaryOperator { return_type, .. } => return_type.clone(),
-            TypedExpression::If { return_type, .. } => return_type.clone(),
-            TypedExpression::Block { return_type, .. } => return_type.clone(),
-            TypedExpression::Tuple { expressions } => Type::tuple(expressions.iter().map(|x| x.actual_type()).collect()),
-            TypedExpression::ExtractTuple { expr, index } => {
+            Self::IntLiteral(i) => i.actual_type(),
+            Self::BooleanLiteral(_) => Type::Boolean,
+            Self::StringLiteral(_) => Type::String,
+            Self::UnitLiteral => Type::Unit,
+            Self::Variable { tp, .. } => tp.clone(),
+            Self::BinaryOperator { return_type, .. } | Self::If { return_type, .. } | Self::Block { return_type, .. } => return_type.clone(),
+            Self::Tuple { expressions } => Type::tuple(expressions.iter().map(Self::actual_type).collect()),
+            Self::ExtractTuple { expr, index } => {
                 expr.actual_type().as_tuple().map(|y| y.0[*index].clone()).expect("the underlying expression must be tuple and index must be within its bound")
             }
         }
     }
 
-    pub fn tuple_arity(&self) -> Option<usize> {
-        if let TypedExpression::Tuple { expressions } = self {
+    #[must_use] pub fn tuple_arity(&self) -> Option<usize> {
+        if let Self::Tuple { expressions } = self {
             Some(expressions.len())
         } else {
             None
@@ -212,13 +210,13 @@ pub enum TypedIntLiteral {
 }
 
 impl TypedIntLiteral {
-    pub const fn actual_type(&self) -> Type {
+    #[must_use] pub const fn actual_type(&self) -> Type {
         match self {
-            TypedIntLiteral::Generic(_) => Type::GenericInteger,
-            TypedIntLiteral::Bit64(_) => Type::Int64,
-            TypedIntLiteral::Bit32(_) => Type::Int32,
-            TypedIntLiteral::Bit16(_) => Type::Int16,
-            TypedIntLiteral::Bit8(_) => Type::Int8,
+            Self::Generic(_) => Type::GenericInteger,
+            Self::Bit64(_) => Type::Int64,
+            Self::Bit32(_) => Type::Int32,
+            Self::Bit16(_) => Type::Int16,
+            Self::Bit8(_) => Type::Int8,
         }
     }
 }

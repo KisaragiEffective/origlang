@@ -11,7 +11,7 @@ pub struct InvokeOnce<T> {
 }
 
 impl<T> InvokeOnce<T> {
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self {
             inner: RefCell::new(MaybeUninit::new(value)),
             owned: Cell::new(true),

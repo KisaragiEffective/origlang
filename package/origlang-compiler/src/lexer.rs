@@ -42,12 +42,18 @@ pub struct Lexer<'src> {
 
 impl<'src> Lexer<'src> {
     #[must_use = "Lexer do nothing unless calling parsing function"]
+    // NOTE: unsafe { NonZeroUsize::new_unchecked(1) } is same as NonZeroUsize::new(1).expect() in
+    //       release mode.
+    //       However, clippy::missing_panics_doc issues that the latter may panic (obviously, it's
+    //       false positive).
     pub fn create(source: &'src str) -> Self {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source,
-            line: Cell::new(NonZeroUsize::new(1).unwrap()),
-            column: Cell::new(NonZeroUsize::new(1).unwrap()),
+            // SAFETY: 1 != 0
+            line: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
+            // SAFETY: 1 != 0
+            column: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
         }
     }
 }
@@ -70,18 +76,14 @@ impl Lexer<'_> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
-        if let Some(b) = self.source.get((start.as_usize())..end_exclusive) {
-            if s == b {
-                match self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive)) {
-                    Ok(()) => Ok(Some(s)),
-                    Err(OutOfRangeError { .. }) => Ok(None),
-                }
-            } else {
-                Ok(None)
+        self.source.get((start.as_usize())..end_exclusive).map_or(Ok(None), |b| if s == b {
+            match self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive)) {
+                Ok(()) => Ok(Some(s)),
+                Err(OutOfRangeError { .. }) => Ok(None),
             }
         } else {
             Ok(None)
-        }
+        })
     }
 
     #[allow(clippy::unnecessary_wraps)]
@@ -235,6 +237,7 @@ impl Lexer<'_> {
 
                     let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
 
+                    #[allow(clippy::or_fun_call)] // latter is fine because it does not cost
                     let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
 
 
@@ -360,27 +363,30 @@ impl Lexer<'_> {
         if old < new {
             // forward
             let new_line = current_line + src[old..new].bytes().filter(|x| *x == b'\n').count();
-            let new_col = if let Some(old_relative) = src[old..new].rfind('\n') {
-                // .......................OLD.................NEW
-                //                         |<--------N------>|
-                new - (old + old_relative)
-            } else {
+            let new_col = src[old..new].rfind('\n').map_or_else(|| {
                 let mut c = self.column.get().get();
                 c += new - old;
 
                 c
-            };
+            }, |old_relative| {
+                new - (old + old_relative)
+            });
 
             self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
             self.column.set(NonZeroUsize::new(new_col).expect("overflow"));
         } else {
             // back
             let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
-            let new_col = if let Some(new_relative) = src[new..old].find('\n') {
+            let new_col = src[new..old].find('\n').map_or_else(|| {
+                let mut c = self.column.get().get();
+                c += old - new;
+
+                c
+            }, |new_relative| {
                 // .......................NEW.................OLD
                 //                         |<--------N------>|
                 let nr = new + new_relative;
-                if let Some(most_recent_nl) = src[..nr].rfind('\n') {
+                src[..nr].rfind('\n').map_or(nr, |most_recent_nl| {
                     // ..............NEW.................OLD
                     //                |<--------N------>|
                     // |<-----MRN-------------->|
@@ -389,15 +395,8 @@ impl Lexer<'_> {
                     // cost on runtime.
                     assert!(most_recent_nl < nr);
                     nr - most_recent_nl
-                } else {
-                    nr
-                }
-            } else {
-                let mut c = self.column.get().get();
-                c += old - new;
-
-                c
-            };
+                })
+            });
 
             self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
             self.column.set(NonZeroUsize::new(new_col).expect("overflow"));

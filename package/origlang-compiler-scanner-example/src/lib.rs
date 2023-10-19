@@ -79,6 +79,6 @@ mod tests {
             .register_diagnostic_receiver(Box::new(tdr))
             .compile("var foo = 1i32\n".to_string());
 
-        assert!(a.is_ok())
+        assert!(a.is_ok());
     }
 }

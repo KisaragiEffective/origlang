@@ -5,7 +5,7 @@ mod invoke_once;
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use std::fmt::{Debug, Display, Formatter, Write};
+use std::fmt::{Debug, Display, Formatter};
 use derive_more::{Display, From};
 use log::debug;
 use tap::Conv;
@@ -440,11 +440,10 @@ impl CanBeEvaluated for CompiledTypedExpression {
                 let x = expr.evaluate(runtime)?;
                 match x {
                     TypeBox::Tuple(x) => {
-                        if let Some(x) = x.boxes.get(*index) {
-                            Ok(x.clone())
-                        } else {
-                            indicate_type_checker_bug!(context = "tuple_destruction: out of bounds")
-                        }
+                        x.boxes.get(*index).map_or_else(
+                            || indicate_type_checker_bug!(context = "tuple_destruction: out of bounds"),
+                            |x| Ok(x.clone())
+                        )
                     }
                     _other => indicate_type_checker_bug!(context = "must be tuple")
                 }

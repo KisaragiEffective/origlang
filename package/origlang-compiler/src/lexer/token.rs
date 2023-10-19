@@ -8,8 +8,8 @@ pub struct TemporalLexerUnwindToken {
 }
 
 impl TemporalLexerUnwindToken {
-    #[must_use]
-    pub fn new(reset_to: Utf8CharBoundaryStartByte) -> Self {
+    #[must_use = "call Self::reset to invoke"]
+    pub const fn new(reset_to: Utf8CharBoundaryStartByte) -> Self {
         Self {
             unwind_index: reset_to
         }

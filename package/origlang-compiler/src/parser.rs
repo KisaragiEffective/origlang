@@ -692,9 +692,9 @@ impl Parser<'_> {
                         debug!("{:?}", self.lexer.peek().data);
                         if self.lexer.peek().data != Token::SymComma {
                             break
-                        } else {
-                            self.lexer.next();
                         }
+
+                        self.lexer.next();
                     }
 
                     debug!("type:tuple:accumulator = {vec:?}");
