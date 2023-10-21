@@ -2,10 +2,13 @@ use thiserror::Error;
 use origlang_compiler::parser::SimpleErrorWithPos;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_runtime::RuntimeError;
+use crate::args::ReadSourceError;
 
 #[derive(Error, Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub enum TaskExecutionError {
+    #[error("Failed to read source: {0}")]
+    Source(#[from] ReadSourceError),
     #[error("{0}")]
     Generic(#[from] SimpleErrorWithPos),
     #[error("{0}")]

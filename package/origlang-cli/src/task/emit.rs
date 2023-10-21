@@ -6,7 +6,7 @@ use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::{IR1, IR2, IntoVerbatimSequencedIR};
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
-use crate::args::{EmitPhase, OptimizeLevel, ParseSource};
+use crate::args::{EmitPhase, OptimizeLevel, ParseSource, ReadSourceError};
 use crate::error::TaskExecutionError;
 use crate::task::Task;
 
@@ -16,6 +16,8 @@ pub struct UnstableEmit {
 
 #[derive(Error, Debug)]
 pub enum EmitError {
+    #[error("source: {0}")]
+    Source(#[from] ReadSourceError),
     #[error("parser: {0}")]
     Parser(#[from] SimpleErrorWithPos),
     #[error("type check: {0}")]
@@ -27,6 +29,7 @@ impl From<EmitError> for TaskExecutionError {
         match value {
             EmitError::Parser(e) => Self::Generic(e),
             EmitError::TypeCheck(e) => Self::TypeCheck(e),
+            EmitError::Source(e) => Self::Source(e),
         }
     }
 }
@@ -36,7 +39,7 @@ impl Task for UnstableEmit {
     type Error = EmitError;
 
     fn execute(&self, (environment, optimize_level): Self::Environment) -> Result<(), Self::Error> {
-        let src = environment.source();
+        let src = environment.source()?;
         if self.phase == EmitPhase::LexerToken {
             let lexer = Lexer::create(&src);
             loop {
