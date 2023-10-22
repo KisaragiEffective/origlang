@@ -189,7 +189,7 @@ impl Parser<'_> {
                 }
             }
             Token::KeywordBlock => {
-                self.parse_block_scope()
+                self.parse_block_scope()?
             }
             Token::Comment { content } => {
                 self.lexer.next();
@@ -203,36 +203,7 @@ impl Parser<'_> {
                 self.lexer.next();
                 let aliased = self.lexer.next();
 
-                if let Token::Identifier { inner: aliased } = aliased.data {
-                    let except_eq = self.lexer.next();
-
-                    if except_eq.data == Token::SymEq {
-
-                        let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
-                            return Err(SimpleErrorWithPos {
-                                kind: ParserError::UnexpectedToken {
-                                    pat: TokenKind::StartOfTypeSignature,
-                                    unmatch: self.lexer.peek().data
-                                },
-                                position: self.lexer.peek().position
-                            })
-                        };
-
-                        Statement::TypeAliasDeclaration {
-                            new_name: aliased,
-                            replace_with,
-                        }
-
-                    } else {
-                        return Err(SimpleErrorWithPos {
-                            kind: ParserError::UnexpectedToken {
-                                pat: TokenKind::only(Token::SymEq),
-                                unmatch: except_eq.data
-                            },
-                            position: except_eq.position
-                        })
-                    }
-                } else {
+                let Token::Identifier { inner: aliased } = aliased.data else {
                     return Err(SimpleErrorWithPos {
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::Identifier,
@@ -240,6 +211,23 @@ impl Parser<'_> {
                         },
                         position: aliased.position,
                     })
+
+                };
+
+                self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+                let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
+                    return Err(SimpleErrorWithPos {
+                        kind: ParserError::UnexpectedToken {
+                            pat: TokenKind::StartOfTypeSignature,
+                            unmatch: self.lexer.peek().data
+                        },
+                        position: self.lexer.peek().position
+                    })
+                };
+
+                Statement::TypeAliasDeclaration {
+                    new_name: aliased,
+                    replace_with,
                 }
             }
             x => {
@@ -308,7 +296,7 @@ impl Parser<'_> {
                     Ok(expr_tuple)
                 } else {
                     let inner_expression = self.parse_lowest_precedence_expression()?;
-                    assert_eq!(self.lexer.next().data, Token::SymRightPar);
+                    self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
                     Ok(inner_expression)
                 }
             }
@@ -450,21 +438,21 @@ impl Parser<'_> {
             let operator_token = next_token;
             let lhs = first_term;
             let rhs = self.parse_multiplicative()?;
-            let get_operator_from_token = |token: &WithPosition<Token>| {
-                match &token.data {
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
                     Token::SymPlus => Ok(BinaryOperatorKind::Plus),
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
                     e => Err(SimpleErrorWithPos {
                         position: token.position,
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::AdditiveOps,
-                            unmatch: e.clone(),
+                            unmatch: e,
                         }
                     })
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while plus_or_minus(&operator_token.data) {
                 // SymPlus | SymMinus
@@ -472,7 +460,7 @@ impl Parser<'_> {
                 let new_rhs = self.parse_multiplicative()?;
                 // 左結合になるように詰め替える
                 // これは特に減算のときに欠かせない処理である
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -495,27 +483,27 @@ impl Parser<'_> {
             let operator_token = next_token;
             let lhs = first_term;
             let rhs = self.parse_relation_expression()?;
-            let get_operator_from_token = |token: &WithPosition<Token>| {
-                match &token.data {
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
                     Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
                     Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
                     e => Err(SimpleErrorWithPos {
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::ShiftOps,
-                            unmatch: e.clone(),
+                            unmatch: e,
                         },
                         position: token.position,
                     }),
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token.data) {
                 self.lexer.next();
                 let new_rhs = self.parse_relation_expression()?;
                 // 左結合になるように詰め替える
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
 
@@ -539,8 +527,8 @@ impl Parser<'_> {
             let operator_token = next_token;
             let lhs = first_term;
             let rhs = self.parse_shift_expression()?;
-            let get_operator_from_token = |token: &WithPosition<Token>| {
-                match &token.data {
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
                     Token::PartLessEq => Ok(BinaryOperatorKind::LessEqual),
                     Token::PartMoreEq => Ok(BinaryOperatorKind::MoreEqual),
                     Token::SymLess => Ok(BinaryOperatorKind::Less),
@@ -550,19 +538,19 @@ impl Parser<'_> {
                         position: token.position,
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::ComparisonOps,
-                            unmatch: e.clone(),
+                            unmatch: e,
                         },
                     })
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token.data) {
                 self.lexer.next();
                 let new_rhs = self.parse_additive()?;
                 // 左結合になるように詰め替える
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -585,27 +573,27 @@ impl Parser<'_> {
             let operator_token = next_token;
             let lhs = first_term;
             let rhs = self.parse_relation_expression()?;
-            let get_operator_from_token = |token: &WithPosition<Token>| {
-                match &token.data {
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
                     e => Err(SimpleErrorWithPos {
                         kind: ParserError::UnexpectedToken {
                             pat: TokenKind::EqualityOps,
-                            unmatch: e.clone(),
+                            unmatch: e,
                         },
                         position: token.position,
                     })
                 }
             };
 
-            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
             let mut operator_token = self.lexer.peek();
             while is_relation_operator(&operator_token.data) {
                 self.lexer.next();
                 let new_rhs = self.parse_relation_expression()?;
                 // 左結合になるように詰め替える
-                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
                 operator_token = self.lexer.peek();
             }
             Ok(acc)
@@ -620,59 +608,51 @@ impl Parser<'_> {
     fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
         debug!("expr:lit:int");
         let n = self.lexer.next();
-        if let Token::Digits { sequence, suffix } = n.data {
-            let x = sequence.as_str().parse::<i64>();
-            if let Err(e) = x {
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::UnParsableIntLiteral {
-                        error: e
-                    },
-                    position: n.position,
-                })
-            }
-
-            let x = x.unwrap();
-            if let Some(y) = suffix.as_ref() {
-                macro_rules! lit_value {
-                        ($t:ty, $lang_type:literal, $v:expr) => {{
-                            if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
-                                return Err(SimpleErrorWithPos {
-                                    kind: ParserError::OverflowedLiteral {
-                                        tp: $lang_type.to_string().into_boxed_str(),
-                                        min: (<$t>::MIN) as i64,
-                                        max: (<$t>::MAX) as i64,
-                                        value: $v
-                                    },
-                                    position: n.position
-                                })
-                            }
-                        }};
-                    }
-                match y.as_ref() {
-                    "i8"  => lit_value!(i8, "i8", x),
-                    "i16" => lit_value!(i16, "i16", x),
-                    "i32" => lit_value!(i32, "i32", x),
-                    "i64" => {}
-                    _ => unreachable!()
-                }
-            }
-            Ok((x, suffix))
-        } else {
-            Err(SimpleErrorWithPos {
+        let Token::Digits { sequence, suffix } = n.data else {
+            return Err(SimpleErrorWithPos {
                 kind: ParserError::UnexpectedToken {
                     pat: IntLiteral,
                     unmatch: n.data
                 },
                 position: n.position,
             })
-        }
-    }
+        };
 
-    /// 現在の`Lexer`に積まれている`Token`と期待される`Token`を比較し、違っていた場合はpanicする。
-    /// この関数は`Lexer`の`Token`を一つ消費するという副作用がある。
-    fn assert_token_eq_with_consumed(&self, rhs: &Token) {
-        let token = self.lexer.next().data;
-        assert_eq!(&token, rhs, "expected: {rhs:?}, got: {token:?}");
+        let x = sequence.as_str().parse::<i64>().map_err(|e| SimpleErrorWithPos {
+            kind: ParserError::UnParsableIntLiteral {
+                error: e
+            },
+            position: n.position,
+        })?;
+        macro_rules! lit_value {
+            ($t:ty, $lang_type:literal, $v:expr) => {{
+                if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
+                    return Err(SimpleErrorWithPos {
+                        kind: ParserError::OverflowedLiteral {
+                            tp: $lang_type.to_string().into_boxed_str(),
+                            min: (<$t>::MIN) as i64,
+                            max: (<$t>::MAX) as i64,
+                            value: $v
+                        },
+                        position: n.position
+                    })
+                }
+
+                Ok((x, Some($lang_type)))
+            }};
+        }
+
+        let (i, suffix) = suffix.as_ref().map(|y| {
+            match y.as_ref() {
+                "i8"  => lit_value!(i8, "i8", x),
+                "i16" => lit_value!(i16, "i16", x),
+                "i32" => lit_value!(i32, "i32", x),
+                "i64" => Ok((x, Some("i64"))),
+                _ => unreachable!()
+            }
+        }).unwrap_or(Ok((x, None)))?;
+
+        Ok((i, suffix.map(|x| x.to_string().into_boxed_str())))
     }
 
     fn parse_type(&self) -> Result<TypeSignature, SimpleErrorWithPos> {
@@ -699,19 +679,7 @@ impl Parser<'_> {
 
                     debug!("type:tuple:accumulator = {vec:?}");
 
-                    match self.lexer.next() {
-                        WithPosition { data: Token::SymRightPar, .. } => {},
-                        WithPosition { data: other_token, position } => {
-                            warn!("type:tuple = error ({other_token:?})");
-                            return Err(SimpleErrorWithPos {
-                                kind: ParserError::UnexpectedToken {
-                                    pat: TokenKind::only(Token::SymRightPar),
-                                    unmatch: other_token,
-                                },
-                                position,
-                            })
-                        }
-                    }
+                    self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
 
                     if vec.len() < 2 {
                         let l = vec.len();
@@ -741,7 +709,7 @@ impl Parser<'_> {
 
     fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("decl:var");
-        self.assert_token_eq_with_consumed(&Token::VarKeyword);
+        self.read_and_consume_or_report_unexpected_token(Token::VarKeyword)?;
         let pattern = self.parse_atomic_pattern()?;
 
         // optionally, allow type annotation
@@ -761,7 +729,7 @@ impl Parser<'_> {
 
         debug!("type annotation: {type_annotation:?}");
 
-        self.assert_token_eq_with_consumed(&Token::SymEq);
+        self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
         let expression = self.parse_lowest_precedence_expression()?;
 
         Ok(Statement::VariableDeclaration {
@@ -783,7 +751,7 @@ impl Parser<'_> {
                 }
             })
         };
-        self.assert_token_eq_with_consumed(&Token::SymEq);
+        self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableAssignment {
             identifier: name,
@@ -801,39 +769,23 @@ impl Parser<'_> {
         if self.lexer.peek().data == Token::KeywordIf {
             self.lexer.next();
             let condition = self.parse_lowest_precedence_expression()?;
-            let WithPosition { position, data } = self.lexer.peek();
-            if data == Token::KeywordThen {
-                self.lexer.next();
-                let then_clause_value = self.parse_lowest_precedence_expression()?;
-                let WithPosition { position, data } = self.lexer.peek();
-                if data == Token::KeywordElse {
-                    self.lexer.next();
-                    let else_clause_value = self.parse_lowest_precedence_expression()?;
-                    Ok(Expression::If {
-                        condition: Box::new(condition),
-                        then_clause_value: Box::new(then_clause_value),
-                        else_clause_value: Box::new(else_clause_value),
-                    })
-                } else {
-                    Err(SimpleErrorWithPos {
-                        kind: ParserError::IfExpressionWithoutElseClause,
-                        position,
-                    })
-                }
-            } else {
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::IfExpressionWithoutThenClauseAndElseClause,
-                    position,
-                })
-            }
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordThen)?;
+            let then_clause_value = self.parse_lowest_precedence_expression()?;
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordElse)?;
+            let else_clause_value = self.parse_lowest_precedence_expression()?;
+            Ok(Expression::If {
+                condition: Box::new(condition),
+                then_clause_value: Box::new(then_clause_value),
+                else_clause_value: Box::new(else_clause_value),
+            })
         } else {
             self.parse_equality_expression()
         }
     }
 
-    fn parse_block_scope(&self) -> Statement {
+    fn parse_block_scope(&self) -> Result<Statement, SimpleErrorWithPos> {
         debug!("parser:block:scope");
-        self.assert_token_eq_with_consumed(&Token::KeywordBlock);
+        self.read_and_consume_or_report_unexpected_token(Token::KeywordBlock)?;
         if self.lexer.peek().data == Token::NewLine {
             self.lexer.next();
         }
@@ -842,17 +794,18 @@ impl Parser<'_> {
         while let Ok(v) = self.parse_statement() {
             statements.push(v);
         }
-        self.assert_token_eq_with_consumed(&Token::KeywordEnd);
-        Statement::Block {
+        self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
+
+        Ok(Statement::Block {
             inner_statements: (statements),
-        }
+        })
     }
 
     fn parse_block_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
         debug!("parser:block:expr");
         if self.lexer.peek().data == Token::KeywordBlock {
             self.lexer.next();
-            self.assert_token_eq_with_consumed(&Token::NewLine);
+            self.read_and_consume_or_report_unexpected_token(Token::NewLine)?;
             let mut statements = vec![];
             while let Ok(v) = self.parse_statement() {
                 statements.push(v);
@@ -861,7 +814,7 @@ impl Parser<'_> {
             if self.lexer.peek().data == Token::NewLine {
                 self.lexer.next();
             }
-            self.assert_token_eq_with_consumed(&Token::KeywordEnd);
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
             Ok(Expression::Block {
                 intermediate_statements: statements,
                 final_expression
@@ -873,46 +826,25 @@ impl Parser<'_> {
 
     fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
         let start = self.lexer.peek();
-        if start.data == Token::SymLeftPar {
-            drop(start);
+        self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
 
-            self.lexer.next();
+        drop(start);
 
-            let mut v = vec![];
+        let mut v = vec![];
 
-            while let Ok(pattern) = self.parse_atomic_pattern() {
-                v.push(pattern);
+        while let Ok(pattern) = self.parse_atomic_pattern() {
+            v.push(pattern);
 
-                if self.lexer.peek().data == Token::SymRightPar {
-                    break
-                }
-
-                self.assert_token_eq_with_consumed(&Token::SymComma);
+            if self.lexer.peek().data == Token::SymRightPar {
+                break
             }
 
-            let end = self.lexer.peek();
-            if end.data == Token::SymRightPar {
-                self.lexer.next();
-
-                Ok(AtomicPattern::Tuple(v))
-            } else {
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::UnexpectedToken {
-                        pat: TokenKind::only(Token::SymRightPar),
-                        unmatch: end.data,
-                    },
-                    position: end.position,
-                })
-            }
-        } else {
-            Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
-                    pat: TokenKind::only(Token::SymLeftPar),
-                    unmatch: start.data,
-                },
-                position: start.position,
-            })
+            self.read_and_consume_or_report_unexpected_token(Token::SymComma)?;
         }
+
+        self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+
+        Ok(AtomicPattern::Tuple(v))
     }
 
     fn parse_atomic_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
@@ -939,6 +871,23 @@ impl Parser<'_> {
                     }
                 })
             }
+        }
+    }
+
+    /// 現在のトークンが指定されたトークンならそのトークンをそのまま返した上でレキサーを1個進める。そうではないなら[`ParseError::UnexpectedToken`]を返す。
+    fn read_and_consume_or_report_unexpected_token(&self, token: Token) -> Result<Token, SimpleErrorWithPos> {
+        let peek = self.lexer.peek();
+        if peek.data == token {
+            self.lexer.next();
+            Ok(token)
+        } else {
+            Err(SimpleErrorWithPos {
+                kind: ParserError::UnexpectedToken {
+                    pat: TokenKind::only(token),
+                    unmatch: peek.data
+                },
+                position: peek.position
+            })
         }
     }
 }
