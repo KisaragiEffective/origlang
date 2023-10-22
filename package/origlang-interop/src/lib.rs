@@ -121,9 +121,8 @@ pub fn run() {
                     let lower = typed_root.into_ir();
                     let _ = Timer::new("runtime.ir.lower");
                     let lower = transpiler.lower(lower);
-                    let lower = transpiler.lower(lower);
                     let _ = Timer::new("runtime.start");
-                    runtime.start(lower);
+                    runtime.start(&lower);
                 }
 
                 Ok(())

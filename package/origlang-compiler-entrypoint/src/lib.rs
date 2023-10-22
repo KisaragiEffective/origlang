@@ -11,7 +11,7 @@ use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
-use origlang_ir::{IntoVerbatimSequencedIR, IR0, IR1, IR2};
+use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
 
@@ -63,7 +63,7 @@ impl TheCompiler {
             optimization_preset: &self.optimization_preset
         };
 
-        let ir1_seq = the_transpiler.lower(ir0_seq);
+        let ir1_seq = ir0_seq;
         let (pre, post): (Vec<_>, Vec<_>) =
             self.scanner.ir1_scanner.iter().partition(|x| matches!(x, PreOrPost::Pre(..)));
 
@@ -146,7 +146,6 @@ pub trait Scanner<T> {
 }
 
 pub struct OptimizationPresetCollection {
-    pub ir0: Box<dyn OptimizationPreset<IR0>>,
     pub ir1: Box<dyn OptimizationPreset<IR1>>,
     pub ir2: Box<dyn OptimizationPreset<IR2>>,
 }
@@ -154,7 +153,6 @@ pub struct OptimizationPresetCollection {
 impl OptimizationPresetCollection {
     fn none() -> Self {
         Self {
-            ir0: Box::new(NoOptimization) as Box<_>,
             ir1: Box::new(NoOptimization) as Box<_>,
             ir2: Box::new(NoOptimization) as Box<_>,
         }
@@ -171,6 +169,5 @@ macro_rules! delegate_optimization_to_field {
     };
 }
 
-delegate_optimization_to_field!(ir0, IR0);
 delegate_optimization_to_field!(ir1, IR1);
 delegate_optimization_to_field!(ir2, IR2);

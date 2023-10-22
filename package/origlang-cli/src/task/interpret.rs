@@ -33,8 +33,7 @@ impl Task for Interpret {
         let transpiler = TheTranspiler::new(&NoOptimization);
         let ir = root_ast.into_ir();
         let ir = transpiler.lower(ir);
-        let ir = transpiler.lower(ir);
-        runtime.start(ir);
+        runtime.start(&ir);
         eprintln!("runtime.run: {:?}", i.elapsed());
         Ok(())
     }

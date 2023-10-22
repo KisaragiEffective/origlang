@@ -78,9 +78,7 @@ impl Test {
         let ir = checked.into_ir();
         let ir = transpiler.optimizer().optimize(ir);
         let ir = transpiler.lower(ir);
-        let ir = transpiler.optimizer().optimize(ir);
-        let ir = transpiler.lower(ir);
-        let o = runtime.start(ir);
+        let o = runtime.start(&ir);
         println!("{o:?}", o = &o);
         let x = Ok(o.borrow().acc().expect("???"));
         x

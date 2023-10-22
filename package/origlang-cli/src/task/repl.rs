@@ -31,8 +31,6 @@ impl Repl {
     fn naive_lower(tra: TypedRootAst) -> Vec<IR2> {
         let ir = tra.into_ir();
         let trans = TheTranspiler::new(&NoOptimization);
-        let ir = trans.lower(ir);
-        
 
         trans.lower(ir)
     }
@@ -64,7 +62,7 @@ impl Task for Repl {
             match parser.parse() {
                 Ok(ast) => {
                     let ast = checker.check(ast)?;
-                    runtime.start(Self::naive_lower(ast));
+                    runtime.start(&Self::naive_lower(ast));
                 }
                 Err(error_message) => {
                     let error = error_message.kind;

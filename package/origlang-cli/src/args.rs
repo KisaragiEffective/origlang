@@ -98,7 +98,6 @@ pub enum EmitPhase {
     LexerToken,
     Ast,
     TypedAst,
-    Ir0,
     Ir1,
     Ir2,
 }

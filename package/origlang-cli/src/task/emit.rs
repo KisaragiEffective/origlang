@@ -73,15 +73,6 @@ impl Task for UnstableEmit {
 
         let the_lower = TheTranspiler::new(optimizer);
 
-        if self.phase == EmitPhase::Ir0 {
-            let ir_sequence = the_lower.optimizer().optimize(ir_sequence);
-
-            println!("{ir_sequence:#?}");
-            return Ok(())
-        }
-
-        let ir_sequence = the_lower.lower(ir_sequence);
-
         if self.phase == EmitPhase::Ir1 {
             let ir_sequence: Vec<IR1> = the_lower.optimizer().optimize(ir_sequence);
 
