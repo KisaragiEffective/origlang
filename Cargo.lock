@@ -1078,6 +1078,7 @@ dependencies = [
  "origlang-ir",
  "origlang-ir-optimizer",
  "origlang-runtime",
+ "origlang-source-span",
  "thiserror",
 ]
 

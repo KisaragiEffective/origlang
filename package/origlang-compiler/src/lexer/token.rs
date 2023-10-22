@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use origlang_ast::{Comment, Identifier};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::lexer::Lexer;
@@ -16,7 +17,7 @@ impl TemporalLexerUnwindToken {
     }
 
     pub fn reset(self, lexer: &Lexer) {
-        lexer.source_bytes_nth.set(self.unwind_index);
+        lexer.set_current_index(self.unwind_index).expect("Error during reset");
     }
 }
 
