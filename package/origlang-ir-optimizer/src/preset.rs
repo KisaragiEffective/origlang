@@ -42,6 +42,7 @@ impl OptimizationPreset<IR1> for SimpleOptimization {
             .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
             .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize())
             .pipe(InlineSimpleBlock).pipe(|x| x.optimize())
+            .pipe(EliminateAfterExit).pipe(|x| x.optimize())
     }
 }
 

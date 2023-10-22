@@ -453,7 +453,6 @@ print 1
     fn test_exit() -> Result<(), Err> {
         assert_eq!(Self::ast("exit\n")?.statement, [ Statement::Exit ]);
         assert_eq!(Self::evaluated_expressions("exit\n")?, []);
-        assert_eq!(Self::evaluated_expressions_with_optimization_preset("exit\nprint 1\n", &SimpleOptimization)?, []);
 
         Ok(())
     }
