@@ -44,6 +44,7 @@ jobs:
       - name: Install wasm-pack
         shell: bash
         run: |
+          # renovate: wasm-pack
           git_tag="v0.11.0"
           tt="${{ matrix.wasmpack_target_triple }}"
           exe_name="${{ matrix.wasmpack_name }}"
