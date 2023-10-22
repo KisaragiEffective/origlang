@@ -18,7 +18,7 @@ impl Task for Interpret {
     fn execute(&self, environment: Self::Environment) -> Result<(), Self::Error> {
         let i = Instant::now();
         eprintln!("init: {:?}", i.elapsed());
-        let source = environment.source();
+        let source = environment.source()?;
         eprintln!("source: {:?}", i.elapsed());
         let parser = Parser::create(source.as_str());
         eprintln!("parser.ctor: {:?}", i.elapsed());

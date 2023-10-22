@@ -4,8 +4,10 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use std::string::FromUtf8Error;
 use clap::{Parser, Subcommand};
 use strum::EnumString;
+use thiserror::Error;
 use crate::task::interpret::Interpret;
 use crate::task::repl::Repl;
 use crate::task::Task;
@@ -24,14 +26,23 @@ pub enum ParseSource {
     FromFile(PathBuf)
 }
 
+#[derive(Debug, Error)]
+pub enum ReadSourceError {
+    #[error("Invalid UTF-8 was given: {0}")]
+    MalformedUtf8Sequence(#[from] FromUtf8Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
 impl ParseSource {
-    pub fn source(&self) -> String {
+    pub fn source(&self) -> Result<String, ReadSourceError> {
         match self {
-            Self::RawSource(a) => a.clone(),
+            Self::RawSource(a) => Ok(a.clone()),
             Self::FromFile(path) => {
-                let mut buf = String::new();
-                BufReader::new(File::open(path).unwrap()).read_to_string(&mut buf).unwrap();
-                buf
+                let mut buf = Vec::new();
+                BufReader::new(File::open(path).unwrap()).read_to_end(&mut buf)?;
+                let src = String::from_utf8(buf)?;
+                Ok(src)
             }
         }
     }
