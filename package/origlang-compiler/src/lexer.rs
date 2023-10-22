@@ -386,11 +386,12 @@ impl Lexer<'_> {
             self.set_line(NonZeroUsize::new(new_line).expect("overflow"));
             self.set_column(NonZeroUsize::new(new_col).expect("overflow"));
         } else {
+            // THIS BRANCH IS IMPORTANT!!! OTHERWISE, RESET OPERATION WILL NOT WORK!!!
             // back
             let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
             let new_col = src[new..old].find('\n').map_or_else(|| {
-                let mut c = self.column.get().get();
-                c += old - new;
+                let mut c = self.column().get();
+                c -= old - new;
 
                 c
             }, |new_relative| {
