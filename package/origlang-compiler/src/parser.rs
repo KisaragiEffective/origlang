@@ -10,6 +10,7 @@ use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
+use num_traits::Bounded;
 use thiserror::{Error as ThisError};
 use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
@@ -624,30 +625,30 @@ impl Parser<'_> {
             },
             position: n.position,
         })?;
-        macro_rules! lit_value {
-            ($t:ty, $lang_type:literal, $v:expr) => {{
-                if $v < i64::from(<$t>::MIN) || i64::from(<$t>::MAX) < $v {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::OverflowedLiteral {
-                            tp: $lang_type.to_string().into_boxed_str(),
-                            min: (<$t>::MIN) as i64,
-                            max: (<$t>::MAX) as i64,
-                            value: $v
-                        },
-                        position: n.position
-                    })
-                }
 
-                Ok((x, Some($lang_type)))
-            }};
+        fn check_bounds<As: Bounded + Into<i64>>(ty: &str, token_pos: SourcePos, v: i64) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
+            let s = ty.to_string().into_boxed_str();
+            if v < As::min_value().into() || As::max_value().into() < v {
+                Err(SimpleErrorWithPos {
+                    kind: ParserError::OverflowedLiteral {
+                        tp: s,
+                        min: As::min_value().into(),
+                        max: As::max_value().into(),
+                        value: v
+                    },
+                    position: token_pos
+                })
+            } else {
+                Ok((v, Some(s)))
+            }
         }
 
         let (i, suffix) = suffix.as_ref().map(|y| {
             match y.as_ref() {
-                "i8"  => lit_value!(i8, "i8", x),
-                "i16" => lit_value!(i16, "i16", x),
-                "i32" => lit_value!(i32, "i32", x),
-                "i64" => Ok((x, Some("i64"))),
+                "i8"  => check_bounds::<i8>("i8", n.position, x),
+                "i16" => check_bounds::<i16>("i16", n.position, x),
+                "i32" => check_bounds::<i32>("i32", n.position, x),
+                "i64" => check_bounds::<i64>("i64", n.position, x),
                 _ => unreachable!()
             }
         }).unwrap_or(Ok((x, None)))?;
