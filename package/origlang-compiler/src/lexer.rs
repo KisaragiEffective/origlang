@@ -33,11 +33,18 @@ impl<T> AssociateWithPos for T {
 }
 
 #[derive(Debug)]
+pub struct LcManager {
+    /// don't use directly.
+    line: Cell<NonZeroUsize>,
+    /// don't use directly.
+    column: Cell<NonZeroUsize>,
+}
+
+#[derive(Debug)]
 pub struct Lexer<'src> {
     source_bytes_nth: Cell<Utf8CharBoundaryStartByte>,
     source: &'src str,
-    line: Cell<NonZeroUsize>,
-    column: Cell<NonZeroUsize>,
+    lc_manager: LcManager,
 }
 
 impl<'src> Lexer<'src> {
@@ -50,10 +57,12 @@ impl<'src> Lexer<'src> {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source,
-            // SAFETY: 1 != 0
-            line: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
-            // SAFETY: 1 != 0
-            column: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
+            lc_manager: LcManager {
+                // SAFETY: 1 != 0
+                line: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
+                // SAFETY: 1 != 0
+                column: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
+            }
         }
     }
 }
@@ -254,6 +263,7 @@ impl Lexer<'_> {
     }
 
     pub fn next(&self) -> WithPosition<Token> {
+        debug!("-------------------------------------------------");
         self.drain_space();
         
         if self.reached_end() {
@@ -274,8 +284,8 @@ impl Lexer<'_> {
 
     fn current_pos(&self) -> SourcePos {
         SourcePos {
-            line: self.line.get(),
-            column: self.column.get(),
+            line: self.line(),
+            column: self.column(),
         }
     }
 
@@ -352,19 +362,20 @@ impl Lexer<'_> {
     fn set_current_index(&self, future_index: Utf8CharBoundaryStartByte) -> Result<(), OutOfRangeError> {
         let old = self.source_bytes_nth.get().as_usize();
         let new = future_index.as_usize();
+        debug!("index: {old} -> {future_index:?}");
 
         if old == new {
             return Ok(())
         }
 
-        let current_line = self.line.get().get();
+        let current_line = self.line().get();
 
         let src = &self.source;
         if old < new {
             // forward
             let new_line = current_line + src[old..new].bytes().filter(|x| *x == b'\n').count();
             let new_col = src[old..new].rfind('\n').map_or_else(|| {
-                let mut c = self.column.get().get();
+                let mut c = self.column().get();
                 c += new - old;
 
                 c
@@ -372,8 +383,8 @@ impl Lexer<'_> {
                 new - (old + old_relative)
             });
 
-            self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
-            self.column.set(NonZeroUsize::new(new_col).expect("overflow"));
+            self.set_line(NonZeroUsize::new(new_line).expect("overflow"));
+            self.set_column(NonZeroUsize::new(new_col).expect("overflow"));
         } else {
             // back
             let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
@@ -398,11 +409,10 @@ impl Lexer<'_> {
                 })
             });
 
-            self.line.set(NonZeroUsize::new(new_line).expect("overflow"));
-            self.column.set(NonZeroUsize::new(new_col).expect("overflow"));
+            self.set_line(NonZeroUsize::new(new_line).expect("overflow"));
+            self.set_column(NonZeroUsize::new(new_col).expect("overflow"));
         }
 
-        debug!("index: requested = {future_index:?}");
         self.source_bytes_nth.set(future_index);
 
         Ok(())
@@ -547,5 +557,23 @@ impl Lexer<'_> {
             current: self.source_bytes_nth.get(),
             max: self.source.len(),
         })
+    }
+    
+    fn line(&self) -> NonZeroUsize {
+        self.lc_manager.line.get()
+    }
+    
+    fn set_line(&self, line: NonZeroUsize) {
+        debug!("line: {old} -> {new}", old = self.line(), new = line);
+        self.lc_manager.line.set(line)
+    }
+    
+    fn column(&self) -> NonZeroUsize {
+        self.lc_manager.column.get()
+    }
+    
+    fn set_column(&self, column: NonZeroUsize) {
+        debug!("column: {old} -> {new}", old = self.column(), new = column);
+        self.lc_manager.column.set(column)
     }
 }
