@@ -193,27 +193,27 @@ impl Runtime {
 
     /// Start runtime. Never returns until execution is completed.
     #[allow(dead_code)]
-    pub fn start<'s: 'o, 'o>(&'s self, seq: Vec<IR2>) -> &'o RefCell<dyn OutputAccumulator> {
+    pub fn start<'s: 'o, 'o>(&'s self, seq: &[IR2]) -> &'o RefCell<dyn OutputAccumulator> {
         // info!("{ast:?}", ast = &ast);
         let x = seq;
         // info!("{x:?}", x = &x);
         x
-            .into_iter().for_each(|x| self.invoke(x));
+            .iter().for_each(|x| self.invoke(x));
         &self.o
     }
 
-    pub fn execute(&self, ir: Vec<IR2>) {
-        ir.into_iter().for_each(|x| self.invoke(x));
+    pub fn execute(&self, ir: &[IR2]) {
+        ir.iter().for_each(|x| self.invoke(x));
     }
     
-    pub fn invoke(&self, ir: IR2) {
+    pub fn invoke(&self, ir: &IR2) {
         match ir {
             IR2::Output(e) => {
                 self.o.as_ref().borrow_mut().output(e.evaluate(self).expect("runtime exception"));
             }
             IR2::UpdateVariable { ident, value } => {
                 self.upsert_member_to_current_scope(
-                    ident,
+                    ident.clone(),
                     value.evaluate(self).expect("self exception")
                 );
             }
@@ -229,7 +229,7 @@ impl Runtime {
                 }
             }
             IR2::EvalAndForget { expression } => {
-                self.evaluate(&expression).expect("runtime exception");
+                self.evaluate(expression).expect("runtime exception");
             }
         }
     }
@@ -421,7 +421,7 @@ impl CanBeEvaluated for CompiledTypedExpression {
             }
             Self::Block { inner: intermediate_statements, final_expression, return_type: _ } => {
                 runtime.push_scope();
-                runtime.execute(intermediate_statements.clone());
+                runtime.execute(intermediate_statements);
                 runtime.pop_scope();
 
                 final_expression.as_ref().evaluate(runtime)

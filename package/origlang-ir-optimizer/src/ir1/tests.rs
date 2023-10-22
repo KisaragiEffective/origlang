@@ -1,7 +1,7 @@
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral};
-use crate::ir1::{FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition, InlineSimpleBlock};
+use crate::ir1::{EliminateAfterExit, FoldBinaryOperatorInvocationWithConstant, FoldIfWithConstantCondition, InlineSimpleBlock};
 
 #[test]
 fn fold_binary_operator_is_recursive() {
@@ -84,3 +84,12 @@ fn inline_simple_block() {
     ])
 }
 
+#[test]
+fn cut_down_after_exit() {
+    let opt_output = EliminateAfterExit(vec![
+        IR1::Exit,
+        IR1::Output(TypedExpression::BooleanLiteral(false))
+    ]).optimize();
+
+    assert_eq!(opt_output, [ IR1::Exit ]);
+}

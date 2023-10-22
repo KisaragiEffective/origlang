@@ -308,3 +308,14 @@ impl InlineSimpleBlock {
         }
     }
 }
+
+pub struct EliminateAfterExit(pub Vec<IR1>);
+
+impl EliminateAfterExit {
+    #[must_use = "return value is optimized IR, dropping it will waste it"]
+    pub fn optimize(self) -> Vec<IR1> {
+        let mut x = self.0.into_iter().take_while(|x| *x != IR1::Exit).collect::<Vec<_>>();
+        x.push(IR1::Exit);
+        x
+    }
+}

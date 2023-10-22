@@ -6,38 +6,24 @@ use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
 use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
 
-/// The initial form of IR. This IR defines [`Self::Exit`] operation that aborts current execution.
-/// However, IR commands after it is cut-down when lowering to [`IR1`].
-#[derive(Eq, PartialEq, Debug)]
-pub enum IR0 {
-    Normal(IR1),
-    Exit,
-}
-
-impl IR0 {
-    pub fn create<T: IntoVerbatimSequencedIR>(from: T) -> Vec<Self> {
-        from.into_ir()
-    }
-}
-
 pub trait IntoVerbatimSequencedIR {
-    fn into_ir(self) -> Vec<IR0>;
+    fn into_ir(self) -> Vec<IR1>;
 }
 
 impl IntoVerbatimSequencedIR for TypedStatement {
-    fn into_ir(self) -> Vec<IR0> {
+    fn into_ir(self) -> Vec<IR1> {
         let statement = self;
 
         match statement {
             Self::Print { expression } => {
                 vec![
-                    IR0::Normal(IR1::Output(expression))
+                    (IR1::Output(expression))
                 ]
             }
             Self::VariableDeclaration { identifier, expression }
             | Self::VariableAssignment { identifier, expression } => {
                 vec![
-                    IR0::Normal(IR1::UpdateVariable {
+                    (IR1::UpdateVariable {
                         ident: identifier,
                         value: expression,
                     })
@@ -47,20 +33,20 @@ impl IntoVerbatimSequencedIR for TypedStatement {
                 let mut vec = inner_statements.into_iter()
                     .flat_map(<Self as IntoVerbatimSequencedIR>::into_ir)
                     .collect::<VecDeque<_>>();
-                vec.push_front(IR0::Normal(IR1::PushScope));
-                vec.push_back(IR0::Normal(IR1::PopScope));
+                vec.push_front(IR1::PushScope);
+                vec.push_back(IR1::PopScope);
                 vec.into()
             }
-            Self::Exit => vec![IR0::Exit],
+            Self::Exit => vec![(IR1::Exit)],
             Self::EvalAndForget { expression } => {
-                vec![IR0::Normal(IR1::EvalAndForget { expression })]
+                vec![(IR1::EvalAndForget { expression })]
             },
         }
     }
 }
 
 impl IntoVerbatimSequencedIR for TypedRootAst {
-    fn into_ir(self) -> Vec<IR0> {
+    fn into_ir(self) -> Vec<IR1> {
         self.statements.into_iter()
             .flat_map(<TypedStatement as IntoVerbatimSequencedIR>::into_ir)
             .collect()
@@ -68,7 +54,7 @@ impl IntoVerbatimSequencedIR for TypedRootAst {
 }
 
 impl<T: IntoVerbatimSequencedIR> IntoVerbatimSequencedIR for Vec<T> {
-    fn into_ir(self) -> Vec<IR0> {
+    fn into_ir(self) -> Vec<IR1> {
         self.into_iter().flat_map(IntoVerbatimSequencedIR::into_ir).collect()
     }
 }
