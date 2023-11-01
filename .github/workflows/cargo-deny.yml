@@ -1,0 +1,21 @@
+name: cargo-deny
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cargo-deny.yml'
+      - 'Cargo.lock'
+
+jobs:
+  cargo-deny:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cargo-deny from source
+        run: |
+          cargo install cargo-deny
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: check
+        run: |
+          cargo deny check
