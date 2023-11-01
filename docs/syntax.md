@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # 文法
 
 この言語の文法は至って単純です。
