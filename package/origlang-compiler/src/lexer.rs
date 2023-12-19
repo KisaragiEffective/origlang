@@ -410,8 +410,8 @@ impl Lexer<'_> {
                 })
             });
 
-            self.set_line(NonZeroUsize::new(new_line).expect("overflow"));
-            self.set_column(NonZeroUsize::new(new_col).expect("overflow"));
+            self.set_line(NonZeroUsize::new(new_line).expect("overflow: line"));
+            self.set_column(NonZeroUsize::new(new_col).expect("overflow: col"));
         }
 
         self.source_bytes_nth.set(future_index);

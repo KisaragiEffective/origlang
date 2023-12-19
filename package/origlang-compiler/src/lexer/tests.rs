@@ -233,3 +233,46 @@ fn off_by_one_range_regression() {
         }
     });
 }
+
+#[test]
+fn skip_whitespace_only_lines() {
+    let lexer  = Lexer::create("    \n    \n    \nprint 1");
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::NewLine,
+        position: SourcePosition {
+            line: NonZeroUsize::new(1).unwrap(),
+            column: NonZeroUsize::new(5).unwrap(),
+        }
+    });
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::NewLine,
+        position: SourcePosition {
+            line: NonZeroUsize::new(2).unwrap(),
+            column: NonZeroUsize::new(5).unwrap(),
+        }
+    });
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::NewLine,
+        position: SourcePosition {
+            line: NonZeroUsize::new(3).unwrap(),
+            column: NonZeroUsize::new(5).unwrap(),
+        }
+    });
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::KeywordPrint,
+        position: SourcePosition {
+            line: NonZeroUsize::new(4).unwrap(),
+            column: NonZeroUsize::new(1).unwrap(),
+        }
+    });
+    assert_eq!(lexer.next(), Pointed {
+        data: Token::Digits {
+            sequence: "1".to_string(),
+            suffix: None,
+        },
+        position: SourcePosition {
+            line: NonZeroUsize::new(4).unwrap(),
+            column: NonZeroUsize::new(7).unwrap(),
+        },
+    })
+}
