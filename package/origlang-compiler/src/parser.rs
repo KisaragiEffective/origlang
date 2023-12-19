@@ -169,10 +169,20 @@ impl Parser<'_> {
     }
 
     fn parse_statement(&self) -> Result<Statement, SimpleErrorWithPos> {
+        // dbg!(&head);
+        while let Token::NewLine = self.lexer.peek().data {
+            self.lexer.next();
+        }
+
+        if self.lexer.peek().data == Token::EndOfFile {
+            self.lexer.next();
+            return Ok(Statement::Exit)
+        }
+
         let head1 = self.lexer.peek();
         let head = head1.data;
         let pos = head1.position;
-        // dbg!(&head);
+
         let s = match head {
             Token::Identifier { .. } => {
                 self.parse_variable_assignment()?
