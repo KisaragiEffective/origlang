@@ -53,9 +53,8 @@ jobs:
       run: cargo clippy --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run tests
       run: cargo test --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
-      env:
-        RUSTLOG: debug
     - name: Run compile test
       run: cargo run -p origlang-testsuite
       env:
         RUST_BACKTRACE: 1
+        RUSTLOG: debug
