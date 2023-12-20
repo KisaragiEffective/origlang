@@ -83,6 +83,8 @@ pub enum Type {
     /// value of this type is never dereferenced.
     #[display(fmt = "&mut {_0}")]
     RefMut(Box<Self>),
+    /// indicates that value may not present at memory location.
+    Option(Box<Self>)
 }
 
 impl Type {
