@@ -105,28 +105,19 @@ fn token_location() {
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::VarKeyword,
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(1).unwrap()
-        }
+        position: SourcePosition::try_new((1, 1)).unwrap(),
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::Identifier {
             inner: Identifier::new("x".to_string())
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(5).unwrap()
-        }
+        position: SourcePosition::try_new((1, 5)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::SymEq,
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(7).unwrap()
-        }
+        position: SourcePosition::try_new((1, 7)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
@@ -134,44 +125,29 @@ fn token_location() {
             sequence: "1".to_string(),
             suffix: None,
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(9).unwrap()
-        }
+        position: SourcePosition::try_new((1, 9)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::NewLine,
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(10).unwrap()
-        }
+        position: SourcePosition::try_new((1, 10)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::VarKeyword,
-        position: SourcePosition {
-            line: NonZeroUsize::new(2).unwrap(),
-            column: NonZeroUsize::new(1).unwrap()
-        }
+        position: SourcePosition::try_new((2, 1)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::Identifier {
             inner: Identifier::new("y".to_string())
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(2).unwrap(),
-            column: NonZeroUsize::new(5).unwrap()
-        }
+        position: SourcePosition::try_new((2, 5)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
         data: Token::SymEq,
-        position: SourcePosition {
-            line: NonZeroUsize::new(2).unwrap(),
-            column: NonZeroUsize::new(7).unwrap()
-        }
+        position: SourcePosition::try_new((2, 7)).unwrap()
     });
 
     assert_eq!(lexer.next(), Pointed {
@@ -179,10 +155,7 @@ fn token_location() {
             sequence: "2".to_string(),
             suffix: None,
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(2).unwrap(),
-            column: NonZeroUsize::new(9).unwrap()
-        }
+        position: SourcePosition::try_new((2, 9)).unwrap()
     });
 }
 
@@ -227,10 +200,7 @@ fn off_by_one_range_regression() {
             sequence: "9".to_string(),
             suffix: None,
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(1).unwrap(),
-        }
+        position: SourcePosition::try_new((1, 1)).unwrap()
     });
 }
 
@@ -239,40 +209,25 @@ fn skip_whitespace_only_lines() {
     let lexer  = Lexer::create("    \n    \n    \nprint 1");
     assert_eq!(lexer.next(), Pointed {
         data: Token::NewLine,
-        position: SourcePosition {
-            line: NonZeroUsize::new(1).unwrap(),
-            column: NonZeroUsize::new(5).unwrap(),
-        }
+        position: SourcePosition::try_new((1, 5)).unwrap()
     });
     assert_eq!(lexer.next(), Pointed {
         data: Token::NewLine,
-        position: SourcePosition {
-            line: NonZeroUsize::new(2).unwrap(),
-            column: NonZeroUsize::new(5).unwrap(),
-        }
+        position: SourcePosition::try_new((2, 5)).unwrap()
     });
     assert_eq!(lexer.next(), Pointed {
         data: Token::NewLine,
-        position: SourcePosition {
-            line: NonZeroUsize::new(3).unwrap(),
-            column: NonZeroUsize::new(5).unwrap(),
-        }
+        position: SourcePosition::try_new((3, 5)).unwrap()
     });
     assert_eq!(lexer.next(), Pointed {
         data: Token::KeywordPrint,
-        position: SourcePosition {
-            line: NonZeroUsize::new(4).unwrap(),
-            column: NonZeroUsize::new(1).unwrap(),
-        }
+        position: SourcePosition::try_new((4, 1)).unwrap()
     });
     assert_eq!(lexer.next(), Pointed {
         data: Token::Digits {
             sequence: "1".to_string(),
             suffix: None,
         },
-        position: SourcePosition {
-            line: NonZeroUsize::new(4).unwrap(),
-            column: NonZeroUsize::new(7).unwrap(),
-        },
+        position: SourcePosition::try_new((4, 7)).unwrap(),
     })
 }
