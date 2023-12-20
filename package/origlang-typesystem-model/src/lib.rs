@@ -72,9 +72,17 @@ pub enum Type {
     #[display(fmt = "{_0}")]
     Record(DisplayRecordType),
     #[display(fmt = "*const {_0}")]
-    Ref(Box<Self>),
+    Ptr(Box<Self>),
     #[display(fmt = "*mut {_0}")]
-    RefMut(Box<Self>)
+    PtrMut(Box<Self>),
+    /// same as [`Self::Ptr`], but requires to be properly aligned and not to be null even if
+    /// value of this type is never dereferenced.
+    #[display(fmt = "&{_0}")]
+    Ref(Box<Self>),
+    /// same as [`Self::PtrMut`], but requires to be properly aligned and not to be null even if
+    /// value of this type is never dereferenced.
+    #[display(fmt = "&mut {_0}")]
+    RefMut(Box<Self>),
 }
 
 impl Type {
