@@ -76,19 +76,7 @@ mod tests {
     #[test]
     fn source_pos_order() {
         // 辞書式順序の理解があっているかどうか
-        assert!(SourcePosition {
-            line: 1.try_into().unwrap(),
-            column: 1.try_into().unwrap(),
-        } < SourcePosition {
-            line: 1.try_into().unwrap(),
-            column: 2.try_into().unwrap(),
-        });
-        assert!(SourcePosition {
-            line: 1.try_into().unwrap(),
-            column: usize::MAX.try_into().unwrap(),
-        } < SourcePosition {
-            line: 2.try_into().unwrap(),
-            column: 1.try_into().unwrap(),
-        });
+        assert!(SourcePosition::try_new((1, 1)).unwrap() < SourcePosition::try_new((1, 2)).unwrap());
+        assert!(SourcePosition::try_new((1, usize::MAX)).unwrap() < SourcePosition::try_new((2, 1)).unwrap());
     }
 }
