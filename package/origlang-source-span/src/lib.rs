@@ -11,6 +11,33 @@ pub struct SourcePosition {
     pub column: NonZeroUsize,
 }
 
+impl SourcePosition {
+    pub const fn new(line: NonZeroUsize, column: NonZeroUsize) -> Self {
+        Self {
+            line, column
+        }
+    }
+
+    pub fn try_new<E>(lc: impl TryIntoSourcePosition<Err = E>) -> Result<Self, E> {
+        lc.try_into()
+    }
+}
+
+pub trait TryIntoSourcePosition {
+    type Err;
+
+    fn try_into(self) -> Result<SourcePosition, Self::Err>;
+}
+
+impl<R: TryInto<NonZeroUsize> + Ord + Eq> TryIntoSourcePosition for (R, R) {
+    type Err = R::Error;
+
+    fn try_into(self) -> Result<SourcePosition, Self::Err> {
+        let (l, c) = self;
+        Ok(SourcePosition::new(l.try_into()?, c.try_into()?))
+    }
+}
+
 impl Display for SourcePosition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.line.to_string())?;
