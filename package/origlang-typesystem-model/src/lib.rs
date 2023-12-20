@@ -84,7 +84,11 @@ pub enum Type {
     #[display(fmt = "&mut {_0}")]
     RefMut(Box<Self>),
     /// indicates that value may not present at memory location.
-    Option(Box<Self>)
+    #[display(fmt = "Option<{_0}>")]
+    Option(Box<Self>),
+    /// indicates continuous and growable memory.
+    #[display(fmt = "Vec<{_0}>")]
+    Vec(Box<Self>),
 }
 
 impl Type {
