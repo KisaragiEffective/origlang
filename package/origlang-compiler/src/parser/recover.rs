@@ -1,0 +1,22 @@
+use derive_more::Display;
+use origlang_ast::after_parse::Expression;
+use crate::lexer::token::Token;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum IntermediateStateCandidate {
+    Expression(Expression),
+}
+
+#[derive(Display, Debug, Eq, PartialEq, Clone)]
+pub enum PartiallyParseFixCandidate {
+    #[display(fmt = "No fixes available")]
+    None,
+    #[display(fmt = "Insert before")]
+    InsertBefore {
+        tokens: Vec<Token>,
+    },
+    #[display(fmt = "Insert after")]
+    InsertAfter {
+        tokens: Vec<Token>,
+    },
+}

@@ -10,15 +10,15 @@ fn main() {
 
 use log::{debug, info};
 use thiserror::Error;
-use origlang_compiler::parser::{ParserErrorInner, ParserError};
-use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
+use origlang_runtime::{Accumulate, DisplayTupleValue, Runtime, TypeBox};
 use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
+use origlang_compiler::parser::error::{ParserError, ParserErrorInner};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
-use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
+use origlang_ir_optimizer::preset::NoOptimization;
 use origlang_source_span::SourcePosition;
 
 type Err = TestFailureCause;
