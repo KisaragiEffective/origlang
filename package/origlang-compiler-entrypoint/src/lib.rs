@@ -7,7 +7,7 @@ use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
 use origlang_compiler::lexer::token::{Token as LexerToken};
-use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
+use origlang_compiler::parser::{Parser, ParserError};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
@@ -104,7 +104,7 @@ impl Default for TheCompiler {
 #[derive(Debug, Eq, PartialEq, Error)]
 pub enum PartialCompilation {
     #[error("syntax error: {0}")]
-    Parser(#[from] SimpleErrorWithPos),
+    Parser(#[from] ParserError),
     #[error("type check error: {0}")]
     TypeChecker(#[from] TypeCheckError),
 }

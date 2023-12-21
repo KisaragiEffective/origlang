@@ -5,7 +5,7 @@ use ariadne::{Report, ReportKind, Source};
 use crate::task::Task;
 use crate::error::TaskExecutionError;
 use origlang_platform::CTRL_D_NL;
-use origlang_compiler::parser::{Parser, ParserError};
+use origlang_compiler::parser::{Parser, ParserErrorInner};
 use origlang_runtime::{PrintToStdout, Runtime, TypeBox};
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::{IntoVerbatimSequencedIR, IR2};
@@ -67,7 +67,7 @@ impl Task for Repl {
                 Err(error_message) => {
                     let error = error_message.kind();
                     let handled = false;
-                    if let ParserError::PartiallyParsed { hint: _, intermediate_state: _ } = &error {
+                    if let ParserErrorInner::PartiallyParsed { hint: _, intermediate_state: _ } = &error {
                         // TODO: insta-expression eval
                         // TODO: revisit this
                         /*
@@ -92,18 +92,18 @@ impl Task for Repl {
                     if !handled {
                         let error_offset = 0;
                         let error_code = match error {
-                            ParserError::LexerError(_) => 1,
-                            ParserError::UnconsumedToken { .. } => 2,
-                            ParserError::StatementTerminationError => 3,
-                            ParserError::EndOfFileError => 4,
-                            ParserError::UnexpectedToken { .. } => 5,
-                            ParserError::UnParsableIntLiteral { .. } => 6,
-                            ParserError::OverflowedLiteral { .. } => 7,
-                            ParserError::IfExpressionWithoutElseClause => 8,
-                            ParserError::IfExpressionWithoutThenClauseAndElseClause => 9,
-                            ParserError::PartiallyParsed { .. } => 10,
-                            ParserError::InsufficientElementsForTupleLiteral(_) => 11,
-                            ParserError::UnderscoreCanNotBeRightHandExpression => 12,
+                            ParserErrorInner::LexerError(_) => 1,
+                            ParserErrorInner::UnconsumedToken { .. } => 2,
+                            ParserErrorInner::StatementTerminationError => 3,
+                            ParserErrorInner::EndOfFileError => 4,
+                            ParserErrorInner::UnexpectedToken { .. } => 5,
+                            ParserErrorInner::UnParsableIntLiteral { .. } => 6,
+                            ParserErrorInner::OverflowedLiteral { .. } => 7,
+                            ParserErrorInner::IfExpressionWithoutElseClause => 8,
+                            ParserErrorInner::IfExpressionWithoutThenClauseAndElseClause => 9,
+                            ParserErrorInner::PartiallyParsed { .. } => 10,
+                            ParserErrorInner::InsufficientElementsForTupleLiteral(_) => 11,
+                            ParserErrorInner::UnderscoreCanNotBeRightHandExpression => 12,
                         };
 
                         let d = Report::<Range<usize>>::build(ReportKind::Error, (), error_offset)
