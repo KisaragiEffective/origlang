@@ -1,6 +1,6 @@
 use thiserror::Error;
 use origlang_compiler::lexer::Lexer;
-use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
+use origlang_compiler::parser::{Parser, ParserError};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::{IR1, IR2, IntoVerbatimSequencedIR};
@@ -19,7 +19,7 @@ pub enum EmitError {
     #[error("source: {0}")]
     Source(#[from] ReadSourceError),
     #[error("parser: {0}")]
-    Parser(#[from] SimpleErrorWithPos),
+    Parser(#[from] ParserError),
     #[error("type check: {0}")]
     TypeCheck(#[from] TypeCheckError),
 }

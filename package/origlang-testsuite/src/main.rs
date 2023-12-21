@@ -10,7 +10,7 @@ fn main() {
 
 use log::{debug, info};
 use thiserror::Error;
-use origlang_compiler::parser::{ParserError, SimpleErrorWithPos};
+use origlang_compiler::parser::{ParserErrorInner, ParserError};
 use origlang_runtime::{Runtime, TypeBox, Accumulate, DisplayTupleValue};
 use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
@@ -26,7 +26,7 @@ type Err = TestFailureCause;
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum TestFailureCause {
     #[error("parser failure: {0}")]
-    Parser(#[from] SimpleErrorWithPos),
+    Parser(#[from] ParserError),
     #[error("type checker failure: {0}")]
     TypeChecker(#[from] TypeCheckError),
 }
@@ -312,7 +312,7 @@ impl Test {
                 let src = format!("print {V}{x}", x = stringify!($t));
                 let e = Self::evaluated_expressions(src.as_str()).expect_err("this operation should fail");
                 if let TestFailureCause::Parser(e) = e {
-                    assert_eq!(e.kind, ParserError::OverflowedLiteral {
+                    assert_eq!(e.kind(), &ParserErrorInner::OverflowedLiteral {
                         tp: stringify!($t).to_string().into_boxed_str(),
                         min: <$t>::MIN as i64,
                         max: MAX,
@@ -466,13 +466,7 @@ print 1
             Self::evaluated_expressions("var _ = _\n"),
             Err(
                 TestFailureCause::Parser(
-                    SimpleErrorWithPos {
-                        kind: ParserError::UnderscoreCanNotBeRightHandExpression,
-                        position: SourcePosition {
-                            line: 1.try_into().unwrap(),
-                            column: 9.try_into().unwrap(),
-                        }
-                    }
+                    ParserError::new(ParserErrorInner::UnderscoreCanNotBeRightHandExpression, SourcePosition::try_new((1, 9)).unwrap())
                 )
             )
 

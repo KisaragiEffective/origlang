@@ -1,6 +1,7 @@
+use std::fmt::{Display, Formatter};
 use std::num::ParseIntError;
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
-use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
+use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition, Pointed, SourcePosition};
 use crate::lexer::Lexer;
 use crate::lexer::error::LexerError;
 use crate::lexer::token::Token;
@@ -12,22 +13,39 @@ use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
 use thiserror::{Error as ThisError};
-use crate::parser::ParserError::EndOfFileError;
+use crate::parser::ParserErrorInner::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
 
 // TODO: これはWithPosition<ParserError>にできるかもしれないが一旦保留
-#[derive(ThisError, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{kind} ({position})")]
-pub struct SimpleErrorWithPos {
-    pub kind: ParserError,
-    pub position: SourcePos,
+#[derive(ThisError, Debug, Eq, PartialEq)]
+pub struct ParserError(Pointed<ParserErrorInner>);
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} ({})", &self.0.data, &self.0.position))
+    }
 }
 
-impl SimpleErrorWithPos {}
+impl ParserError {
+    pub fn new(kind: ParserErrorInner, position: SourcePos) -> Self {
+        Self(Pointed {
+            data: kind,
+            position
+        })
+    }
+
+    pub fn kind(&self) -> &ParserErrorInner {
+        &self.0.data
+    }
+
+    pub fn position(&self) -> &SourcePosition {
+        &self.0.position
+    }
+}
 
 #[derive(ThisError, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
-pub enum ParserError {
+pub enum ParserErrorInner {
     #[error("lexer error: {_0}")]
     LexerError(#[from] LexerError),
     #[error("unconsumed token found: {token:?}")]
@@ -147,7 +165,7 @@ impl Parser<'_> {
     /// 事前条件: プログラム全体が任意個の文として分解できる
     /// # Errors
     /// プログラムのパースに失敗したときErr。
-    pub fn parse(&self) -> Result<RootAst, SimpleErrorWithPos> {
+    pub fn parse(&self) -> Result<RootAst, ParserError> {
         let mut statements = vec![];
         while self.lexer.peek().data != Token::EndOfFile {
             let res = self.parse_statement()?;
@@ -160,15 +178,12 @@ impl Parser<'_> {
                 Token::EndOfFile | Token::NewLine => Ok(RootAst {
                     statement: statements,
                 }),
-                other => Err(SimpleErrorWithPos {
-                    position: t.position,
-                    kind: ParserError::UnconsumedToken { token: other }
-                })
+                other => Err(ParserError::new(ParserErrorInner::UnconsumedToken { token: other }, t.position)),
             }
         }
     }
 
-    fn parse_statement(&self) -> Result<Statement, SimpleErrorWithPos> {
+    fn parse_statement(&self) -> Result<Statement, ParserError> {
         // dbg!(&head);
         while let Token::NewLine = self.lexer.peek().data {
             self.lexer.next();
@@ -215,25 +230,17 @@ impl Parser<'_> {
                 let aliased = self.lexer.next();
 
                 let Token::Identifier { inner: aliased } = aliased.data else {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::Identifier,
-                            unmatch: aliased.data,
-                        },
-                        position: aliased.position,
-                    })
-
-                };
+                            unmatch: aliased.data
+                }, aliased.position)) };
 
                 self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
                 let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::StartOfTypeSignature,
                             unmatch: self.lexer.peek().data
-                        },
-                        position: self.lexer.peek().position
-                    })
+                        }, self.lexer.peek().position))
                 };
 
                 Statement::TypeAliasDeclaration {
@@ -242,30 +249,24 @@ impl Parser<'_> {
                 }
             }
             x => {
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::UnexpectedToken {
+                return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                         pat: TokenKind::Statement,
                         unmatch: x,
-                    },
-                    position: pos,
-                })
+                    }, pos,))
             }
         };
 
         // 文は絶対に改行かEOFで終わる必要がある
         let next = self.lexer.next();
         if next.data != Token::NewLine && next.data != Token::EndOfFile {
-            return Err(SimpleErrorWithPos {
-                position: next.position,
-                kind: ParserError::PartiallyParsed {
+            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
                         }
                     ],
                     intermediate_state: vec![],
-                },
-            })
+            }, next.position))
         }
 
         Ok(s)
@@ -274,7 +275,7 @@ impl Parser<'_> {
     /// 現在のトークン位置から基本式をパースしようと試みる。
     /// 事前条件: 現在のトークン位置が基本式として有効である必要がある
     /// 違反した場合はErr。
-    fn parse_first(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_first(&self) -> Result<Expression, ParserError> {
         debug!("expr:first");
         let token = self.lexer.peek();
         match token.data {
@@ -287,10 +288,7 @@ impl Parser<'_> {
             }
             Token::SymUnderscore => {
                 self.lexer.next();
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::UnderscoreCanNotBeRightHandExpression,
-                    position: token.position,
-                })
+                Err(ParserError::new(ParserErrorInner::UnderscoreCanNotBeRightHandExpression, token.position,))
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|(parsed, suffix)| {
@@ -320,27 +318,21 @@ impl Parser<'_> {
                 Ok(Expression::BooleanLiteral(false))
             }
             Token::EndOfFile => {
-                Err(SimpleErrorWithPos {
-                    kind: EndOfFileError,
-                    position: token.position,
-                })
+                Err(ParserError::new(EndOfFileError, token.position,))
             }
             Token::StringLiteral(s) => {
                 self.lexer.next();
                 Ok(Expression::StringLiteral(s))
             }
-            e => Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::First,
                     unmatch: e,
-                },
-                position: token.position,
-            })
+                }, token.position,))
         }
     }
 
 
-    fn parse_tuple_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_tuple_expression(&self) -> Result<Expression, ParserError> {
         self.lexer.parse_fallible(|| {
             debug!("expr.tuple");
 
@@ -352,13 +344,10 @@ impl Parser<'_> {
                     self.lexer.next();
                     break
                 } else if peek.data != Token::SymComma {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::Only(Token::SymComma.display()),
                             unmatch: peek.data,
-                        },
-                        position: peek.position,
-                    })
+                        }, peek.position,))
                 }
 
                 self.lexer.next();
@@ -368,16 +357,10 @@ impl Parser<'_> {
 
             if bl == 0 {
                 // disallow ()
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero),
-                    position: self.lexer.peek().position,
-                })
+                return Err(ParserError::new(ParserErrorInner::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero), self.lexer.peek().position,))
             } else if bl == 1 {
                 // disallow (expr)
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One),
-                    position: self.lexer.peek().position,
-                })
+                return Err(ParserError::new(ParserErrorInner::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One), self.lexer.peek().position,))
             }
 
             Ok(Expression::Tuple {
@@ -386,7 +369,7 @@ impl Parser<'_> {
         })
     }
     /// 現在のトークン位置から乗除算をパースする。
-    fn parse_multiplicative(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_multiplicative(&self) -> Result<Expression, ParserError> {
         debug!("expr:mul");
         let first_term = self.parse_first()?;
         let next_token = self.lexer.peek();
@@ -404,13 +387,10 @@ impl Parser<'_> {
                 match &token.data {
                     Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
                     Token::SymSlash => Ok(BinaryOperatorKind::Divide),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::MultiplicativeOps,
                             unmatch: e.clone(),
-                        },
-                        position: token.position
-                    })
+                        }, token.position))
                 }
             };
 
@@ -435,7 +415,7 @@ impl Parser<'_> {
     /// 現在のトークン位置から加減算をパースしようと試みる。
     /// 事前条件: 現在の位置が加減算として有効である必要がある
     /// 違反した場合はErr
-    fn parse_additive(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_additive(&self) -> Result<Expression, ParserError> {
         debug!("expr:add");
         let first_term = self.parse_multiplicative()?;
         let next_token = self.lexer.peek();
@@ -453,13 +433,9 @@ impl Parser<'_> {
                 match token.data {
                     Token::SymPlus => Ok(BinaryOperatorKind::Plus),
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
-                    e => Err(SimpleErrorWithPos {
-                        position: token.position,
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::AdditiveOps,
-                            unmatch: e,
-                        }
-                    })
+                            unmatch: e }, token.position))
                 }
             };
 
@@ -481,7 +457,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_shift_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_shift_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:shift");
         let first_term = self.parse_additive()?;
         let next_token = self.lexer.peek();
@@ -498,13 +474,10 @@ impl Parser<'_> {
                 match token.data {
                     Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
                     Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::ShiftOps,
                             unmatch: e,
-                        },
-                        position: token.position,
-                    }),
+                        }, token.position,)),
                 }
             };
 
@@ -525,7 +498,7 @@ impl Parser<'_> {
     }
 
     /// 現在の位置から比較演算式をパースしようと試みる
-    fn parse_relation_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_relation_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:rel");
         let first_term = self.parse_shift_expression()?;
         let next_token = self.lexer.peek();
@@ -545,13 +518,9 @@ impl Parser<'_> {
                     Token::SymLess => Ok(BinaryOperatorKind::Less),
                     Token::SymMore => Ok(BinaryOperatorKind::More),
                     Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
-                    e => Err(SimpleErrorWithPos {
-                        position: token.position,
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::ComparisonOps,
-                            unmatch: e,
-                        },
-                    })
+                            unmatch: e}, token.position))
                 }
             };
 
@@ -571,7 +540,7 @@ impl Parser<'_> {
     }
 
     /// 現在の位置から等価性検査式をパースしようと試みる
-    fn parse_equality_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_equality_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:eq");
         let first_term = self.parse_relation_expression()?;
         let next_token = self.lexer.peek();
@@ -588,13 +557,10 @@ impl Parser<'_> {
                 match token.data {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::EqualityOps,
                             unmatch: e,
-                        },
-                        position: token.position,
-                    })
+                        }, token.position,))
                 }
             };
 
@@ -616,38 +582,29 @@ impl Parser<'_> {
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
     /// 事前条件: 現在のトークンが整数として有効である必要がある
     /// 違反した場合はErrを返す。
-    fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
+    fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), ParserError> {
         debug!("expr:lit:int");
         let n = self.lexer.next();
         let Token::Digits { sequence, suffix } = n.data else {
-            return Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: IntLiteral,
                     unmatch: n.data
-                },
-                position: n.position,
-            })
+                }, n.position,))
         };
 
-        let x = sequence.as_str().parse::<i64>().map_err(|e| SimpleErrorWithPos {
-            kind: ParserError::UnParsableIntLiteral {
+        let x = sequence.as_str().parse::<i64>().map_err(|e| ParserError::new(ParserErrorInner::UnParsableIntLiteral {
                 error: e
-            },
-            position: n.position,
-        })?;
+            }, n.position,))?;
 
-        fn check_bounds<As: Bounded + Into<i64>>(ty: &str, token_pos: SourcePos, v: i64) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
+        fn check_bounds<As: Bounded + Into<i64>>(ty: &str, token_pos: SourcePos, v: i64) -> Result<(i64, Option<Box<str>>), ParserError> {
             let s = ty.to_string().into_boxed_str();
             if v < As::min_value().into() || As::max_value().into() < v {
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::OverflowedLiteral {
+                Err(ParserError::new(ParserErrorInner::OverflowedLiteral {
                         tp: s,
                         min: As::min_value().into(),
                         max: As::max_value().into(),
                         value: v
-                    },
-                    position: token_pos
-                })
+                    }, token_pos))
             } else {
                 Ok((v, Some(s)))
             }
@@ -666,7 +623,7 @@ impl Parser<'_> {
         Ok((i, suffix.map(|x| x.to_string().into_boxed_str())))
     }
 
-    fn parse_type(&self) -> Result<TypeSignature, SimpleErrorWithPos> {
+    fn parse_type(&self) -> Result<TypeSignature, ParserError> {
         let WithPosition { position, data: maybe_tp } = self.lexer.next();
 
         match maybe_tp {
@@ -695,30 +652,27 @@ impl Parser<'_> {
                     if vec.len() < 2 {
                         let l = vec.len();
                         warn!("type:tuple = error (not enough length = {l})");
-                        Err(SimpleErrorWithPos {
-                            kind: ParserError::InsufficientElementsForTupleLiteral(match l {
-                                0 => UnexpectedTupleLiteralElementCount::Zero,
-                                1 => UnexpectedTupleLiteralElementCount::One,
-                                _ => unreachable!(),
-                            }),
-                            position,
-                        })
+                        Err(ParserError::new(ParserErrorInner::InsufficientElementsForTupleLiteral(match l {
+                            0 => UnexpectedTupleLiteralElementCount::Zero,
+                            1 => UnexpectedTupleLiteralElementCount::One,
+                            _ => unreachable!(),
+                        }), position))
                     } else {
                         Ok(TypeSignature::Tuple(vec))
                     }
                 })
             }
-            other_token => Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            other_token => Err(ParserError::new(
+                ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::StartOfTypeSignature,
                     unmatch: other_token,
                 },
                 position,
-            })
+            ))
         }
     }
 
-    fn parse_variable_declaration(&self) -> Result<Statement, SimpleErrorWithPos> {
+    fn parse_variable_declaration(&self) -> Result<Statement, ParserError> {
         debug!("decl:var");
         self.read_and_consume_or_report_unexpected_token(Token::VarKeyword)?;
         let pattern = self.parse_atomic_pattern()?;
@@ -750,17 +704,13 @@ impl Parser<'_> {
         })
     }
 
-    fn parse_variable_assignment(&self) -> Result<Statement, SimpleErrorWithPos> {
+    fn parse_variable_assignment(&self) -> Result<Statement, ParserError> {
         debug!("assign:var");
         let ident_token = self.lexer.next();
         let Token::Identifier { inner: name } = ident_token.data else {
-            return Err(SimpleErrorWithPos {
-                position: ident_token.position,
-                kind: ParserError::UnexpectedToken {
+            return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::Identifier,
-                    unmatch: ident_token.data,
-                }
-            })
+                    unmatch: ident_token.data }, ident_token.position))
         };
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
         let expression = self.parse_lowest_precedence_expression()?;
@@ -770,12 +720,12 @@ impl Parser<'_> {
         })
     }
 
-    fn parse_lowest_precedence_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_lowest_precedence_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:lowest");
         self.parse_block_expression()
     }
 
-    fn parse_if_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_if_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:if");
         if self.lexer.peek().data == Token::KeywordIf {
             self.lexer.next();
@@ -794,7 +744,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_block_scope(&self) -> Result<Statement, SimpleErrorWithPos> {
+    fn parse_block_scope(&self) -> Result<Statement, ParserError> {
         debug!("parser:block:scope");
         self.read_and_consume_or_report_unexpected_token(Token::KeywordBlock)?;
         if self.lexer.peek().data == Token::NewLine {
@@ -812,7 +762,7 @@ impl Parser<'_> {
         })
     }
 
-    fn parse_block_expression(&self) -> Result<Expression, SimpleErrorWithPos> {
+    fn parse_block_expression(&self) -> Result<Expression, ParserError> {
         debug!("parser:block:expr");
         if self.lexer.peek().data == Token::KeywordBlock {
             self.lexer.next();
@@ -835,7 +785,7 @@ impl Parser<'_> {
         }
     }
 
-    fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
+    fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
         let start = self.lexer.peek();
         self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
 
@@ -858,7 +808,7 @@ impl Parser<'_> {
         Ok(AtomicPattern::Tuple(v))
     }
 
-    fn parse_atomic_pattern(&self) -> Result<AtomicPattern, SimpleErrorWithPos> {
+    fn parse_atomic_pattern(&self) -> Result<AtomicPattern, ParserError> {
         let it = self.lexer.peek();
 
         match it.data {
@@ -874,31 +824,25 @@ impl Parser<'_> {
                 self.parse_tuple_destruct_pattern()
             }
             other_token => {
-                Err(SimpleErrorWithPos {
-                    position: it.position,
-                    kind: ParserError::UnexpectedToken {
-                        pat: TokenKind::Identifier,
-                        unmatch: other_token,
-                    }
-                })
+                Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                    pat: TokenKind::Identifier,
+                    unmatch: other_token
+                }, it.position))
             }
         }
     }
 
     /// 現在のトークンが指定されたトークンならそのトークンをそのまま返した上でレキサーを1個進める。そうではないなら[`ParseError::UnexpectedToken`]を返す。
-    fn read_and_consume_or_report_unexpected_token(&self, token: Token) -> Result<Token, SimpleErrorWithPos> {
+    fn read_and_consume_or_report_unexpected_token(&self, token: Token) -> Result<Token, ParserError> {
         let peek = self.lexer.peek();
         if peek.data == token {
             self.lexer.next();
             Ok(token)
         } else {
-            Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::only(token),
                     unmatch: peek.data
-                },
-                position: peek.position
-            })
+                }, peek.position))
         }
     }
 }

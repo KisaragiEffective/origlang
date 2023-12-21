@@ -6,7 +6,7 @@ use thiserror::Error;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::console;
-use origlang_compiler::parser::{Parser, SimpleErrorWithPos};
+use origlang_compiler::parser::{Parser, ParserError};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
@@ -75,7 +75,7 @@ impl<'a> Drop for Timer<'a> {
 #[derive(Error, Debug)]
 enum ExecutionError {
     #[error("parser: {0}")]
-    Parser(#[from] SimpleErrorWithPos),
+    Parser(#[from] ParserError),
     #[error("type: {0}")]
     Type(#[from] TypeCheckError),
 }
