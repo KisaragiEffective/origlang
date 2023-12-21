@@ -1,9 +1,10 @@
 use thiserror::Error;
 use origlang_compiler::lexer::Lexer;
-use origlang_compiler::parser::{Parser, ParserError};
+use origlang_compiler::parser::Parser;
+use origlang_compiler::parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
-use origlang_ir::{IR1, IR2, IntoVerbatimSequencedIR};
+use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
 use crate::args::{EmitPhase, OptimizeLevel, ParseSource, ReadSourceError};

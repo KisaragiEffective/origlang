@@ -1,9 +1,6 @@
-use std::fmt::{Display, Formatter};
-use std::num::ParseIntError;
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
-use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition, Pointed, SourcePosition};
+use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
 use crate::lexer::Lexer;
-use crate::lexer::error::LexerError;
 use crate::lexer::token::Token;
 use crate::lexer::token::internal::DisplayToken;
 
@@ -12,108 +9,13 @@ use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
-use thiserror::{Error as ThisError};
-use crate::parser::ParserErrorInner::EndOfFileError;
+use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
+use self::error::ParserErrorInner::EndOfFileError;
+use self::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
 
-// TODO: これはWithPosition<ParserError>にできるかもしれないが一旦保留
-#[derive(ThisError, Debug, Eq, PartialEq)]
-pub struct ParserError(Pointed<ParserErrorInner>);
-
-impl Display for ParserError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} ({})", &self.0.data, &self.0.position))
-    }
-}
-
-impl ParserError {
-    pub fn new(kind: ParserErrorInner, position: SourcePos) -> Self {
-        Self(Pointed {
-            data: kind,
-            position
-        })
-    }
-
-    pub fn kind(&self) -> &ParserErrorInner {
-        &self.0.data
-    }
-
-    pub fn position(&self) -> &SourcePosition {
-        &self.0.position
-    }
-}
-
-#[derive(ThisError, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
-pub enum ParserErrorInner {
-    #[error("lexer error: {_0}")]
-    LexerError(#[from] LexerError),
-    #[error("unconsumed token found: {token:?}")]
-    UnconsumedToken {
-        token: Token
-    },
-    #[error("statement must be terminated by a newline")]
-    StatementTerminationError,
-    #[error("EOF Error")]
-    EndOfFileError,
-    #[error("Expected {pat}, but got {unmatch:?}")]
-    UnexpectedToken {
-        pat: TokenKind,
-        unmatch: Token,
-    },
-    #[error("Incomplete program snippet. Check hint for fix candidates. hint:{hint:?} state:{intermediate_state:?}")]
-    PartiallyParsed {
-        hint: Vec<PartiallyParseFixCandidate>,
-        intermediate_state: Vec<IntermediateStateCandidate>,
-    },
-    #[error("input sequence cannot be parsed as a int literal: {error}")]
-    UnParsableIntLiteral {
-        error: ParseIntError
-    },
-    #[error("int literal type of {tp} must be in range ({min}..={max}), but its value is {value}")]
-    OverflowedLiteral {
-        tp: Box<str>,
-        min: i64,
-        max: i64,
-        value: i64,
-    },
-    #[error("if expression requires `else` clause")]
-    IfExpressionWithoutElseClause,
-    #[error("if expression requires `then` clause and `else` clause")]
-    IfExpressionWithoutThenClauseAndElseClause,
-    #[error("tuple literal requires 2 or more elements, but got {_0}")]
-    InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount),
-    #[error("`_` cannot used as right hand side expression")]
-    UnderscoreCanNotBeRightHandExpression,
-}
-
-#[repr(u8)]
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
-pub enum UnexpectedTupleLiteralElementCount {
-    #[display(fmt = "no elements")]
-    Zero = 0,
-    #[display(fmt = "only one element")]
-    One = 1,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum IntermediateStateCandidate {
-    Expression(Expression),
-}
-
-#[derive(Display, Debug, Eq, PartialEq, Clone)]
-pub enum PartiallyParseFixCandidate {
-    #[display(fmt = "No fixes available")]
-    None,
-    #[display(fmt = "Insert before")]
-    InsertBefore {
-        tokens: Vec<Token>,
-    },
-    #[display(fmt = "Insert after")]
-    InsertAfter {
-        tokens: Vec<Token>,
-    },
-}
+pub mod error;
+pub mod recover;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
