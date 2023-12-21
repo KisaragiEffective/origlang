@@ -65,7 +65,7 @@ impl Task for Repl {
                     runtime.start(&Self::naive_lower(ast));
                 }
                 Err(error_message) => {
-                    let error = error_message.kind;
+                    let error = error_message.kind();
                     let handled = false;
                     if let ParserError::PartiallyParsed { hint: _, intermediate_state: _ } = &error {
                         // TODO: insta-expression eval

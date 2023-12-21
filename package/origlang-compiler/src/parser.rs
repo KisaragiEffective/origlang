@@ -1,6 +1,7 @@
+use std::fmt::{Display, Formatter};
 use std::num::ParseIntError;
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
-use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
+use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition, Pointed, SourcePosition};
 use crate::lexer::Lexer;
 use crate::lexer::error::LexerError;
 use crate::lexer::token::Token;
@@ -16,14 +17,31 @@ use crate::parser::ParserError::EndOfFileError;
 use crate::parser::TokenKind::IntLiteral;
 
 // TODO: これはWithPosition<ParserError>にできるかもしれないが一旦保留
-#[derive(ThisError, Debug, Display, Eq, PartialEq)]
-#[display(fmt = "{kind} ({position})")]
-pub struct SimpleErrorWithPos {
-    pub kind: ParserError,
-    pub position: SourcePos,
+#[derive(ThisError, Debug, Eq, PartialEq)]
+pub struct SimpleErrorWithPos(Pointed<ParserError>);
+
+impl Display for SimpleErrorWithPos {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} ({})", &self.0.data, &self.0.position))
+    }
 }
 
-impl SimpleErrorWithPos {}
+impl SimpleErrorWithPos {
+    pub fn new(kind: ParserError, position: SourcePos) -> Self {
+        Self(Pointed {
+            data: kind,
+            position
+        })
+    }
+
+    pub fn kind(&self) -> &ParserError {
+        &self.0.data
+    }
+
+    pub fn position(&self) -> &SourcePosition {
+        &self.0.position
+    }
+}
 
 #[derive(ThisError, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
@@ -160,10 +178,7 @@ impl Parser<'_> {
                 Token::EndOfFile | Token::NewLine => Ok(RootAst {
                     statement: statements,
                 }),
-                other => Err(SimpleErrorWithPos {
-                    position: t.position,
-                    kind: ParserError::UnconsumedToken { token: other }
-                })
+                other => Err(SimpleErrorWithPos::new(ParserError::UnconsumedToken { token: other }, t.position)),
             }
         }
     }
@@ -215,25 +230,17 @@ impl Parser<'_> {
                 let aliased = self.lexer.next();
 
                 let Token::Identifier { inner: aliased } = aliased.data else {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::Identifier,
-                            unmatch: aliased.data,
-                        },
-                        position: aliased.position,
-                    })
-
-                };
+                            unmatch: aliased.data
+                }, aliased.position)) };
 
                 self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
                 let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::StartOfTypeSignature,
                             unmatch: self.lexer.peek().data
-                        },
-                        position: self.lexer.peek().position
-                    })
+                        }, self.lexer.peek().position))
                 };
 
                 Statement::TypeAliasDeclaration {
@@ -242,30 +249,24 @@ impl Parser<'_> {
                 }
             }
             x => {
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::UnexpectedToken {
+                return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                         pat: TokenKind::Statement,
                         unmatch: x,
-                    },
-                    position: pos,
-                })
+                    }, pos,))
             }
         };
 
         // 文は絶対に改行かEOFで終わる必要がある
         let next = self.lexer.next();
         if next.data != Token::NewLine && next.data != Token::EndOfFile {
-            return Err(SimpleErrorWithPos {
-                position: next.position,
-                kind: ParserError::PartiallyParsed {
+            return Err(SimpleErrorWithPos::new(ParserError::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
                         }
                     ],
                     intermediate_state: vec![],
-                },
-            })
+            }, next.position))
         }
 
         Ok(s)
@@ -287,10 +288,7 @@ impl Parser<'_> {
             }
             Token::SymUnderscore => {
                 self.lexer.next();
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::UnderscoreCanNotBeRightHandExpression,
-                    position: token.position,
-                })
+                Err(SimpleErrorWithPos::new(ParserError::UnderscoreCanNotBeRightHandExpression, token.position,))
             }
             Token::Digits { .. } => {
                 self.parse_int_literal().map(|(parsed, suffix)| {
@@ -320,22 +318,16 @@ impl Parser<'_> {
                 Ok(Expression::BooleanLiteral(false))
             }
             Token::EndOfFile => {
-                Err(SimpleErrorWithPos {
-                    kind: EndOfFileError,
-                    position: token.position,
-                })
+                Err(SimpleErrorWithPos::new(EndOfFileError, token.position,))
             }
             Token::StringLiteral(s) => {
                 self.lexer.next();
                 Ok(Expression::StringLiteral(s))
             }
-            e => Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                     pat: TokenKind::First,
                     unmatch: e,
-                },
-                position: token.position,
-            })
+                }, token.position,))
         }
     }
 
@@ -352,13 +344,10 @@ impl Parser<'_> {
                     self.lexer.next();
                     break
                 } else if peek.data != Token::SymComma {
-                    return Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::Only(Token::SymComma.display()),
                             unmatch: peek.data,
-                        },
-                        position: peek.position,
-                    })
+                        }, peek.position,))
                 }
 
                 self.lexer.next();
@@ -368,16 +357,10 @@ impl Parser<'_> {
 
             if bl == 0 {
                 // disallow ()
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero),
-                    position: self.lexer.peek().position,
-                })
+                return Err(SimpleErrorWithPos::new(ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero), self.lexer.peek().position,))
             } else if bl == 1 {
                 // disallow (expr)
-                return Err(SimpleErrorWithPos {
-                    kind: ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One),
-                    position: self.lexer.peek().position,
-                })
+                return Err(SimpleErrorWithPos::new(ParserError::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One), self.lexer.peek().position,))
             }
 
             Ok(Expression::Tuple {
@@ -404,13 +387,10 @@ impl Parser<'_> {
                 match &token.data {
                     Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
                     Token::SymSlash => Ok(BinaryOperatorKind::Divide),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::MultiplicativeOps,
                             unmatch: e.clone(),
-                        },
-                        position: token.position
-                    })
+                        }, token.position))
                 }
             };
 
@@ -453,13 +433,9 @@ impl Parser<'_> {
                 match token.data {
                     Token::SymPlus => Ok(BinaryOperatorKind::Plus),
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
-                    e => Err(SimpleErrorWithPos {
-                        position: token.position,
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::AdditiveOps,
-                            unmatch: e,
-                        }
-                    })
+                            unmatch: e }, token.position))
                 }
             };
 
@@ -498,13 +474,10 @@ impl Parser<'_> {
                 match token.data {
                     Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
                     Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::ShiftOps,
                             unmatch: e,
-                        },
-                        position: token.position,
-                    }),
+                        }, token.position,)),
                 }
             };
 
@@ -545,13 +518,9 @@ impl Parser<'_> {
                     Token::SymLess => Ok(BinaryOperatorKind::Less),
                     Token::SymMore => Ok(BinaryOperatorKind::More),
                     Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
-                    e => Err(SimpleErrorWithPos {
-                        position: token.position,
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::ComparisonOps,
-                            unmatch: e,
-                        },
-                    })
+                            unmatch: e}, token.position))
                 }
             };
 
@@ -588,13 +557,10 @@ impl Parser<'_> {
                 match token.data {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
-                    e => Err(SimpleErrorWithPos {
-                        kind: ParserError::UnexpectedToken {
+                    e => Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                             pat: TokenKind::EqualityOps,
                             unmatch: e,
-                        },
-                        position: token.position,
-                    })
+                        }, token.position,))
                 }
             };
 
@@ -620,34 +586,25 @@ impl Parser<'_> {
         debug!("expr:lit:int");
         let n = self.lexer.next();
         let Token::Digits { sequence, suffix } = n.data else {
-            return Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                     pat: IntLiteral,
                     unmatch: n.data
-                },
-                position: n.position,
-            })
+                }, n.position,))
         };
 
-        let x = sequence.as_str().parse::<i64>().map_err(|e| SimpleErrorWithPos {
-            kind: ParserError::UnParsableIntLiteral {
+        let x = sequence.as_str().parse::<i64>().map_err(|e| SimpleErrorWithPos::new(ParserError::UnParsableIntLiteral {
                 error: e
-            },
-            position: n.position,
-        })?;
+            }, n.position,))?;
 
         fn check_bounds<As: Bounded + Into<i64>>(ty: &str, token_pos: SourcePos, v: i64) -> Result<(i64, Option<Box<str>>), SimpleErrorWithPos> {
             let s = ty.to_string().into_boxed_str();
             if v < As::min_value().into() || As::max_value().into() < v {
-                Err(SimpleErrorWithPos {
-                    kind: ParserError::OverflowedLiteral {
+                Err(SimpleErrorWithPos::new(ParserError::OverflowedLiteral {
                         tp: s,
                         min: As::min_value().into(),
                         max: As::max_value().into(),
                         value: v
-                    },
-                    position: token_pos
-                })
+                    }, token_pos))
             } else {
                 Ok((v, Some(s)))
             }
@@ -695,26 +652,23 @@ impl Parser<'_> {
                     if vec.len() < 2 {
                         let l = vec.len();
                         warn!("type:tuple = error (not enough length = {l})");
-                        Err(SimpleErrorWithPos {
-                            kind: ParserError::InsufficientElementsForTupleLiteral(match l {
-                                0 => UnexpectedTupleLiteralElementCount::Zero,
-                                1 => UnexpectedTupleLiteralElementCount::One,
-                                _ => unreachable!(),
-                            }),
-                            position,
-                        })
+                        Err(SimpleErrorWithPos::new(ParserError::InsufficientElementsForTupleLiteral(match l {
+                            0 => UnexpectedTupleLiteralElementCount::Zero,
+                            1 => UnexpectedTupleLiteralElementCount::One,
+                            _ => unreachable!(),
+                        }), position))
                     } else {
                         Ok(TypeSignature::Tuple(vec))
                     }
                 })
             }
-            other_token => Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            other_token => Err(SimpleErrorWithPos::new(
+                ParserError::UnexpectedToken {
                     pat: TokenKind::StartOfTypeSignature,
                     unmatch: other_token,
                 },
                 position,
-            })
+            ))
         }
     }
 
@@ -754,13 +708,9 @@ impl Parser<'_> {
         debug!("assign:var");
         let ident_token = self.lexer.next();
         let Token::Identifier { inner: name } = ident_token.data else {
-            return Err(SimpleErrorWithPos {
-                position: ident_token.position,
-                kind: ParserError::UnexpectedToken {
+            return Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                     pat: TokenKind::Identifier,
-                    unmatch: ident_token.data,
-                }
-            })
+                    unmatch: ident_token.data }, ident_token.position))
         };
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
         let expression = self.parse_lowest_precedence_expression()?;
@@ -874,13 +824,10 @@ impl Parser<'_> {
                 self.parse_tuple_destruct_pattern()
             }
             other_token => {
-                Err(SimpleErrorWithPos {
-                    position: it.position,
-                    kind: ParserError::UnexpectedToken {
-                        pat: TokenKind::Identifier,
-                        unmatch: other_token,
-                    }
-                })
+                Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
+                    pat: TokenKind::Identifier,
+                    unmatch: other_token
+                }, it.position))
             }
         }
     }
@@ -892,13 +839,10 @@ impl Parser<'_> {
             self.lexer.next();
             Ok(token)
         } else {
-            Err(SimpleErrorWithPos {
-                kind: ParserError::UnexpectedToken {
+            Err(SimpleErrorWithPos::new(ParserError::UnexpectedToken {
                     pat: TokenKind::only(token),
                     unmatch: peek.data
-                },
-                position: peek.position
-            })
+                }, peek.position))
         }
     }
 }
