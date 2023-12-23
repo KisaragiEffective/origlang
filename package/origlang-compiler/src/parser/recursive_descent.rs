@@ -5,7 +5,8 @@ use log::debug;
 use origlang_ast::{Identifier, RootAst, Statement};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use origlang_source_span::Pointed;
-use crate::lexer::token::Token;
+use crate::lexer::Lexer;
+use crate::lexer::token::{TemporalLexerUnwindToken, Token};
 use crate::parser::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
 use crate::parser::recursive_descent::combinator::{BacktrackOnFail, LeftAssoc};
 use crate::parser::recover::PartiallyParseFixCandidate;
@@ -365,6 +366,35 @@ impl TryFromParser for First {
     type Err = ParserError;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
+        struct RollbackOnDrop<'h> {
+            token: TemporalLexerUnwindToken,
+            lexer: &'h Lexer<'h>,
+            invoke: bool,
+        }
+
+        impl<'h> RollbackOnDrop<'h> {
+            fn new(parser: &'h Parser<'h>) -> Self {
+                Self {
+                    token: parser.lexer.create_reset_token(),
+                    lexer: &parser.lexer,
+                    invoke: true
+                }
+            }
+
+            fn success(mut self) {
+                // eprintln!("successful");
+                self.invoke = false;
+            }
+        }
+
+        impl Drop for RollbackOnDrop<'_> {
+            fn drop(&mut self) {
+                if self.invoke {
+                    self.token.clone().reset(self.lexer)
+                }
+            }
+        }
+
         debug!("expr:first");
         let token = parser.lexer.peek();
         match token.data {
@@ -385,16 +415,19 @@ impl TryFromParser for First {
                 })
             }
             Token::SymLeftPar => {
+                let r = RollbackOnDrop::new(parser);
                 assert_eq!(parser.lexer.next().data, Token::SymLeftPar);
-                // FIXME: (1 == 2)を受け付けない
                 if parser.lexer.peek().data == Token::SymRightPar {
                     parser.lexer.next();
+                    r.success();
                     Ok(Self::UnitLiteral)
                 } else if let Ok(expr_tuple) = TupleExpression::parse(parser) {
+                    r.success();
                     Ok(Self::TupleLiteral(expr_tuple))
                 } else {
                     let inner_expression = parser.parse()?;
                     parser.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+                    r.success();
                     Ok(Self::Parenthesised(inner_expression))
                 }
             }
@@ -816,7 +849,11 @@ impl TryFromParser for EqualityExpressionOperator {
     type Err = <Self as TryFrom<Token>>::Error;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        Self::try_from(parser.lexer.next().data)
+        let x = parser.lexer.create_reset_token();
+        Self::try_from(parser.lexer.next().data).map_err(|e| {
+            x.reset(&parser.lexer);
+            e
+        })
     }
 }
 

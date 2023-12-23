@@ -262,7 +262,9 @@ impl Lexer<'_> {
         Ok(v)
     }
 
+    // #[track_caller]
     pub fn next(&self) -> WithPosition<Token> {
+        // trace!("called by: {}", std::panic::Location::caller());
         debug!("-------------------------------------------------");
         self.drain_space();
         

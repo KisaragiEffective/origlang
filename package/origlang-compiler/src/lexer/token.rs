@@ -4,6 +4,7 @@ use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::lexer::Lexer;
 use crate::lexer::token::internal::DisplayToken;
 
+#[derive(Clone)]
 pub struct TemporalLexerUnwindToken {
     unwind_index: Utf8CharBoundaryStartByte,
 }
