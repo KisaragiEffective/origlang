@@ -505,7 +505,7 @@ impl Lexer<'_> {
     }
 
     #[must_use = "Dropping token do nothing"]
-    fn create_reset_token(&self) -> TemporalLexerUnwindToken {
+    pub fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 

@@ -5,7 +5,7 @@ use std::any::type_name;
 
 use log::debug;
 use thiserror::Error;
-use origlang_ast::Statement;
+use origlang_ast::{RootAst, Statement};
 use origlang_compiler::lexer::token::Token as LexerToken;
 use origlang_compiler::parser::Parser;
 use origlang_compiler::parser::error::ParserError;
@@ -57,7 +57,7 @@ impl TheCompiler {
 
     pub fn compile(&self, source: String) -> Result<Vec<IR1>, PartialCompilation> {
         let x = Parser::create(&source);
-        let root = x.parse()?;
+        let root: RootAst = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();
         let the_transpiler = TheTranspiler {
