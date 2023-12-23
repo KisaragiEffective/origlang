@@ -88,9 +88,15 @@ mod combinator {
 
         fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
             debug!("combinator:left_assoc");
-            let res = parser.parse::<PunctuatedPlus<_, _>>()?;
-
-            Ok(Self(res))
+            let x = parser.lexer.create_reset_token();
+            let res = parser.parse::<PunctuatedPlus<_, _>>();
+            match res { Ok(v) => {
+                Ok(Self(v))
+            }, Err(e) => {
+                // we have to choose other rule, so backtrack.
+                x.reset(&parser.lexer);
+                Err(e)
+            } }
         }
     }
 
