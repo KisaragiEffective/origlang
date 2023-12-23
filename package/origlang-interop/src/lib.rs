@@ -6,6 +6,7 @@ use thiserror::Error;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::console;
+use origlang_ast::RootAst;
 use origlang_compiler::parser::Parser;
 use origlang_compiler::parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;
@@ -105,7 +106,7 @@ pub fn run() {
                 };
                 let res = {
                     let _ = Timer::new("parse");
-                    parser.parse()?
+                    parser.parse::<RootAst>()?
                 };
                 let typed_root: TypedRootAst = {
                     let _ = Timer::new("typeck");
