@@ -69,6 +69,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        env_logger::init();
         let entry = TheCompiler::new();
         let tdr = TestDiagnosticReceiver { triggered: Cell::new(false) };
 

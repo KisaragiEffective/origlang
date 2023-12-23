@@ -980,6 +980,7 @@ dependencies = [
 name = "origlang-compiler-scanner-example"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "origlang-compiler",
  "origlang-compiler-entrypoint",
  "origlang-diagnostics",

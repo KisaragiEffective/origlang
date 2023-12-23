@@ -12,6 +12,7 @@ use crate::parser::recover::PartiallyParseFixCandidate;
 use super::{Parser, TokenKind};
 
 mod combinator {
+    use log::debug;
     use crate::lexer::Lexer;
     use crate::lexer::token::TemporalLexerUnwindToken;
     use crate::parser::Parser;
@@ -42,7 +43,9 @@ mod combinator {
         type Err = Error3<First::Err, Sep::Err, M::Err>;
 
         fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
+            debug!("combinator:gen_punc:1");
             let x = parser.parse().map_err(Self::Err::A)?;
+            debug!("combinator:gen_punc:2");
 
             let mut vec = Vec::<(Sep, M)>::new();
             while let Ok(sep) = parser.parse().map_err(Self::Err::B) {
@@ -50,6 +53,7 @@ mod combinator {
 
                 vec.push((sep, m));
             }
+            debug!("combinator:gen_punc:3");
 
             Ok(Self {
                 xs: vec,
@@ -83,6 +87,7 @@ mod combinator {
         type Err = <PunctuatedPlus<Operand, Operator> as TryFromParser>::Err;
 
         fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
+            debug!("combinator:left_assoc");
             let res = parser.parse::<PunctuatedPlus<_, _>>()?;
 
             Ok(Self(res))
@@ -122,8 +127,10 @@ mod combinator {
         fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
             let x = parser.lexer.create_reset_token();
             if let Ok(e) = parser.parse() {
+                debug!("backtrack: no");
                 Ok(e)
             } else {
+                debug!("backtrack: yes");
                 Err(BacktrackInto(x))
             }
         }
@@ -433,7 +440,7 @@ impl TryFromParser for TupleExpression {
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
         parser.lexer.parse_fallible(|| {
-            debug!("expr.tuple");
+            debug!("expr:tuple");
 
             let mut buf = vec![];
             while let Ok(e) = LowestExpression::parse(parser) {
@@ -478,10 +485,10 @@ impl TryFromParser for MultiplicativeExpressionRule {
     type Err = <First as TryFromParser>::Err;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        match parser.parse::<BacktrackOnFail<_>>() {
-            Ok(e) => return Ok(Self::Operator { operands: e.into_inner() }),
-            Err(e) => e.backtrack(&parser.lexer)
-        };
+        debug!("expr:multiplicative");
+        if let Ok(operands) = parser.parse() {
+            return Ok(Self::Operator { operands })
+        }
 
         Ok(Self::Propagate(parser.parse()?))
     }
@@ -541,10 +548,11 @@ impl TryFromParser for AdditiveExpressionRule {
     type Err = <MultiplicativeExpressionRule as TryFromParser>::Err;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        match parser.parse::<BacktrackOnFail<_>>() {
-            Ok(e) => return Ok(Self::Operator { operands: e.into_inner() }),
-            Err(e) => e.backtrack(&parser.lexer)
-        };
+        debug!("expr:additive");
+
+        if let Ok(operands) = parser.parse() {
+            return Ok(Self::Operator { operands })
+        }
 
         Ok(Self::Propagate(parser.parse()?))
     }
@@ -604,10 +612,10 @@ impl TryFromParser for ShiftExpressionRule {
     type Err = <AdditiveExpressionRule as TryFromParser>::Err;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        match parser.parse::<BacktrackOnFail<_>>() {
-            Ok(e) => return Ok(Self::Operator { operands: e.into_inner() }),
-            Err(e) => e.backtrack(&parser.lexer)
-        };
+        debug!("expr:shift");
+        if let Ok(operands) = parser.parse() {
+            return Ok(Self::Operator { operands })
+        }
 
         Ok(Self::Propagate(parser.parse()?))
     }
@@ -667,10 +675,10 @@ impl TryFromParser for RelationExpressionRule {
     type Err = <ShiftExpressionRule as TryFromParser>::Err;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        match parser.parse::<BacktrackOnFail<_>>() {
-            Ok(e) => return Ok(Self::Operator { operands: e.into_inner() }),
-            Err(e) => e.backtrack(&parser.lexer)
-        };
+        debug!("expr:compare");
+        if let Ok(operands) = parser.parse() {
+            return Ok(Self::Operator { operands })
+        }
 
         Ok(Self::Propagate(parser.parse()?))
     }
@@ -699,6 +707,7 @@ impl TryFromParser for RelationExpressionOperator {
     type Err = InvalidTokenForOperator<Self>;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
+        debug!("expr:compare:op");
         struct OnlyMove;
         let call_at_most_once = OnlyMove;
         let next = move || {
@@ -746,7 +755,7 @@ impl From<RelationExpressionOperator> for BinaryOperatorKind {
 }
 
 enum EqualityExpressionRule {
-    Equality {
+    Operator {
         operands: LeftAssoc<RelationExpressionRule, EqualityExpressionOperator>,
     },
     Propagate(RelationExpressionRule),
@@ -757,10 +766,9 @@ impl TryFromParser for EqualityExpressionRule {
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
         debug!("expr:eq");
-        match parser.parse::<BacktrackOnFail<_>>() {
-            Ok(e) => return Ok(Self::Equality { operands: e.into_inner() }),
-            Err(e) => e.backtrack(&parser.lexer)
-        };
+        if let Ok(operands) = parser.parse() {
+            return Ok(Self::Operator { operands })
+        }
 
         Ok(Self::Propagate(parser.parse()?))
     }
@@ -770,8 +778,9 @@ impl IntoAbstractSyntaxTree for EqualityExpressionRule {
     type Ast = Expression;
 
     fn into_ast(self) -> Self::Ast {
+        debug!("ast:expr:eq");
         match self {
-            Self::Equality { operands } => operands.into_ast(),
+            Self::Operator { operands } => operands.into_ast(),
             Self::Propagate(x) => x.into_ast(),
         }
     }
