@@ -1,18 +1,15 @@
-use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, Statement, TypeSignature};
 use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
 use crate::lexer::token::internal::DisplayToken;
 
-use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
-use crate::parser::recursive_descent::{BlockExpressionRule, First, IntoAbstractSyntaxTree, MultiplicativeExpressionRule, TryFromParser};
+use crate::parser::recursive_descent::{BlockExpressionRule, IntoAbstractSyntaxTree, TryFromParser};
 use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
-use self::error::ParserErrorInner::EndOfFileError;
-use self::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
 
 pub mod error;

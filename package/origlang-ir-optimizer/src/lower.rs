@@ -14,7 +14,7 @@ impl<'t> TheTranspiler<'t> {
         }
     }
 
-    pub fn optimizer(&self) -> &'t dyn EachStep {
+    #[must_use] pub fn optimizer(&self) -> &'t dyn EachStep {
         self.optimization_preset
     }
 }

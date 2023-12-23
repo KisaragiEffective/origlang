@@ -16,7 +16,7 @@ pub struct NoOptimization;
 impl OptimizationPreset<IR1> for NoOptimization {
     fn optimize(&self, seq: Vec<IR1>) -> Vec<IR1> {
         #[allow(unused_imports)]
-        use crate::ir1::*;
+        use crate::ir1::EliminateAfterExit;
 
         seq
             .pipe(EliminateAfterExit).pipe(|x| x.optimize())

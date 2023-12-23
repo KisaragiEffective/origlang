@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+
 use origlang_ast::{Comment, Identifier};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 use crate::lexer::Lexer;

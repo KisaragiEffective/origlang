@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::ops::Mul;
+
 use log::debug;
 use origlang_ast::{Identifier, RootAst, Statement};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
@@ -77,7 +77,7 @@ mod combinator {
     }
 
     /// utility for left-associative binary operator.
-    pub(crate) struct LeftAssoc<Operand, Operator>(PunctuatedPlus<Operand, Operator>);
+    pub struct LeftAssoc<Operand, Operator>(PunctuatedPlus<Operand, Operator>);
 
     impl<Operand: TryFromParser, Operator: TryFromParser> TryFromParser for LeftAssoc<Operand, Operator> where Punctuated<Operand, Operator>: TryFromParser {
         type Err = <PunctuatedPlus<Operand, Operator> as TryFromParser>::Err;
@@ -101,7 +101,7 @@ mod combinator {
         }
     }
 
-    pub(crate) trait BuildBinaryOperator<Operand, Operator> : Sized {
+    pub trait BuildBinaryOperator<Operand, Operator> : Sized {
         fn build_binary_operator(lhs: Operand, op: Operator, rhs: Operand) -> Self;
 
         fn chain_rhs(self, child_op: Operator, child_rhs: Operand) -> Self;
@@ -140,7 +140,7 @@ mod combinator {
 }
 
 impl<
-    Operand: IntoAbstractSyntaxTree<Ast=Expression>, Operator: Into<BinaryOperatorKind>
+    Operand: IntoAbstractSyntaxTree<Ast=Self>, Operator: Into<BinaryOperatorKind>
 > combinator::BuildBinaryOperator<Operand, Operator> for Expression {
     fn build_binary_operator(lhs: Operand, op: Operator, rhs: Operand) -> Self {
         Self::BinaryOperator {
@@ -179,7 +179,7 @@ impl<R: TryFromParser> TryFromParser for Pointed<R> {
         let pos = parser.lexer.peek().position;
         let r = R::parse(parser)?;
 
-        Ok(Pointed {
+        Ok(Self {
             data: r,
             position: pos,
         })
@@ -190,7 +190,7 @@ impl<R: TryFromParser> TryFromParser for Box<R> {
     type Err = R::Err;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        R::parse(parser).map(Box::new)
+        R::parse(parser).map(Self::new)
     }
 }
 
@@ -231,7 +231,7 @@ impl TryFromParser for RootAst {
         {
             let t = parser.lexer.next();
             match t.data {
-                Token::EndOfFile | Token::NewLine => Ok(RootAst {
+                Token::EndOfFile | Token::NewLine => Ok(Self {
                     statement: statements,
                 }),
                 other => Err(ParserError::new(ParserErrorInner::UnconsumedToken { token: other }, t.position)),
@@ -244,13 +244,13 @@ impl TryFromParser for Statement {
     type Err = ParserError;
 
     fn parse(parser: &Parser<'_>) -> Result<Self, Self::Err> {
-        while let Token::NewLine = parser.lexer.peek().data {
+        while parser.lexer.peek().data == Token::NewLine {
             parser.lexer.next();
         }
 
         if parser.lexer.peek().data == Token::EndOfFile {
             parser.lexer.next();
-            return Ok(Statement::Exit)
+            return Ok(Self::Exit)
         }
 
         let head1 = parser.lexer.peek();
@@ -270,7 +270,7 @@ impl TryFromParser for Statement {
                 debug!("expr:lowest");
                 let expr = parser.parse::<BlockExpressionRule>()?.into_ast();
 
-                Statement::Print {
+                Self::Print {
                     expression: expr
                 }
             }
@@ -279,11 +279,11 @@ impl TryFromParser for Statement {
             }
             Token::Comment { content } => {
                 parser.lexer.next();
-                Statement::Comment { content }
+                Self::Comment { content }
             }
             Token::KeywordExit => {
                 parser.lexer.next();
-                Statement::Exit
+                Self::Exit
             }
             Token::KeywordType => {
                 parser.lexer.next();
@@ -303,7 +303,7 @@ impl TryFromParser for Statement {
                     }, parser.lexer.peek().position))
                 };
 
-                Statement::TypeAliasDeclaration {
+                Self::TypeAliasDeclaration {
                     new_name: aliased,
                     replace_with,
                 }
@@ -413,13 +413,13 @@ impl IntoAbstractSyntaxTree for First {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            First::Variable { ident } => Self::Ast::Variable { ident },
-            First::BooleanLiteral(v) => Self::Ast::BooleanLiteral(v),
-            First::StringLiteral(v) => Self::Ast::StringLiteral(v),
-            First::IntLiteral { value, suffix } => Self::Ast::IntLiteral { value, suffix },
-            First::UnitLiteral => Self::Ast::UnitLiteral,
-            First::Parenthesised(v) => v.into_ast(),
-            First::TupleLiteral(expressions) => Self::Ast::Tuple {
+            Self::Variable { ident } => Self::Ast::Variable { ident },
+            Self::BooleanLiteral(v) => Self::Ast::BooleanLiteral(v),
+            Self::StringLiteral(v) => Self::Ast::StringLiteral(v),
+            Self::IntLiteral { value, suffix } => Self::Ast::IntLiteral { value, suffix },
+            Self::UnitLiteral => Self::Ast::UnitLiteral,
+            Self::Parenthesised(v) => v.into_ast(),
+            Self::TupleLiteral(expressions) => Self::Ast::Tuple {
                 expressions: expressions.0.into_iter().map(|x| x.into_ast()).collect(),
             }
         }
@@ -555,8 +555,8 @@ impl IntoAbstractSyntaxTree for AdditiveExpressionRule {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            AdditiveExpressionRule::Operator { operands } => operands.into_ast(),
-            AdditiveExpressionRule::Propagate(inner) => inner.into_ast(),
+            Self::Operator { operands } => operands.into_ast(),
+            Self::Propagate(inner) => inner.into_ast(),
         }
     }
 }
@@ -618,8 +618,8 @@ impl IntoAbstractSyntaxTree for ShiftExpressionRule {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            ShiftExpressionRule::Operator { operands } => operands.into_ast(),
-            ShiftExpressionRule::Propagate(inner) => inner.into_ast()
+            Self::Operator { operands } => operands.into_ast(),
+            Self::Propagate(inner) => inner.into_ast()
         }
     }
 }
@@ -681,8 +681,8 @@ impl IntoAbstractSyntaxTree for RelationExpressionRule {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            RelationExpressionRule::Operator { operands } => operands.into_ast(),
-            RelationExpressionRule::Propagate(x) => x.into_ast(),
+            Self::Operator { operands } => operands.into_ast(),
+            Self::Propagate(x) => x.into_ast(),
         }
     }
 }
@@ -851,14 +851,14 @@ impl IntoAbstractSyntaxTree for IfExpressionRule {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            IfExpressionRule::If { condition, then_clause_value, else_clause_value } => {
+            Self::If { condition, then_clause_value, else_clause_value } => {
                 Expression::If {
                     condition: Box::new(condition.into_ast()),
                     then_clause_value: Box::new(then_clause_value.into_ast()),
                     else_clause_value: Box::new(else_clause_value.into_ast()),
                 }
             }
-            IfExpressionRule::Propagate(x) => {
+            Self::Propagate(x) => {
                 x.into_ast()
             }
         }
@@ -905,13 +905,13 @@ impl IntoAbstractSyntaxTree for BlockExpressionRule {
 
     fn into_ast(self) -> Self::Ast {
         match self {
-            BlockExpressionRule::Block { intermediate_statements, final_expression } => {
+            Self::Block { intermediate_statements, final_expression } => {
                 Self::Ast::Block {
                     intermediate_statements,
                     final_expression: Box::new(final_expression.into_ast())
                 }
             }
-            BlockExpressionRule::Propagate(x) => x.into_ast(),
+            Self::Propagate(x) => x.into_ast(),
         }
     }
 }

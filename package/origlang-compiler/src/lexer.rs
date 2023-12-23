@@ -566,7 +566,7 @@ impl Lexer<'_> {
     
     fn set_line(&self, line: NonZeroUsize) {
         debug!("line: {old} -> {new}", old = self.line(), new = line);
-        self.lc_manager.line.set(line)
+        self.lc_manager.line.set(line);;
     }
     
     fn column(&self) -> NonZeroUsize {
@@ -575,6 +575,6 @@ impl Lexer<'_> {
     
     fn set_column(&self, column: NonZeroUsize) {
         debug!("column: {old} -> {new}", old = self.column(), new = column);
-        self.lc_manager.column.set(column)
+        self.lc_manager.column.set(column);
     }
 }
