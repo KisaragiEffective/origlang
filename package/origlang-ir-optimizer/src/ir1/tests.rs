@@ -21,7 +21,7 @@ fn fold_binary_operator_is_recursive() {
 
     assert_eq!(opt_output, vec![
         IR1::Output(TypedExpression::IntLiteral(TypedIntLiteral::Generic(6)))
-    ]);
+    ])
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn fold_comparison_between_integrals_into_boolean_literal() {
         })
     ]).optimize();
 
-    assert_eq!(opt_output, [IR1::Output(TypedExpression::BooleanLiteral(true))]);
+    assert_eq!(opt_output, [IR1::Output(TypedExpression::BooleanLiteral(true))])
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn inline_simple_block() {
 
     assert_eq!(opt_output, vec![
         IR1::Output(TypedExpression::UnitLiteral)
-    ]);
+    ])
 }
 
 #[test]

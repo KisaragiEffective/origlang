@@ -70,7 +70,7 @@ impl Test {
         debug!("src:\n{}", src);
         let source = src;
         let parser = Parser::create(source);
-        let root_ast: RootAst = parser.parse()?;
+        let root_ast = parser.parse()?;
         let acc = Accumulate::default();
         let runtime = Runtime::create(acc);
         let checker = TypeChecker::new();

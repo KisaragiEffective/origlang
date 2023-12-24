@@ -18,18 +18,18 @@ impl Display for ParserError {
 }
 
 impl ParserError {
-    #[must_use] pub fn new(kind: ParserErrorInner, position: SourcePos) -> Self {
+    pub fn new(kind: ParserErrorInner, position: SourcePos) -> Self {
         Self(Pointed {
             data: kind,
             position
         })
     }
 
-    #[must_use] pub fn kind(&self) -> &ParserErrorInner {
+    pub fn kind(&self) -> &ParserErrorInner {
         &self.0.data
     }
 
-    #[must_use] pub fn position(&self) -> &SourcePosition {
+    pub fn position(&self) -> &SourcePosition {
         &self.0.position
     }
 }

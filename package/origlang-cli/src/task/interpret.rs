@@ -1,5 +1,4 @@
 use std::time::Instant;
-use origlang_ast::RootAst;
 use origlang_compiler::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
 use crate::task::Task;
@@ -23,7 +22,7 @@ impl Task for Interpret {
         eprintln!("source: {:?}", i.elapsed());
         let parser = Parser::create(source.as_str());
         eprintln!("parser.ctor: {:?}", i.elapsed());
-        let root_ast: RootAst = parser.parse()?;
+        let root_ast = parser.parse()?;
         eprintln!("parser.parse: {:?}", i.elapsed());
         let type_checker = TypeChecker::new();
         eprintln!("typeck.ctor: {:?}", i.elapsed());

@@ -1,20 +1,21 @@
-use origlang_ast::{AtomicPattern, Statement, TypeSignature};
+use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
 use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
 use crate::lexer::token::internal::DisplayToken;
 
+use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
-use crate::parser::recursive_descent::{BlockExpressionRule, IntoAbstractSyntaxTree, TryFromParser};
 use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
+use self::error::ParserErrorInner::EndOfFileError;
+use self::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
 
 pub mod error;
 pub mod recover;
-pub mod recursive_descent;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
@@ -62,8 +63,422 @@ impl<'src> Parser<'src> {
 }
 
 impl Parser<'_> {
-    pub fn parse<E: TryFromParser>(&self) -> Result<E, E::Err> {
-        E::parse(self)
+    /// プログラムが文の列とみなしてパースを試みる。
+    /// 事前条件: プログラム全体が任意個の文として分解できる
+    /// # Errors
+    /// プログラムのパースに失敗したときErr。
+    pub fn parse(&self) -> Result<RootAst, ParserError> {
+        let mut statements = vec![];
+        while self.lexer.peek().data != Token::EndOfFile {
+            let res = self.parse_statement()?;
+            statements.push(res);
+        }
+
+        {
+            let t = self.lexer.next();
+            match t.data {
+                Token::EndOfFile | Token::NewLine => Ok(RootAst {
+                    statement: statements,
+                }),
+                other => Err(ParserError::new(ParserErrorInner::UnconsumedToken { token: other }, t.position)),
+            }
+        }
+    }
+
+    fn parse_statement(&self) -> Result<Statement, ParserError> {
+        // dbg!(&head);
+        while let Token::NewLine = self.lexer.peek().data {
+            self.lexer.next();
+        }
+
+        if self.lexer.peek().data == Token::EndOfFile {
+            self.lexer.next();
+            return Ok(Statement::Exit)
+        }
+
+        let head1 = self.lexer.peek();
+        let head = head1.data;
+        let pos = head1.position;
+
+        let s = match head {
+            Token::Identifier { .. } => {
+                self.parse_variable_assignment()?
+            }
+            Token::VarKeyword => {
+                self.parse_variable_declaration()?
+            }
+            Token::KeywordPrint => {
+                // assuming expression
+                self.lexer.next();
+                let expr = self.parse_lowest_precedence_expression()?;
+
+                Statement::Print {
+                    expression: expr
+                }
+            }
+            Token::KeywordBlock => {
+                self.parse_block_scope()?
+            }
+            Token::Comment { content } => {
+                self.lexer.next();
+                Statement::Comment { content }
+            }
+            Token::KeywordExit => {
+                self.lexer.next();
+                Statement::Exit
+            }
+            Token::KeywordType => {
+                self.lexer.next();
+                let aliased = self.lexer.next();
+
+                let Token::Identifier { inner: aliased } = aliased.data else {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::Identifier,
+                            unmatch: aliased.data
+                }, aliased.position)) };
+
+                self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+                let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::StartOfTypeSignature,
+                            unmatch: self.lexer.peek().data
+                        }, self.lexer.peek().position))
+                };
+
+                Statement::TypeAliasDeclaration {
+                    new_name: aliased,
+                    replace_with,
+                }
+            }
+            x => {
+                return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                        pat: TokenKind::Statement,
+                        unmatch: x,
+                    }, pos,))
+            }
+        };
+
+        // 文は絶対に改行かEOFで終わる必要がある
+        let next = self.lexer.next();
+        if next.data != Token::NewLine && next.data != Token::EndOfFile {
+            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
+                    hint: vec![
+                        PartiallyParseFixCandidate::InsertAfter {
+                            tokens: vec![ Token::NewLine ]
+                        }
+                    ],
+                    intermediate_state: vec![],
+            }, next.position))
+        }
+
+        Ok(s)
+    }
+
+    /// 現在のトークン位置から基本式をパースしようと試みる。
+    /// 事前条件: 現在のトークン位置が基本式として有効である必要がある
+    /// 違反した場合はErr。
+    fn parse_first(&self) -> Result<Expression, ParserError> {
+        debug!("expr:first");
+        let token = self.lexer.peek();
+        match token.data {
+            Token::Identifier { inner } => {
+                // consume
+                self.lexer.next();
+                Ok(Expression::Variable {
+                    ident: inner
+                })
+            }
+            Token::SymUnderscore => {
+                self.lexer.next();
+                Err(ParserError::new(ParserErrorInner::UnderscoreCanNotBeRightHandExpression, token.position,))
+            }
+            Token::Digits { .. } => {
+                self.parse_int_literal().map(|(parsed, suffix)| {
+                    Expression::IntLiteral { value: parsed, suffix }
+                })
+            }
+            Token::SymLeftPar => {
+                assert_eq!(self.lexer.next().data, Token::SymLeftPar);
+                // FIXME: (1 == 2)を受け付けない
+                if self.lexer.peek().data == Token::SymRightPar {
+                    self.lexer.next();
+                    Ok(Expression::UnitLiteral)
+                } else if let Ok(expr_tuple) = self.parse_tuple_expression() {
+                    Ok(expr_tuple)
+                } else {
+                    let inner_expression = self.parse_lowest_precedence_expression()?;
+                    self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+                    Ok(inner_expression)
+                }
+            }
+            Token::KeywordTrue => {
+                self.lexer.next();
+                Ok(Expression::BooleanLiteral(true))
+            }
+            Token::KeywordFalse => {
+                self.lexer.next();
+                Ok(Expression::BooleanLiteral(false))
+            }
+            Token::EndOfFile => {
+                Err(ParserError::new(EndOfFileError, token.position,))
+            }
+            Token::StringLiteral(s) => {
+                self.lexer.next();
+                Ok(Expression::StringLiteral(s))
+            }
+            e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                    pat: TokenKind::First,
+                    unmatch: e,
+                }, token.position,))
+        }
+    }
+
+
+    fn parse_tuple_expression(&self) -> Result<Expression, ParserError> {
+        self.lexer.parse_fallible(|| {
+            debug!("expr.tuple");
+
+            let mut buf = vec![];
+            while let Ok(e) = self.parse_lowest_precedence_expression() {
+                buf.push(e);
+                let peek = self.lexer.peek();
+                if peek.data == Token::SymRightPar {
+                    self.lexer.next();
+                    break
+                } else if peek.data != Token::SymComma {
+                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::Only(Token::SymComma.display()),
+                            unmatch: peek.data,
+                        }, peek.position,))
+                }
+
+                self.lexer.next();
+            }
+
+            let bl = buf.len();
+
+            if bl == 0 {
+                // disallow ()
+                return Err(ParserError::new(ParserErrorInner::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::Zero), self.lexer.peek().position,))
+            } else if bl == 1 {
+                // disallow (expr)
+                return Err(ParserError::new(ParserErrorInner::InsufficientElementsForTupleLiteral(UnexpectedTupleLiteralElementCount::One), self.lexer.peek().position,))
+            }
+
+            Ok(Expression::Tuple {
+                expressions: buf
+            })
+        })
+    }
+    /// 現在のトークン位置から乗除算をパースする。
+    fn parse_multiplicative(&self) -> Result<Expression, ParserError> {
+        debug!("expr:mul");
+        let first_term = self.parse_first()?;
+        let next_token = self.lexer.peek();
+        let asterisk_or_slash = |token: &Token| {
+            token == &Token::SymAsterisk || token == &Token::SymSlash
+        };
+
+        if asterisk_or_slash(&next_token.data) {
+            // SymAsterisk | SymSlash
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_first()?;
+            let get_operator_from_token = |token: &WithPosition<Token>| {
+                match &token.data {
+                    Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
+                    Token::SymSlash => Ok(BinaryOperatorKind::Divide),
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::MultiplicativeOps,
+                            unmatch: e.clone(),
+                        }, token.position))
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(&operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while asterisk_or_slash(&operator_token.data) {
+                // SymAsterisk | SymSlash
+                self.lexer.next();
+                let new_rhs = self.parse_first()?;
+                // 左結合になるように詰め替える
+                // これは特に除算のときに欠かせない処理である
+                acc = Expression::binary(get_operator_from_token(&operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            // it is unary
+            Ok(first_term)
+        }
+    }
+
+    /// 現在のトークン位置から加減算をパースしようと試みる。
+    /// 事前条件: 現在の位置が加減算として有効である必要がある
+    /// 違反した場合はErr
+    fn parse_additive(&self) -> Result<Expression, ParserError> {
+        debug!("expr:add");
+        let first_term = self.parse_multiplicative()?;
+        let next_token = self.lexer.peek();
+        let plus_or_minus = |token: &Token| {
+            token == &Token::SymPlus || token == &Token::SymMinus
+        };
+
+        if plus_or_minus(&next_token.data) {
+            // SymPlus | SymMinus
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_multiplicative()?;
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
+                    Token::SymPlus => Ok(BinaryOperatorKind::Plus),
+                    Token::SymMinus => Ok(BinaryOperatorKind::Minus),
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::AdditiveOps,
+                            unmatch: e }, token.position))
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while plus_or_minus(&operator_token.data) {
+                // SymPlus | SymMinus
+                self.lexer.next();
+                let new_rhs = self.parse_multiplicative()?;
+                // 左結合になるように詰め替える
+                // これは特に減算のときに欠かせない処理である
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            // it is unary or multiplicative
+            Ok(first_term)
+        }
+    }
+
+    fn parse_shift_expression(&self) -> Result<Expression, ParserError> {
+        debug!("expr:shift");
+        let first_term = self.parse_additive()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartLessLess | Token::PartMoreMore)
+        };
+
+        if is_relation_operator(&next_token.data) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_relation_expression()?;
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
+                    Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
+                    Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::ShiftOps,
+                            unmatch: e,
+                        }, token.position,)),
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token.data) {
+                self.lexer.next();
+                let new_rhs = self.parse_relation_expression()?;
+                // 左結合になるように詰め替える
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+
+            Ok(acc)
+        } else {
+            Ok(first_term)
+        }
+    }
+
+    /// 現在の位置から比較演算式をパースしようと試みる
+    fn parse_relation_expression(&self) -> Result<Expression, ParserError> {
+        debug!("expr:rel");
+        let first_term = self.parse_shift_expression()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartLessEq | Token::PartMoreEq | Token::SymLess | Token::SymMore | Token::PartLessEqMore)
+        };
+
+        if is_relation_operator(&next_token.data) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_shift_expression()?;
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
+                    Token::PartLessEq => Ok(BinaryOperatorKind::LessEqual),
+                    Token::PartMoreEq => Ok(BinaryOperatorKind::MoreEqual),
+                    Token::SymLess => Ok(BinaryOperatorKind::Less),
+                    Token::SymMore => Ok(BinaryOperatorKind::More),
+                    Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::ComparisonOps,
+                            unmatch: e}, token.position))
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token.data) {
+                self.lexer.next();
+                let new_rhs = self.parse_additive()?;
+                // 左結合になるように詰め替える
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            Ok(first_term)
+        }
+    }
+
+    /// 現在の位置から等価性検査式をパースしようと試みる
+    fn parse_equality_expression(&self) -> Result<Expression, ParserError> {
+        debug!("expr:eq");
+        let first_term = self.parse_relation_expression()?;
+        let next_token = self.lexer.peek();
+        let is_relation_operator = |token: &Token| {
+            matches!(token, Token::PartEqEq | Token::PartBangEq)
+        };
+
+        if is_relation_operator(&next_token.data) {
+            self.lexer.next();
+            let operator_token = next_token;
+            let lhs = first_term;
+            let rhs = self.parse_relation_expression()?;
+            let get_operator_from_token = |token: WithPosition<Token>| {
+                match token.data {
+                    Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
+                    Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
+                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
+                            pat: TokenKind::EqualityOps,
+                            unmatch: e,
+                        }, token.position,))
+                }
+            };
+
+            let mut acc = Expression::binary(get_operator_from_token(operator_token)?, lhs, rhs);
+            let mut operator_token = self.lexer.peek();
+            while is_relation_operator(&operator_token.data) {
+                self.lexer.next();
+                let new_rhs = self.parse_relation_expression()?;
+                // 左結合になるように詰め替える
+                acc = Expression::binary(get_operator_from_token(operator_token)?, acc, new_rhs);
+                operator_token = self.lexer.peek();
+            }
+            Ok(acc)
+        } else {
+            Ok(first_term)
+        }
     }
 
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
@@ -182,8 +597,7 @@ impl Parser<'_> {
         debug!("type annotation: {type_annotation:?}");
 
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
-        debug!("expr:lowest");
-        let expression = self.parse::<BlockExpressionRule>().map(|x| x.into_ast())?;
+        let expression = self.parse_lowest_precedence_expression()?;
 
         Ok(Statement::VariableDeclaration {
             pattern,
@@ -201,12 +615,35 @@ impl Parser<'_> {
                     unmatch: ident_token.data }, ident_token.position))
         };
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
-        debug!("expr:lowest");
-        let expression = self.parse::<BlockExpressionRule>().map(|x| x.into_ast())?;
+        let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableAssignment {
             identifier: name,
             expression
         })
+    }
+
+    fn parse_lowest_precedence_expression(&self) -> Result<Expression, ParserError> {
+        debug!("expr:lowest");
+        self.parse_block_expression()
+    }
+
+    fn parse_if_expression(&self) -> Result<Expression, ParserError> {
+        debug!("expr:if");
+        if self.lexer.peek().data == Token::KeywordIf {
+            self.lexer.next();
+            let condition = self.parse_lowest_precedence_expression()?;
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordThen)?;
+            let then_clause_value = self.parse_lowest_precedence_expression()?;
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordElse)?;
+            let else_clause_value = self.parse_lowest_precedence_expression()?;
+            Ok(Expression::If {
+                condition: Box::new(condition),
+                then_clause_value: Box::new(then_clause_value),
+                else_clause_value: Box::new(else_clause_value),
+            })
+        } else {
+            self.parse_equality_expression()
+        }
     }
 
     fn parse_block_scope(&self) -> Result<Statement, ParserError> {
@@ -217,7 +654,7 @@ impl Parser<'_> {
         }
 
         let mut statements = vec![];
-        while let Ok(v) = self.parse() {
+        while let Ok(v) = self.parse_statement() {
             statements.push(v);
         }
         self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
@@ -225,6 +662,29 @@ impl Parser<'_> {
         Ok(Statement::Block {
             inner_statements: (statements),
         })
+    }
+
+    fn parse_block_expression(&self) -> Result<Expression, ParserError> {
+        debug!("parser:block:expr");
+        if self.lexer.peek().data == Token::KeywordBlock {
+            self.lexer.next();
+            self.read_and_consume_or_report_unexpected_token(Token::NewLine)?;
+            let mut statements = vec![];
+            while let Ok(v) = self.parse_statement() {
+                statements.push(v);
+            }
+            let final_expression = Box::new(self.parse_lowest_precedence_expression()?);
+            if self.lexer.peek().data == Token::NewLine {
+                self.lexer.next();
+            }
+            self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
+            Ok(Expression::Block {
+                intermediate_statements: statements,
+                final_expression
+            })
+        } else {
+            self.parse_if_expression()
+        }
     }
 
     fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
