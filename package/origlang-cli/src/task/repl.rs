@@ -2,7 +2,6 @@ use std::fmt::{Debug, Display};
 use std::io::{stdout, Write};
 use std::ops::Range;
 use ariadne::{Report, ReportKind, Source};
-use origlang_ast::RootAst;
 use crate::task::Task;
 use crate::error::TaskExecutionError;
 use origlang_platform::CTRL_D_NL;
@@ -61,7 +60,7 @@ impl Task for Repl {
                 break
             }
             let parser = Parser::create(line.as_str());
-            match parser.parse::<RootAst>() {
+            match parser.parse() {
                 Ok(ast) => {
                     let ast = checker.check(ast)?;
                     runtime.start(&Self::naive_lower(ast));

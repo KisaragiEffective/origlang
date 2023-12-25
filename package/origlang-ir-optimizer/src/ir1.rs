@@ -47,8 +47,8 @@ impl<T> Continue<T> for Option<T> {
     }
 }
 
-impl Continue<Self> for bool {
-    fn continue_value(self) -> Option<Self> {
+impl Continue<bool> for bool {
+    fn continue_value(self) -> Option<bool> {
         self.then_some(true)
     }
 }

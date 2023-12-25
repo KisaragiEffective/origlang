@@ -13,6 +13,3 @@ origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 origlang-source-span = { path = "../origlang-source-span" }
-
-[dev-dependencies]
-env_logger = "0.10.1"

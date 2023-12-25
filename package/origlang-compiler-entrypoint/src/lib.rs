@@ -5,7 +5,7 @@ use std::any::type_name;
 
 use log::debug;
 use thiserror::Error;
-use origlang_ast::{RootAst, Statement};
+use origlang_ast::Statement;
 use origlang_compiler::lexer::token::Token as LexerToken;
 use origlang_compiler::parser::Parser;
 use origlang_compiler::parser::error::ParserError;
@@ -13,7 +13,7 @@ use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
 use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
-use origlang_ir_optimizer::lower::{TheTranspiler};
+use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
 
 pub struct TheCompiler {
@@ -57,10 +57,10 @@ impl TheCompiler {
 
     pub fn compile(&self, source: String) -> Result<Vec<IR1>, PartialCompilation> {
         let x = Parser::create(&source);
-        let root: RootAst = x.parse()?;
+        let root = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();
-        let _the_transpiler = TheTranspiler {
+        let the_transpiler = TheTranspiler {
             optimization_preset: &self.optimization_preset
         };
 
