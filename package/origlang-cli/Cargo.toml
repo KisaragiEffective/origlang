@@ -17,7 +17,7 @@ origlang-runtime = { path = "../origlang-runtime" }
 ariadne = "0.3.0"
 origlang-platform = { path = "../origlang-platform" }
 origlang-ast = { path = "../origlang-ast" }
-strum = { version = "0.25.0", features = ["derive"] }
+strum = { version = "0.26.1", features = ["derive"] }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 tap = "1.0.1"
