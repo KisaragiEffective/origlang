@@ -19,4 +19,4 @@ origlang-ir = { path = "../origlang-ir" }
 js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
 web-sys = { version = "0.3.68", features = ["console"] }
-thiserror = "1.0.56"
+thiserror = "1.0.57"
