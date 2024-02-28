@@ -8,7 +8,7 @@ license = "MPL-2.0"
 
 [dependencies]
 env_logger = "0.11.2"
-log = "0.4.20"
+log = "0.4.21"
 origlang-ast = { version = "0.1.0", path = "../origlang-ast" }
 origlang-compiler = { version = "0.1.0", path = "../origlang-compiler" }
 origlang-ir = { version = "0.1.0", path = "../origlang-ir" }
