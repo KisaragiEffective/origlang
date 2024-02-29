@@ -10,7 +10,7 @@ license = "MPL-2.0"
 thiserror = "1.0.57"
 derivative = "2.2.0"
 derive_more = "0.99.17"
-log = "0.4.20"
+log = "0.4.21"
 tap = "1.0.1"
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ast = { path = "../origlang-ast" }
