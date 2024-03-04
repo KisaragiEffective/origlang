@@ -84,26 +84,7 @@ impl TryIntoTypeCheckedForm for Expression {
                     | BinaryOperatorKind::Minus
                     | BinaryOperatorKind::Multiply
                     | BinaryOperatorKind::Divide
-                    | BinaryOperatorKind::ThreeWay => {
-                        {
-                            match (&lhs_type, &rhs_type) {
-                                (Type::GenericInteger, Type::GenericInteger) => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
-                                    operator,
-                                    return_type: Type::GenericInteger,
-                                }),
-                                (x, y) if x == y && x.is_int_family() => Ok(TypedExpression::BinaryOperator {
-                                    lhs: Box::new(lhs_expr),
-                                    rhs: Box::new(rhs_expr),
-                                    operator,
-                                    // it is effectively Copy
-                                    return_type: x.clone(),
-                                }),
-                                (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
-                            }
-                        }
-                    }
+                    | BinaryOperatorKind::ThreeWay
                     | BinaryOperatorKind::More
                     | BinaryOperatorKind::MoreEqual
                     | BinaryOperatorKind::Less
@@ -120,7 +101,8 @@ impl TryIntoTypeCheckedForm for Expression {
                                     lhs: Box::new(lhs_expr),
                                     rhs: Box::new(rhs_expr),
                                     operator,
-                                    return_type: x.clone()
+                                    // it is effectively Copy
+                                    return_type: x.clone(),
                                 }),
                                 (_, _) => Err(TypeChecker::invalid_combination_for_binary_operator(Type::GenericInteger, operator, Type::GenericInteger, lhs_type.clone(), rhs_type.clone()))
                             }
@@ -167,6 +149,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                 return_type: lhs_type
                             })
                         } else {
+                            // TODO: equalityではない
                             Err(TypeCheckError::UnableToUnifyEqualityQuery {
                                 operator,
                                 got_lhs: lhs_type,
@@ -253,13 +236,18 @@ fn handle_atomic_pattern(
             }])
         }
         AtomicPattern::Tuple(tp) => {
-            desugar(Cow::Borrowed(tp), expr, checker)
+            desugar_recursive_pattern_match(tp, expr, checker)
         }
     }
 }
 
-fn desugar(
-    outer_destruction: Cow<'_, [AtomicPattern]>, mut rhs: TypedExpression, checker: &TypeChecker,
+enum RecursivePatternMatchDesugarStrategy {
+    Simple(TypedExpression),
+    InsertTemporary(TypedExpression),
+}
+
+fn desugar_recursive_pattern_match(
+    outer_destruction: &[AtomicPattern], mut rhs: TypedExpression, checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
     // this is intentionally written in loop way because deep recursion causes stack-overflow during type-checking.
     loop {
@@ -267,37 +255,34 @@ fn desugar(
 
         match rhs {
             TypedExpression::Variable { ident, tp } => {
-                match tp {
-                    Type::Tuple(tuple_element_types) => {
-                        let tuple_element_types = tuple_element_types.0;
-                        if outer_destruction.len() == tuple_element_types.len() {
-                            rhs = TypedExpression::Tuple {
-                                expressions: tuple_element_types.iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
-                                    expr: Box::new(
-                                        TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
-                                    ),
-                                    index: i,
-                                }).collect(),
-                            };
-                            continue
-                        } else {
-                            debug!("tuple arity mismatch");
-                            break Err(TypeCheckError::UnsatisfiablePattern {
-                                pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
-                                expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
-                                expr_type: Type::tuple(tuple_element_types),
-                            })
-                        }
-                    }
-                    other => {
-                        debug!("non-tuple expression");
-                        break Err(TypeCheckError::UnsatisfiablePattern {
-                            pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
-                            expression: TypedExpression::Variable { ident, tp: other.clone() },
-                            expr_type: other,
-                        })
-                    }
+                let Type::Tuple(tuple_element_types) = tp else {
+                    debug!("non-tuple expression");
+                    break Err(TypeCheckError::UnsatisfiablePattern {
+                        pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
+                        expression: TypedExpression::Variable { ident, tp: tp.clone() },
+                        expr_type: tp,
+                    })
+                };
+
+                let tuple_element_types = tuple_element_types.0;
+                if outer_destruction.len() == tuple_element_types.len() {
+                    rhs = TypedExpression::Tuple {
+                        expressions: tuple_element_types.iter().enumerate().map(|(i, _)| TypedExpression::ExtractTuple {
+                            expr: Box::new(
+                                TypedExpression::Variable { ident: ident.clone(), tp: Type::tuple(tuple_element_types.clone()) }
+                            ),
+                            index: i,
+                        }).collect(),
+                    };
+                    continue
                 }
+
+                debug!("tuple arity mismatch");
+                break Err(TypeCheckError::UnsatisfiablePattern {
+                    pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
+                    expression: TypedExpression::Variable { ident, tp: Type::tuple(tuple_element_types.clone()) },
+                    expr_type: Type::tuple(tuple_element_types),
+                })
             }
             TypedExpression::Block { inner: _, final_expression, return_type: _ } => {
                 // TODO: how can we handle inner statement?
@@ -305,53 +290,44 @@ fn desugar(
                 continue;
             }
             TypedExpression::Tuple { expressions } => {
-                let m = outer_destruction.iter().zip(expressions).enumerate().map(|(_i, (element_binding, expression))| {
+                let m = outer_destruction.iter().zip(expressions).map(|(element_binding, expression)| {
                     handle_atomic_pattern(expression, element_binding, checker)
                 }).collect::<Vec<_>>();
 
                 let mut k = vec![];
 
                 for mx in m {
-                    match mx {
-                        Ok(y) => {
-                            k.extend(y);
-                        }
-                        Err(x) => return Err(x)
-                    }
+                    let Ok(y) = mx else { return mx };
+                    k.extend(y);
                 }
 
                 break Ok(k)
             }
             TypedExpression::ExtractTuple { expr, index } => {
                 let expr = *expr;
-
-                enum RecursionStrategy {
-                    Simple(TypedExpression),
-                    InsertTemporary(TypedExpression),
-                }
                 let expr = match expr {
                     TypedExpression::If { condition, then, els, return_type } => {
-                        RecursionStrategy::Simple(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
+                        RecursivePatternMatchDesugarStrategy::Simple(TypedExpression::If { condition, then, els, return_type: return_type.as_tuple().expect("oops 15").0[index].clone() })
                     }
                     TypedExpression::Block { inner, final_expression, return_type } => {
-                        RecursionStrategy::Simple(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
+                        RecursivePatternMatchDesugarStrategy::Simple(TypedExpression::Block { inner, final_expression, return_type: return_type.as_tuple().expect("oops 4").0[index].clone() })
                     }
                     TypedExpression::Tuple { expressions } => {
-                        RecursionStrategy::Simple(expressions[index].clone())
+                        RecursivePatternMatchDesugarStrategy::Simple(expressions[index].clone())
                     }
                     TypedExpression::Variable { .. } => {
-                        RecursionStrategy::InsertTemporary(expr)
+                        RecursivePatternMatchDesugarStrategy::InsertTemporary(expr)
                     }
-                    other => RecursionStrategy::Simple(other),
+                    other => RecursivePatternMatchDesugarStrategy::Simple(other),
                 };
 
                 match expr {
-                    RecursionStrategy::Simple(expr) => {
+                    RecursivePatternMatchDesugarStrategy::Simple(expr) => {
                         debug!("recurse");
                         rhs = expr;
                         continue;
                     }
-                    RecursionStrategy::InsertTemporary(expr) => {
+                    RecursivePatternMatchDesugarStrategy::InsertTemporary(expr) => {
                         let new_ident = checker.make_fresh_identifier();
                         let tp = expr.actual_type().as_tuple().expect("oh").0[index].clone();
                         let v = TypedExpression::Variable {
@@ -359,7 +335,7 @@ fn desugar(
                         };
 
                         checker.ctx.borrow_mut().add_known_variable(new_ident.clone(), tp);
-                        let v = desugar(outer_destruction, v, checker)?;
+                        let v = desugar_recursive_pattern_match(outer_destruction, v, checker)?;
                         let mut r = VecDeque::from(v);
 
                         r.push_front(TypedStatement::VariableDeclaration {
