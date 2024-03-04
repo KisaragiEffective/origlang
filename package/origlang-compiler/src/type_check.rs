@@ -290,7 +290,7 @@ fn desugar_recursive_pattern_match(
                 continue;
             }
             TypedExpression::Tuple { expressions } => {
-                let m = outer_destruction.iter().zip(expressions).enumerate().map(|(_i, (element_binding, expression))| {
+                let m = outer_destruction.iter().zip(expressions).map(|(element_binding, expression)| {
                     handle_atomic_pattern(expression, element_binding, checker)
                 }).collect::<Vec<_>>();
 
