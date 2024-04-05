@@ -1,6 +1,6 @@
 pub mod error;
 
-use std::borrow::Cow;
+
 use std::cell::RefCell;
 use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, VecDeque};
