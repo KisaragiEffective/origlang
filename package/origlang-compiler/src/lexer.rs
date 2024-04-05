@@ -3,9 +3,7 @@ pub(crate) mod error;
 mod tests;
 pub mod token;
 
-
 use std::cell::Cell;
-use std::convert::Infallible;
 
 use std::num::NonZeroUsize;
 use log::{debug, trace, warn};
@@ -65,6 +63,7 @@ impl<'src> Lexer<'src> {
 }
 
 impl Lexer<'_> {
+    //noinspection SpellCheckingInspection
     fn drain_space(&self) {
         trace!("drain_space: start vvvvvvvvvvvvvvvvvvv");
         while !self.reached_end() {
@@ -82,7 +81,7 @@ impl Lexer<'_> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
-        self.source.get((start.as_usize())..end_exclusive).and_then(|b| if s == b {
+        self.source.get(start.as_usize()..end_exclusive).and_then(|b| if s == b {
             self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive));
             Some(s)
         } else {
@@ -474,7 +473,7 @@ impl Lexer<'_> {
     
     fn set_line(&self, line: NonZeroUsize) {
         debug!("line: {old} -> {new}", old = self.line(), new = line);
-        self.lc_manager.line.set(line)
+        self.lc_manager.line.set(line);
     }
     
     fn column(&self) -> NonZeroUsize {
@@ -483,6 +482,6 @@ impl Lexer<'_> {
     
     fn set_column(&self, column: NonZeroUsize) {
         debug!("column: {old} -> {new}", old = self.column(), new = column);
-        self.lc_manager.column.set(column)
+        self.lc_manager.column.set(column);
     }
 }
