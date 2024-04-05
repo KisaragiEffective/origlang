@@ -17,7 +17,7 @@ impl TemporalLexerUnwindToken {
     }
 
     pub fn reset(self, lexer: &Lexer) {
-        lexer.set_current_index(self.unwind_index).expect("Error during reset");
+        lexer.set_current_index(self.unwind_index);
     }
 }
 
