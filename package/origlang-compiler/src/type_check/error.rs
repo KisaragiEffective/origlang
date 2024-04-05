@@ -18,7 +18,7 @@ pub enum TypeCheckError {
     #[error("Undefined identifier: {0}")]
     UndefinedIdentifier(Identifier),
     #[error("Cannot compare between two different types. lhs: {got_lhs}, rhs: {got_rhs}")]
-    UnableToUnifyEqualityQuery {
+    UnableToUnifyBinaryOperatorOutputType {
         operator: BinaryOperatorKind,
         got_lhs: Type,
         got_rhs: Type,
