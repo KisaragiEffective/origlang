@@ -117,7 +117,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                 return_type: Type::Boolean,
                             })
                         } else {
-                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                            Err(TypeCheckError::UnableToUnifyBinaryOperatorOutputType {
                                 operator: BinaryOperatorKind::Equal,
                                 got_lhs: lhs_type,
                                 got_rhs: rhs_type
@@ -133,7 +133,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                 return_type: Type::Boolean,
                             })
                         } else {
-                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                            Err(TypeCheckError::UnableToUnifyBinaryOperatorOutputType {
                                 operator: BinaryOperatorKind::NotEqual,
                                 got_lhs: lhs_type,
                                 got_rhs: rhs_type
@@ -149,8 +149,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                 return_type: lhs_type
                             })
                         } else {
-                            // TODO: equalityではない
-                            Err(TypeCheckError::UnableToUnifyEqualityQuery {
+                            Err(TypeCheckError::UnableToUnifyBinaryOperatorOutputType {
                                 operator,
                                 got_lhs: lhs_type,
                                 got_rhs: rhs_type,
