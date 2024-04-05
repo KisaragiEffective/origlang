@@ -49,19 +49,15 @@ pub struct Lexer<'src> {
 
 impl<'src> Lexer<'src> {
     #[must_use = "Lexer do nothing unless calling parsing function"]
-    // NOTE: unsafe { NonZeroUsize::new_unchecked(1) } is same as NonZeroUsize::new(1).expect() in
-    //       release mode.
-    //       However, clippy::missing_panics_doc issues that the latter may panic (obviously, it's
-    //       false positive).
     pub fn create(source: &'src str) -> Self {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source,
             lc_manager: LcManager {
-                // SAFETY: 1 != 0
-                line: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
-                // SAFETY: 1 != 0
-                column: Cell::new(unsafe { NonZeroUsize::new_unchecked(1) }),
+                #[allow(clippy::missing_panics_doc)]
+                line: Cell::new(1.try_into().expect("unreachable!!")),
+                #[allow(clippy::missing_panics_doc)]
+                column: Cell::new(1.try_into().expect("unreachable!!")),
             }
         }
     }
