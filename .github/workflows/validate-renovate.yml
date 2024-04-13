@@ -28,7 +28,7 @@ jobs:
           export H="$(mktemp)"
           echo '{' >> "$H"
           # let's do main part, but avoid pipefail
-          (pnpx --package "$package" -- renovate-config-validator --strict || true)\
+          (pnpx -c --package "$package" dlx renovate-config-validator --strict || true)\
             | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
           echo '}' >> "$H"
           
