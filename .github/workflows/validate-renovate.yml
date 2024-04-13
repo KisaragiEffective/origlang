@@ -33,7 +33,7 @@ jobs:
           echo '}' >> "$H"
           
           # exit early if migration is not required
-          if [ "$(wc -b "$H")" -eq 0 ]; then
+          if [ "$(wc -c "$H")" -eq 0 ]; then
             exit 0
           fi
           
