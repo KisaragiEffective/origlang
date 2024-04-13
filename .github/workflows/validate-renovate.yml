@@ -48,9 +48,9 @@ jobs:
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
           echo "computing diff"
-          git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "$DIFF_TO_BE_REPORTED.diff"
-          echo "uploading"          
-          printf 'DIFF=%s' "$(cat "$DIFF_TO_BE_REPORTED.diff")" >> "$GITHUB_OUTPUT"
+          git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff"
+          echo "uploading"
+          printf 'DIFF=%s' "$(cat "${DIFF_TO_BE_REPORTED}.diff")" >> "$GITHUB_OUTPUT"
       - name: report diff
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
