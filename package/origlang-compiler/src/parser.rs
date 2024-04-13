@@ -44,7 +44,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    fn only(token: Token) -> Self {
+    fn only(token: &Token) -> Self {
         Self::Only(token.display())
     }
 }
@@ -742,7 +742,7 @@ impl Parser<'_> {
             Ok(token)
         } else {
             Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::only(token),
+                    pat: TokenKind::only(&token),
                     unmatch: peek.data
                 }, peek.position))
         }
