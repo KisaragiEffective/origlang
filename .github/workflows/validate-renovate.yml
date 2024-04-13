@@ -1,0 +1,23 @@
+name: validate renovate
+
+on:
+  pull_request:
+    paths:
+      - 'renovate.json'
+      - '.github/workflows/renovate.json'
+
+jobs:
+  actionlint:
+    name: actionlint with reviewdog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run lint
+        run: |
+          # renovate: npm:renovate
+          ver="37.291.0"
+          # pinned on exact version
+          package="renovate@=$ver"
+          echo "npx: $(npx --version)"
+          echo "installing: $package..."
+          npx --yes --package "$package" -- renovate-config-validator --strict
