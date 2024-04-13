@@ -31,6 +31,9 @@ jobs:
           (npx --yes --package "$package" -- renovate-config-validator --strict || true)\
             | ruby -e 'File.open(ENV[?H], ?w) {|r| while gets; puts $_; $> = r if $_.chomp == "WARN: Config migration necessary" ;end; }'
           
+          echo "---"
+          echo "Collected output: $H"
+          echo "---"
           # init and extract
           OLD="$(mktemp)"
           mv "$OLD" "${OLD}.old.txt"
@@ -50,6 +53,7 @@ jobs:
         run:
           COMMENT_BUFFER="$(mktemp)"
           
+          # shellcheck disable=
           printf "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
           cat "$DIFF_TO_BE_REPORTED" >> "$COMMENT_BUFFER"
           
