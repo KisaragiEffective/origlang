@@ -26,11 +26,11 @@ jobs:
           echo "npx: $(npx --version)"
           echo "installing: $package..."
           export H="$(mktemp)"
-          
+          echo '{' >> "$H"
           # let's do main part, but avoid pipefail
           (npx --yes --package "$package" -- renovate-config-validator --strict || true)\
             | ruby -e 'File.open(ENV[?H], ?w) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
-          
+          echo '}' >> "H"
           echo "---"
           echo "Collected output: $H"
           cat "$H"
@@ -40,8 +40,8 @@ jobs:
           mv "$OLD" "${OLD}.old.txt"
           NEW="$(mktemp)"
           mv "$NEW" "${NEW}.new.txt"
-          jq -rs '.[0].oldConfig' < "$H" > "$OLD"
-          jq -rs '.[1].newConfig' < "$H" > "$NEW"
+          jq -rs '.oldConfig' < "$H" > "$OLD"
+          jq -rs '.newConfig' < "$H" > "$NEW"
           
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
