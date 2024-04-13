@@ -11,8 +11,8 @@ permissions:
   issues: write
 
 jobs:
-  actionlint:
-    name: actionlint with reviewdog
+  lint:
+    name: run renovate-config-validator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
