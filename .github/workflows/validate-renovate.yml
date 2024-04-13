@@ -54,7 +54,7 @@ jobs:
           COMMENT_BUFFER="$(mktemp)"
           
           printf "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
-          printf '```' >> "$COMMENT_BUFFER"
+          printf '```diff' >> "$COMMENT_BUFFER"
           cat "$DIFF_TO_BE_REPORTED" >> "$COMMENT_BUFFER"
           printf '```' >> "$COMMENT_BUFFER"
           
