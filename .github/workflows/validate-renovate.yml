@@ -41,13 +41,15 @@ jobs:
           mv "$OLD" "${OLD}.old.txt"
           NEW="$(mktemp)"
           mv "$NEW" "${NEW}.new.txt"
-          jq -r '.oldConfig' < "$H" > "$OLD"
-          jq -r '.newConfig' < "$H" > "$NEW"
+          echo "extracting fields"
+          jq -r '.oldConfig' < "$H" > "${OLD}.old.txt"
+          jq -r '.newConfig' < "$H" > "${NEW}.new.txt"
           
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
+          echo "computing diff"
           git diff --no-index "$OLD" "$NEW" >> "$DIFF_TO_BE_REPORTED.diff"
-          
+          echo "uploading"          
           printf 'DIFF=%s' "$(cat "$DIFF_TO_BE_REPORTED.diff")" >> "$GITHUB_OUTPUT"
       - name: report diff
         env:
