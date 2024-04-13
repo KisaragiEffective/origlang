@@ -53,7 +53,9 @@ jobs:
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
           echo "computing diff"
-          GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff"
+          # fold into $?=0 even if they are different:
+          # > This form implies --exit-code
+          GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
           echo "uploading"
           printf 'DIFF=%s' "$(cat "${DIFF_TO_BE_REPORTED}.diff")" >> "$GITHUB_OUTPUT"
       - name: report diff
