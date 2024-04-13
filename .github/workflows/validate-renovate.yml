@@ -23,12 +23,12 @@ jobs:
           ver="37.291.0"
           # pinned on exact version
           package="renovate@=$ver"
-          echo "npx: $(pnpx --version)"
+          echo "npx: $(pnpm --version)"
           echo "installing: $package..."
           export H="$(mktemp)"
           echo '{' >> "$H"
           # let's do main part, but avoid pipefail
-          (pnpx --yes --package "$package" -- renovate-config-validator --strict || true)\
+          (pnpx --package "$package" -- renovate-config-validator --strict || true)\
             | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
           echo '}' >> "$H"
           
