@@ -46,9 +46,9 @@ jobs:
           
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
-          git diff --no-index "$OLD" "$NEW" >> "$DIFF_TO_BE_REPORTED"
+          git diff --no-index "$OLD" "$NEW" >> "$DIFF_TO_BE_REPORTED.diff"
           
-          printf 'DIFF=%s' "$(cat "$DIFF_TO_BE_REPORTED")" >> "$GITHUB_OUTPUT"
+          printf 'DIFF=%s' "$(cat "$DIFF_TO_BE_REPORTED.diff")" >> "$GITHUB_OUTPUT"
       - name: report diff
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
