@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'renovate.json'
-      - '.github/workflows/renovate.json'
+      - '.github/workflows/validate-renovate.yml'
 
 jobs:
   actionlint:
