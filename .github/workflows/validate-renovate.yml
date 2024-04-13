@@ -33,6 +33,7 @@ jobs:
           
           echo "---"
           echo "Collected output: $H"
+          cat "$H"
           echo "---"
           # init and extract
           OLD="$(mktemp)"
@@ -45,6 +46,8 @@ jobs:
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
           git diff --no-index "$OLD" "$NEW" >> "$DIFF_TO_BE_REPORTED"
+          
+          printf 'DIFF=%s' "$(cat "$DIFF_TO_BE_REPORTED")" >> "$GITHUB_OUTPUT"
       - name: report diff
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,7 +58,7 @@ jobs:
           
           printf "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
           printf '```diff' >> "$COMMENT_BUFFER"
-          cat "$DIFF_TO_BE_REPORTED" >> "$COMMENT_BUFFER"
+          cat "$DIFF_TEXT" >> "$COMMENT_BUFFER"
           printf '```' >> "$COMMENT_BUFFER"
           
           gh pr comment -F "$COMMENT_BUFFER" "${URL}"
