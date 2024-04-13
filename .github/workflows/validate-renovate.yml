@@ -41,8 +41,8 @@ jobs:
           mv "$OLD" "${OLD}.old.txt"
           NEW="$(mktemp)"
           mv "$NEW" "${NEW}.new.txt"
-          jq -rs '.oldConfig' < "$H" > "$OLD"
-          jq -rs '.newConfig' < "$H" > "$NEW"
+          jq -r '.oldConfig' < "$H" > "$OLD"
+          jq -r '.newConfig' < "$H" > "$NEW"
           
           DIFF_TO_BE_REPORTED="$(mktemp)"
           mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
