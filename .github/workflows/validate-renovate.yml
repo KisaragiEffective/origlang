@@ -32,6 +32,11 @@ jobs:
             | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
           echo '}' >> "$H"
           
+          # exit early if migration is not required
+          if [ "$(wc -b "$H")" -eq 0 ]; then
+            exit 0
+          fi
+          
           echo "---"
           echo "Collected output: $H"
           cat "$H"
