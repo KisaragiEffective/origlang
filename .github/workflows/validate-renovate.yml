@@ -29,7 +29,7 @@ jobs:
           
           # let's do main part, but avoid pipefail
           (npx --yes --package "$package" -- renovate-config-validator --strict || true)\
-            | ruby -e 'File.open(ENV[?H], ?w) {|r| while gets; puts $_; $> = r if $_.chomp == "WARN: Config migration necessary" ;end; }'
+            | ruby -e 'File.open(ENV[?H], ?w) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
           
           echo "---"
           echo "Collected output: $H"
