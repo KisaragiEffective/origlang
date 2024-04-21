@@ -10,7 +10,7 @@ license = "MPL-2.0"
 clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
 log = "0.4.21"
-thiserror = "1.0.58"
+thiserror = "1.0.59"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-runtime = { path = "../origlang-runtime" }
