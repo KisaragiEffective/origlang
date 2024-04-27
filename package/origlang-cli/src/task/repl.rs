@@ -17,6 +17,8 @@ use origlang_typesystem_model::TypedRootAst;
 struct Dummy((), Source);
 
 impl ariadne::Cache<()> for Dummy {
+    type Storage = String;
+    
     fn fetch(&mut self, _id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
         Ok(&self.1)
     }
