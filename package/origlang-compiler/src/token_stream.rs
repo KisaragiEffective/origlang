@@ -6,7 +6,7 @@ use crate::lexer::token::Token;
 
 pub struct TokenStream {
     concrete: Vec<Pointed<Token>>,
-    last_position: SourcePosition,
+    pub(crate) last_position: SourcePosition,
     current_index: Cell<usize>,
 }
 
@@ -21,9 +21,13 @@ impl TokenStream {
             current_index: Cell::new(0)
         }
     }
+
+    pub(crate) fn peek_ref(&self) -> Option<&Pointed<Token>> {
+        self.concrete.get(self.current_index.get())
+    }
     
     pub(crate) fn peek(&self) -> Pointed<Token> {
-        self.concrete.get(self.current_index.get()).unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
+        self.peek_ref().unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
     }
     
     pub(crate) fn next(&self) -> Pointed<Token> {
