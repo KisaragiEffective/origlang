@@ -174,6 +174,7 @@ impl Test {
         Self::test_underscore_discard();
         Self::test_type_alias();
         Self::test_shift();
+        Self::trigger_confusion();
         Self::test_tuple_destruction();
 
         
@@ -267,7 +268,7 @@ impl Test {
 
     fn test_unit_literal() {
         assert_eq!(Self::evaluated_expressions("print ()\n").expect("properly parsed and typed"), vec![TypeBox::Unit]);
-        
+        assert_eq!(Self::evaluated_expressions("print ((((()))))\n").expect("properly parsed and typed"), vec![TypeBox::Unit]);
     }
 
     fn test_coerced_int_literal() {
@@ -508,6 +509,38 @@ print 1
         assert_eq!(Self::evaluated_expressions("var t = 4i32 >> 2i32\nprint t\n").expect("properly parsed and typed"), type_boxes![1 => Int32]);
     }
 
+    fn trigger_confusion() {
+        let mut errors = vec![];
+
+        match Self::evaluated_expressions("var _ = ()") {
+            Ok(e) => assert_eq!(e, type_boxes![]),
+            Err(e) => { errors.push(e) }
+        }
+
+        //*
+        match Self::evaluated_expressions("var _ = ((), ())") {
+            Ok(e) => assert_eq!(e, type_boxes![]),
+            Err(e) => { errors.push(e) }
+        }
+
+        match Self::evaluated_expressions("var (_, _) = ((), ())") {
+            Ok(e) => assert_eq!(e, type_boxes![]),
+            Err(e) => { errors.push(e) }
+        }
+
+        match Self::evaluated_expressions("var (_, _) = (1, 2)") {
+            Ok(e) => assert_eq!(e, type_boxes![]),
+            Err(e) => { errors.push(e) }
+
+        }
+        
+        //*/
+        
+        if !errors.is_empty() {
+            panic!("ouch!: {errors:#?}");
+        }
+    }
+    
     fn test_tuple_destruction() {
         // literal
         assert_eq!(Self::evaluated_expressions("var (a, b) = (1i32, 2i32)\nprint a\nprint b\n").expect("properly parsed and typed"), type_boxes![1 => Int32, 2 => Int32]);
@@ -516,6 +549,8 @@ print 1
             type_boxes![1 => Int32, 2 => Int32, 3 => Int32, 4 => Int32, 5 => Int32, 6 => Int32, 7 => Int32, 8 => Int32]
         );
         assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, 2i32)\nprint a\n").expect("properly parsed and typed"), type_boxes![1 => Int32]);
+        assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, ())").expect("properly parsed and typed"), type_boxes![]);
+        assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, block\n()\nend)").expect("properly parsed and typed"), type_boxes![]);
         assert_eq!(Self::evaluated_expressions("var (a, _) = (1i32, block\nprint 2i32\n()\nend)").expect("properly parsed and typed"), type_boxes![2 => Int32]);
         assert_eq!(Self::evaluated_expressions("var (a, _) = (46i32, if true then 178i32 else 251i32)\nprint a\n").expect("properly parsed and typed"), type_boxes![46 => Int32]);
 

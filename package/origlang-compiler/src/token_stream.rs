@@ -1,4 +1,7 @@
+use std::backtrace::Backtrace;
 use std::cell::Cell;
+use std::panic::Location;
+use log::{debug, warn};
 use origlang_source_span::{Pointed, SourcePosition};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
@@ -22,8 +25,17 @@ impl TokenStream {
     }
 
     /// returns current token without cloning, or [`None`] if position is past over end.
+    #[track_caller]
     pub(crate) fn peek(&self) -> Option<&Pointed<Token>> {
-        self.concrete.get(self.current_index.get())
+        let o = Location::caller();
+        // debug!("peek: {o}");
+        let ret = self.concrete.get(self.current_index.get());
+        if ret.is_none() {
+            warn!("out of bound: {o}");
+            warn!("stacktrace: \n{}", Backtrace::force_capture());
+        }
+        
+        ret
     }
     
     /// returns cloned token on current position. use [`Self::peek`] where possible, as it does not clone implicitly.
@@ -33,8 +45,12 @@ impl TokenStream {
     }
     
     /// returns cloned token on current position, and advance position by one.
+    #[track_caller]
     pub(crate) fn next(&self) -> Pointed<Token> {
+        let o = Location::caller();
+        debug!("next: {o}");
         let ret = self.peek_cloned();
+        debug!("now[{}] = {:?}", self.current_index.get(), self.peek());
         self.current_index.set(self.current_index.get() + 1);
         
         ret
