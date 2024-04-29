@@ -343,30 +343,6 @@ impl Lexer<'_> {
         }
     }
 
-    /// Get n-step away token without consume it.
-    pub fn peek_n(&self, advance_step: usize) -> WithPosition<Token> {
-        debug!("peek_n:{advance_step}");
-        let to_rollback = self.source_bytes_nth.get();
-        if advance_step == 0 {
-            let token = self.next();
-            self.set_current_index(to_rollback);
-            token
-        } else {
-            let mut token: Option<WithPosition<Token>> = None;
-            for _ in 1..=advance_step {
-                token = Some(self.next());
-            }
-            self.set_current_index(to_rollback);
-            // SAFETY: we already initialize it.
-            unsafe { token.unwrap_unchecked() }
-        }
-    }
-
-    /// Get current token without consume it.
-    pub fn peek(&self) -> WithPosition<Token> {
-        self.peek_n(1)
-    }
-
     fn current_char_stride(&self) -> Result<Utf8CharStride, LexerError> {
         let current_boundary = self.source_bytes_nth.get();
         let index = current_boundary.as_usize();
