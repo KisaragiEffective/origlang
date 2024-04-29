@@ -13,6 +13,7 @@ use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCo
 use self::error::ParserErrorInner::EndOfFileError;
 use self::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
+use crate::token_stream::TokenStream;
 
 pub mod error;
 pub mod recover;
@@ -49,20 +50,25 @@ impl TokenKind {
     }
 }
 
-pub struct Parser<'src> {
-    lexer: Lexer<'src>,
+pub struct Parser {
+    lexer: TokenStream
 }
 
-impl<'src> Parser<'src> {
+impl Parser {
     #[must_use = "Parser do nothing unless calling parsing function"]
-    pub fn create(source: &'src str) -> Self {
+    #[deprecated]
+    pub fn create(source: &str) -> Self {
+        Self::new(Lexer::create(source).into())
+    }
+    
+    pub const fn new(token_stream: TokenStream) -> Self {
         Self {
-            lexer: Lexer::create(source)
+            lexer: token_stream
         }
     }
 }
 
-impl Parser<'_> {
+impl Parser {
     /// プログラムが文の列とみなしてパースを試みる。
     /// 事前条件: プログラム全体が任意個の文として分解できる
     /// # Errors
