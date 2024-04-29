@@ -701,7 +701,6 @@ impl Parser {
     }
 
     fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
-        let start = self.lexer.peek_ref().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
 
         let mut v = vec![];
