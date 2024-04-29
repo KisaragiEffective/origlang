@@ -21,14 +21,18 @@ impl TokenStream {
         }
     }
 
+    /// returns current token without cloning, or [`None`] if position is past over end.
     pub(crate) fn peek_ref(&self) -> Option<&Pointed<Token>> {
         self.concrete.get(self.current_index.get())
     }
     
+    /// returns cloned token on current position. use [`Self::peek_ref`] where possible, as it does not clone implicitly.
+    /// returns [`Token::EndOfFile`] if position is past over end.
     pub(crate) fn peek(&self) -> Pointed<Token> {
         self.peek_ref().unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
     }
     
+    /// returns cloned token on current position, and advance position by one.
     pub(crate) fn next(&self) -> Pointed<Token> {
         let ret = self.peek();
         self.current_index.set(self.current_index.get() + 1);
