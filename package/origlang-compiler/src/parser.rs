@@ -704,8 +704,6 @@ impl Parser {
         let start = self.lexer.peek_ref().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
 
-        drop(start);
-
         let mut v = vec![];
 
         while let Ok(pattern) = self.parse_atomic_pattern() {

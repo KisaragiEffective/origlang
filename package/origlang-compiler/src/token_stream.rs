@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::pin::Pin;
 use origlang_source_span::{Pointed, SourcePosition};
 use crate::lexer::Lexer;
 use crate::lexer::token::Token;
