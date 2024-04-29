@@ -211,7 +211,7 @@ impl Parser {
                 if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::SymRightPar {
                     self.lexer.next();
                     Ok(Expression::UnitLiteral)
-                } else if let Ok(expr_tuple) = self.parse_tuple_expression() {
+                } else if let Ok(expr_tuple) = self.lexer.parse_fallible(|| self.parse_tuple_expression()) {
                     Ok(expr_tuple)
                 } else {
                     let inner_expression = self.parse_lowest_precedence_expression()?;
@@ -244,7 +244,7 @@ impl Parser {
 
     fn parse_tuple_expression(&self) -> Result<Expression, ParserError> {
         self.lexer.parse_fallible(|| {
-            debug!("expr.tuple");
+            debug!("expr:tuple");
 
             let mut buf = vec![];
             while let Ok(e) = self.parse_lowest_precedence_expression() {
@@ -282,6 +282,9 @@ impl Parser {
     fn parse_multiplicative(&self) -> Result<Expression, ParserError> {
         debug!("expr:mul");
         let first_term = self.parse_first()?;
+        if self.lexer.peek().is_none() {
+            return Ok(first_term)
+        }
         let next_token = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         let asterisk_or_slash = |token: &Token| {
             token == &Token::SymAsterisk || token == &Token::SymSlash
@@ -329,6 +332,9 @@ impl Parser {
     fn parse_additive(&self) -> Result<Expression, ParserError> {
         debug!("expr:add");
         let first_term = self.parse_multiplicative()?;
+        if self.lexer.peek().is_none() {
+            return Ok(first_term)
+        }
         let Some(next_token) = self.lexer.peek() else {
             return Err(ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))
         };
@@ -373,6 +379,9 @@ impl Parser {
     fn parse_shift_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:shift");
         let first_term = self.parse_additive()?;
+        if self.lexer.peek().is_none() {
+            return Ok(first_term)
+        }
         let next_token = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         
         let is_relation_operator = |token: &Token| {
@@ -416,6 +425,9 @@ impl Parser {
     fn parse_relation_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:rel");
         let first_term = self.parse_shift_expression()?;
+        if self.lexer.peek().is_none() {
+            return Ok(first_term)
+        }
         let next_token = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         let is_relation_operator = |token: &Token| {
             matches!(token, Token::PartLessEq | Token::PartMoreEq | Token::SymLess | Token::SymMore | Token::PartLessEqMore)
@@ -458,6 +470,9 @@ impl Parser {
     fn parse_equality_expression(&self) -> Result<Expression, ParserError> {
         debug!("expr:eq");
         let first_term = self.parse_relation_expression()?;
+        if self.lexer.peek().is_none() {
+            return Ok(first_term)
+        }
         let next_token = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
         let is_relation_operator = |token: &Token| {
             matches!(token, Token::PartEqEq | Token::PartBangEq)
@@ -607,9 +622,10 @@ impl Parser {
             Ok(x)
         }).ok();
 
-        debug!("type annotation: {type_annotation:?}");
+        debug!("decl:var:annotation: {type_annotation:?}");
 
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+        debug!("decl:var:expr");
         let expression = self.parse_lowest_precedence_expression()?;
 
         Ok(Statement::VariableDeclaration {
@@ -628,6 +644,7 @@ impl Parser {
                     unmatch: ident_token.data }, ident_token.position))
         };
         self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+        debug!("assign:var:expr");
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableAssignment {
             identifier: name,
@@ -660,7 +677,7 @@ impl Parser {
     }
 
     fn parse_block_scope(&self) -> Result<Statement, ParserError> {
-        debug!("parser:block:scope");
+        debug!("statement:block");
         self.read_and_consume_or_report_unexpected_token(Token::KeywordBlock)?;
         if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::NewLine {
             self.lexer.next();
@@ -678,7 +695,7 @@ impl Parser {
     }
 
     fn parse_block_expression(&self) -> Result<Expression, ParserError> {
-        debug!("parser:block:expr");
+        debug!("expr:block");
         if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::KeywordBlock {
             self.lexer.next();
             self.read_and_consume_or_report_unexpected_token(Token::NewLine)?;
@@ -701,14 +718,17 @@ impl Parser {
     }
 
     fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
+        debug!("pattern:tuple");
         self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
 
         let mut v = vec![];
 
         while let Ok(pattern) = self.parse_atomic_pattern() {
+            debug!("pattern:tuple[{}] = {pattern:?}", v.len());
             v.push(pattern);
 
             if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::SymRightPar {
+                debug!("pattern:tuple:end");
                 break
             }
 
@@ -721,6 +741,7 @@ impl Parser {
     }
 
     fn parse_atomic_pattern(&self) -> Result<AtomicPattern, ParserError> {
+        debug!("pattern:atomic");
         let it = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
 
         match &it.data {
