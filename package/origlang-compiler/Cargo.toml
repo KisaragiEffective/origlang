@@ -17,7 +17,7 @@ origlang-source-span = { path = "../origlang-source-span" }
 origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
-num-traits = "0.2.18"
+num-traits = "0.2.19"
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["min_const_gen"] }
