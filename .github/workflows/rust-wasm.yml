@@ -18,6 +18,9 @@ env:
   CARGO_TERM_COLOR: always
   CI_RUST_CACHE_VERSION: v0
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
