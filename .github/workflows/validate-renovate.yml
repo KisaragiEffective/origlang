@@ -58,6 +58,12 @@ jobs:
           # fold into $?=0 even if they are different:
           # > This form implies --exit-code
           GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
+          diff_size="$(wc -c "${DIFF_TO_BE_REPORTED}.diff")"
+          echo "Diff size: $diff_size"
+          if [ "$diff_size" -eq 0 ]; then
+            echo 'Migration is unnecessary, exiting'
+            exit 0
+          fi
           COMMENT_BUFFER="$(mktemp)"
           sep='EOS_SOMEWHAT_DUMMY_LINES'
           {
@@ -98,3 +104,5 @@ jobs:
           echo '------------------------'
 
           gh pr comment -F "$COMMENT_BUFFER" "${URL}"
+
+          exit 1
