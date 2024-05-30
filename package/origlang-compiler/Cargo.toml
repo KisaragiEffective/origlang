@@ -11,13 +11,13 @@ origlang-ast = { path = "../origlang-ast" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 derive_more = "0.99.17"
 log = "0.4.21"
-thiserror = "1.0.58"
+thiserror = "1.0.59"
 origlang-platform = { path = "../origlang-platform" }
 origlang-source-span = { path = "../origlang-source-span" }
 origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
-num-traits = "0.2.18"
+num-traits = "0.2.19"
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["min_const_gen"] }

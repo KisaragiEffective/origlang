@@ -6,6 +6,9 @@ on:
       - '.github/workflows/cargo-deny.yml'
       - 'Cargo.lock'
 
+permissions:
+  contents: read
+
 jobs:
   cargo-deny:
     name: check

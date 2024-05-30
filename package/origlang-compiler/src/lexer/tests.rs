@@ -93,7 +93,6 @@ fn parse_string_literal_mixed_4_3() {
     test("\u{10000}あ");
 }
 
-use std::num::NonZeroUsize;
 use origlang_source_span::{Pointed, SourcePosition};
 use crate::chars::boundary::Utf8CharBoundaryStartByte;
 
@@ -229,5 +228,5 @@ fn skip_whitespace_only_lines() {
             suffix: None,
         },
         position: SourcePosition::try_new((4, 7)).unwrap(),
-    })
+    });
 }

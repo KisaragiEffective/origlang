@@ -12,6 +12,7 @@ pub struct SourcePosition {
 }
 
 impl SourcePosition {
+    #[must_use]
     pub const fn new(line: NonZeroUsize, column: NonZeroUsize) -> Self {
         Self {
             line, column

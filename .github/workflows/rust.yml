@@ -10,6 +10,9 @@ env:
   CARGO_TERM_COLOR: always
   CI_RUST_CACHE_VERSION: v1
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -19,7 +22,7 @@ jobs:
         include:
           - rustc_channel: stable
             # renovate: rustc-stable
-            rustc_version: '1.77.2'
+            rustc_version: '1.78.0'
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2023-09-30'
@@ -27,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
     - name: Install compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
       run: |
         if [[ "${{ matrix.rustc_channel }}" == nightly ]]; then
