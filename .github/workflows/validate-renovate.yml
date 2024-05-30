@@ -84,7 +84,7 @@ jobs:
           echo >> "$COMMENT_BUFFER"
           echo '<details>' >> "$COMMENT_BUFFER"
           echo >> "$COMMENT_BUFFER"
-          echo '<summary>Patch</summary>'
+          echo '<summary>Patch</summary>' >> "$COMMENT_BUFFER"
           echo >> "$COMMENT_BUFFER"
           echo '```patch' >> "$COMMENT_BUFFER"
           cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
