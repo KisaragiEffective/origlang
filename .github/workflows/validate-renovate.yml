@@ -61,10 +61,11 @@ jobs:
           COMMENT_BUFFER="$(mktemp)"
           sep='EOS_SOMEWHAT_DUMMY_LINES'
           echo "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
-          echo '```sh >> "$COMMENT_BUFFER"
+          echo '```sh' >> "$COMMENT_BUFFER"
           # header
           echo '#!/bin/sh' >> "$COMMENT_BUFFER"
           # make temporary
+          # shellcheck disable=SC1078
           echo 'd="$(mktemp)"' >> "$COMMENT_BUFFER"
           # patch body to temporary file:
           # cat << $sep
