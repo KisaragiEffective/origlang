@@ -59,9 +59,38 @@ jobs:
           # > This form implies --exit-code
           GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
           COMMENT_BUFFER="$(mktemp)"
+          sep='EOS_SOMEWHAT_DUMMY_LINES'
           echo "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
-          echo '```diff' >> "$COMMENT_BUFFER"
+          echo '```sh >> "$COMMENT_BUFFER"
+          # header
+          echo '#!/bin/sh' >> "$COMMENT_BUFFER"
+          # make temporary
+          echo 'd="$(mktemp)"' >> "$COMMENT_BUFFER"
+          # patch body to temporary file:
+          # cat << $sep
+          # ${DIFF_TO_BE_REPORTED}.diff
+          # $sep > "$d"
+          printf 'cat <<' >> "$COMMENT_BUFFER"
+          printf '%s\n' "$sep" >> "$COMMENT_BUFFER"
+          cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
+          printf "$sep" >> "$COMMENT_BUFFER"
+          printf '> "$d"\n' >> "$COMMENT_BUFFER"
+          # apply patch
+          echo 'patch -p1 < "$d"' >> "$COMMENT_BUFFER"
+          # close code-block
+          echo '```' >> "$COMMENT_BUFFER"
+          echo >> "$COMMENT_BUFFER"
+          echo '<details>' >> "$COMMENT_BUFFER"
+          echo >> "$COMMENT_BUFFER"
+          echo '<summary>Patch</summary>'
+          echo >> "$COMMENT_BUFFER"
+          echo '```patch' >> "$COMMENT_BUFFER"
           cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
           echo '```' >> "$COMMENT_BUFFER"
+          echo >> "$COMMENT_BUFFER"
+          echo '</details>' >> "$COMMENT_BUFFER"
+          echo '--- [DEBUG] REPORTER ---'
+          cat "$COMMENT_BUFFER"
+          echo '------------------------'
 
           gh pr comment -F "$COMMENT_BUFFER" "${URL}"
