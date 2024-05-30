@@ -14,10 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: check
+        env:
+          # `tput` complains that there are no default value
+          TERM: xterm
         run: |
-          if [ -z "$TERM" ]; then
-            export TERM=xterm
-          fi
           root_file="$(mktemp)"
           git_root="$(git rev-parse --show-toplevel)"
           jq '[.customManagers | .[] | select(.customType == "regex")]' < "$git_root/renovate.json" > "$root_file"
