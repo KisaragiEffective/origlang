@@ -19,6 +19,7 @@ jobs:
       - name: run lint and report
         env:
           URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # renovate: npm:renovate
           ver="37.291.0"
