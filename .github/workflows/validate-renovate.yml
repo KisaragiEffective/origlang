@@ -16,8 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: run lint
-        id: lint
+      - name: run lint and report
+        env:
+          URL: ${{ github.event.pull_request.html_url }}
         run: |
           # renovate: npm:renovate
           ver="37.291.0"
@@ -56,19 +57,10 @@ jobs:
           # fold into $?=0 even if they are different:
           # > This form implies --exit-code
           GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
-          echo "uploading"
-          printf 'DIFF=%s' "$(cat "${DIFF_TO_BE_REPORTED}.diff")" >> "$GITHUB_OUTPUT"
-      - name: report diff
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DIFF_TEXT: ${{ steps.lint.outputs.DIFF }}
-          URL: ${{ github.event.pull_request.html_url }}
-        run: |
           COMMENT_BUFFER="$(mktemp)"
-          
           printf "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
           printf '```diff' >> "$COMMENT_BUFFER"
-          cat "$DIFF_TEXT" >> "$COMMENT_BUFFER"
+          cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
           printf '```' >> "$COMMENT_BUFFER"
-          
+
           gh pr comment -F "$COMMENT_BUFFER" "${URL}"
