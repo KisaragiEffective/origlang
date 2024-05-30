@@ -71,11 +71,12 @@ jobs:
           # cat << $sep
           # ${DIFF_TO_BE_REPORTED}.diff
           # $sep > "$d"
-          printf 'cat <<' >> "$COMMENT_BUFFER"
+          printf 'cat > "%s"\n' '$d' >> "$COMMENT_BUFFER"
+          printf ' <<' >> "$COMMENT_BUFFER"
           printf '%s\n' "$sep" >> "$COMMENT_BUFFER"
           cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
           printf "$sep" >> "$COMMENT_BUFFER"
-          printf '> "$d"\n' >> "$COMMENT_BUFFER"
+          printf '\n'
           # apply patch
           echo 'patch -p1 < "$d"' >> "$COMMENT_BUFFER"
           # close code-block
