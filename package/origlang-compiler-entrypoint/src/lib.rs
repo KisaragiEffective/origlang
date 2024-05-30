@@ -13,7 +13,7 @@ use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
 use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
-use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
+use origlang_ir_optimizer::lower::TheTranspiler;
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
 
 pub struct TheCompiler {

@@ -39,7 +39,7 @@ impl Display for AtomicPattern {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Statement {
-    /// <int_literal> <new_line>
+    /// <`int_literal`> <`new_line`>
     Print {
         expression: Expression,
     },
