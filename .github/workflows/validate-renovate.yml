@@ -71,7 +71,7 @@ jobs:
           # cat << $sep
           # ${DIFF_TO_BE_REPORTED}.diff
           # $sep > "$d"
-          printf 'cat > "%s"\n' '$d' >> "$COMMENT_BUFFER"
+          printf 'cat > "%s"' '$d' >> "$COMMENT_BUFFER"
           printf ' <<' >> "$COMMENT_BUFFER"
           printf '%s\n' "$sep" >> "$COMMENT_BUFFER"
           cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
