@@ -60,37 +60,39 @@ jobs:
           GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
           COMMENT_BUFFER="$(mktemp)"
           sep='EOS_SOMEWHAT_DUMMY_LINES'
-          echo "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:" >> "$COMMENT_BUFFER"
-          echo '```sh' >> "$COMMENT_BUFFER"
-          # header
-          echo '#!/bin/sh' >> "$COMMENT_BUFFER"
-          # make temporary
-          # shellcheck disable=SC1078
-          echo 'd="$(mktemp)"' >> "$COMMENT_BUFFER"
-          # patch body to temporary file:
-          # cat << $sep
-          # ${DIFF_TO_BE_REPORTED}.diff
-          # $sep > "$d"
-          printf 'cat > "%s"' '$d' >> "$COMMENT_BUFFER"
-          printf ' <<' >> "$COMMENT_BUFFER"
-          printf '%s\n' "$sep" >> "$COMMENT_BUFFER"
-          cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
-          printf "$sep" >> "$COMMENT_BUFFER"
-          printf '\n'
-          # apply patch
-          echo 'patch -p1 < "$d"' >> "$COMMENT_BUFFER"
-          # close code-block
-          echo '```' >> "$COMMENT_BUFFER"
-          echo >> "$COMMENT_BUFFER"
-          echo '<details>' >> "$COMMENT_BUFFER"
-          echo >> "$COMMENT_BUFFER"
-          echo '<summary>Patch</summary>' >> "$COMMENT_BUFFER"
-          echo >> "$COMMENT_BUFFER"
-          echo '```patch' >> "$COMMENT_BUFFER"
-          cat "${DIFF_TO_BE_REPORTED}.diff" >> "$COMMENT_BUFFER"
-          echo '```' >> "$COMMENT_BUFFER"
-          echo >> "$COMMENT_BUFFER"
-          echo '</details>' >> "$COMMENT_BUFFER"
+          {
+            echo "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:"
+            # header
+            echo '```sh'
+            echo '#!/bin/sh'
+            # make temporary
+            # shellcheck disable=SC1078
+            echo 'd="$(mktemp)"'
+            # patch body to temporary file:
+            # cat << $sep
+            # ${DIFF_TO_BE_REPORTED}.diff
+            # $sep > "$d"
+            printf 'cat > "%s"' '$d'
+            printf ' <<'
+            printf '%s\n' "$sep"
+            cat "${DIFF_TO_BE_REPORTED}.diff"
+            printf "$sep"
+            printf '\n'
+            # apply patch
+            echo 'patch -p1 < "$d"'
+            # close code-block
+            echo '```'
+            echo
+            echo '<details>'
+            echo
+            echo '<summary>Patch</summary>'
+            echo
+            echo '```patch'
+            cat "${DIFF_TO_BE_REPORTED}.diff"
+            echo '```'
+            echo
+            echo '</details>'
+          } >> "$COMMENT_BUFFER"
           echo '--- [DEBUG] REPORTER ---'
           cat "$COMMENT_BUFFER"
           echo '------------------------'
