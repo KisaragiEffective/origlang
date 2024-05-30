@@ -1,0 +1,110 @@
+name: validate renovate
+
+on:
+  pull_request:
+    paths:
+      - 'renovate.json'
+      - '.github/workflows/validate-renovate.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    name: run renovate-config-validator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run lint and report
+        env:
+          URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+          # renovate: npm:renovate
+          RENOVATE_VERSION: 37.291.0
+        run: |
+          # pinned on exact version
+          package="renovate@=$RENOVATE_VERSION"
+          echo "npx: $(npx --version)"
+          echo "installing: $package..."
+          export H="$(mktemp)"
+          echo '{' >> "$H"
+          # let's do main part, but avoid pipefail
+          (npx --yes --package "$package" -- renovate-config-validator --strict || true)\
+            | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
+          echo '}' >> "$H"
+          
+          # exit early if migration is not required
+          if [ "$(stat -c %s "$H")" -le 4 ]; then
+            echo 'Migration is unnecessary, exiting (early)'
+            exit 0
+            exit 0
+          fi
+          
+          echo "---"
+          echo "Collected output: $H"
+          cat "$H"
+          echo "---"
+          # init and extract
+          OLD="$(mktemp)"
+          mv "$OLD" "${OLD}.old.txt"
+          NEW="$(mktemp)"
+          mv "$NEW" "${NEW}.new.txt"
+          echo "extracting fields"
+          jq -r '.oldConfig' < "$H" > "${OLD}.old.txt"
+          jq -r '.newConfig' < "$H" > "${NEW}.new.txt"
+          
+          DIFF_TO_BE_REPORTED="$(mktemp)"
+          mv "$DIFF_TO_BE_REPORTED" "${DIFF_TO_BE_REPORTED}.diff"
+          echo "computing diff"
+          # fold into $?=0 even if they are different:
+          # > This form implies --exit-code
+          GIT_TRACE=1 git diff --no-index "$OLD.old.txt" "$NEW.new.txt" >> "${DIFF_TO_BE_REPORTED}.diff" || true
+          diff_size="$(stat -c %s "${DIFF_TO_BE_REPORTED}.diff")"
+          echo "Diff size: $diff_size"
+          if [ "$diff_size" -eq 0 ]; then
+            echo 'Migration is unnecessary, exiting (late)'
+            exit 0
+          fi
+          COMMENT_BUFFER="$(mktemp)"
+          sep='EOS_SOMEWHAT_DUMMY_LINES'
+          {
+            echo 'I am sorry, but this config should be migrated. Please apply following command in repository root directory to proceed:'
+            # header
+            echo '```sh'
+            echo '#!/bin/sh'
+            # make temporary
+            # shellcheck disable=SC1078
+            echo 'd="$(mktemp)"'
+            # patch body to temporary file:
+            # cat << $sep
+            # ${DIFF_TO_BE_REPORTED}.diff
+            # $sep > "$d"
+            printf 'cat > "%s"' '$d'
+            printf ' <<'
+            printf '%s\n' "$sep"
+            cat "${DIFF_TO_BE_REPORTED}.diff"
+            printf "$sep"
+            printf '\n'
+            # apply patch
+            echo 'patch -p1 renovate.json < "$d"'
+            # close code-block
+            echo '```'
+            echo
+            echo '<details>'
+            echo
+            echo '<summary>Patch</summary>'
+            echo
+            echo '```patch'
+            cat "${DIFF_TO_BE_REPORTED}.diff"
+            echo '```'
+            echo
+            echo '</details>'
+          } >> "$COMMENT_BUFFER"
+          echo '--- [DEBUG] REPORTER ---'
+          cat "$COMMENT_BUFFER"
+          echo '------------------------'
+
+          gh pr comment -F "$COMMENT_BUFFER" "${URL}"
+
+          exit 1
