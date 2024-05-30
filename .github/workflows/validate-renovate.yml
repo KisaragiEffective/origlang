@@ -61,7 +61,7 @@ jobs:
           COMMENT_BUFFER="$(mktemp)"
           sep='EOS_SOMEWHAT_DUMMY_LINES'
           {
-            echo "I'm sorry, but this config should be migrated. Please apply following patch file to proceed:"
+            echo "I'm sorry, but this config should be migrated. Please apply following command to proceed:"
             # header
             echo '```sh'
             echo '#!/bin/sh'
