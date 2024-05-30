@@ -79,7 +79,7 @@ jobs:
             printf "$sep"
             printf '\n'
             # apply patch
-            echo 'patch -p1 < "$d"'
+            echo 'patch -p1 renovate.json < "$d"'
             # close code-block
             echo '```'
             echo
