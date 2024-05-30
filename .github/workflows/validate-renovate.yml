@@ -35,7 +35,9 @@ jobs:
           echo '}' >> "$H"
           
           # exit early if migration is not required
-          if [ "$(wc -c "$H")" -eq 0 ]; then
+          if [ "$(stat -c %s "$H")" -le 4 ]; then
+            echo 'Migration is unnecessary, exiting (early)'
+            exit 0
             exit 0
           fi
           
@@ -61,7 +63,7 @@ jobs:
           diff_size="$(stat -c %s "${DIFF_TO_BE_REPORTED}.diff")"
           echo "Diff size: $diff_size"
           if [ "$diff_size" -eq 0 ]; then
-            echo 'Migration is unnecessary, exiting'
+            echo 'Migration is unnecessary, exiting (late)'
             exit 0
           fi
           COMMENT_BUFFER="$(mktemp)"
