@@ -16,7 +16,7 @@ jobs:
       - name: check
         run: |
           if [ -z "$TERM" ]; then
-            TERM=xterm
+            export TERM=xterm
           fi
           root_file="$(mktemp)"
           git_root="$(git rev-parse --show-toplevel)"
