@@ -16,7 +16,7 @@
     {
       "customType": "regex",
       "fileMatch": ["(^|/)\\.github/workflows/validate-renovate\\.yml$"],
-      "matchStrings": ["#\\s?renovate: npm:renovate\\s*RENOVATE_VERSION:\\s*'(?<currentValue>\\d\\.\\d+\\.\\d+)'"],
+      "matchStrings": ["#\\s?renovate: npm:renovate\\s*RENOVATE_VERSION:\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "renovate",
       "packageNameTemplate": "renovate",
       "datasourceTemplate": "npm"
