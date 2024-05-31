@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "package/origlang-ast",
     "package/origlang-cli",
-    "package/origlang-compiler",
     "package/origlang-compiler-entrypoint",
     "package/origlang-compiler-scanner-example",
     "package/origlang-diagnostics",
