@@ -13,7 +13,7 @@ use crate::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementC
 use crate::error::ParserErrorInner::EndOfFileError;
 use crate::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
-use origlang_compiler::token_stream::TokenStream;
+use origlang_token_stream::TokenStream;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {

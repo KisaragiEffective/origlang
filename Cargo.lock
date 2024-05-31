@@ -1035,9 +1035,9 @@ dependencies = [
  "log",
  "num-traits",
  "origlang-ast",
- "origlang-compiler",
  "origlang-lexer",
  "origlang-source-span",
+ "origlang-token-stream",
  "thiserror",
 ]
 
@@ -1079,6 +1079,15 @@ dependencies = [
  "origlang-source-span",
  "origlang-typecheck",
  "thiserror",
+]
+
+[[package]]
+name = "origlang-token-stream"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-lexer",
+ "origlang-source-span",
 ]
 
 [[package]]

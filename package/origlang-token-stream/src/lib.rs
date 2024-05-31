@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 use std::backtrace::Backtrace;
 use std::cell::Cell;
 use std::panic::Location;
