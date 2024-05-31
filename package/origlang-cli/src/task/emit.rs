@@ -1,7 +1,7 @@
 use thiserror::Error;
 use origlang_lexer::Lexer;
-use origlang_compiler::parser::Parser;
-use origlang_compiler::parser::error::ParserError;
+use origlang_parser::parser::Parser;
+use origlang_parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};

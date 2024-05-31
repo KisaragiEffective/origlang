@@ -16,6 +16,7 @@ origlang-runtime = { path = "../origlang-runtime" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 origlang-ir = { path = "../origlang-ir" }
+origlang-parser = { path = "../origlang-parser" }
 js-sys = "0.3.69"
 console_error_panic_hook = "0.1.7"
 web-sys = { version = "0.3.69", features = ["console"] }

@@ -1,5 +1,5 @@
 use std::time::Instant;
-use origlang_compiler::parser::Parser;
+use origlang_parser::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
 use crate::task::Task;
 use crate::error::TaskExecutionError;

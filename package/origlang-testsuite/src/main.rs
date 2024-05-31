@@ -13,7 +13,7 @@ use thiserror::Error;
 use origlang_runtime::{Accumulate, DisplayTupleValue, Runtime, TypeBox};
 use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_compiler::parser::error::{ParserError, ParserErrorInner};
+use origlang_parser::error::{ParserError, ParserErrorInner};
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_compiler::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
@@ -66,7 +66,7 @@ impl Test {
     }
 
     fn evaluated_expressions_with_optimization_preset(src: &str, preset: &dyn EachStep) -> Result<Vec<TypeBox>, Err> {
-        use origlang_compiler::parser::Parser;
+        use origlang_parser::parser::Parser;
         debug!("src:\n{}", src);
         let source = src;
         let parser = Parser::create(source);
@@ -86,7 +86,7 @@ impl Test {
     }
 
     fn ast(src: &str) -> Result<RootAst, Err> {
-        use origlang_compiler::parser::Parser;
+        use origlang_parser::parser::Parser;
         debug!("src:\n{}", src);
         let source = src;
         let parser = Parser::create(source);

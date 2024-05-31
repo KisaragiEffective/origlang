@@ -8,7 +8,7 @@ use origlang_lexer::token::Token;
 
 pub struct TokenStream {
     concrete: Vec<Pointed<Token>>,
-    pub(crate) last_position: SourcePosition,
+    pub last_position: SourcePosition,
     current_index: Cell<usize>,
 }
 
@@ -26,7 +26,7 @@ impl TokenStream {
 
     /// returns current token without cloning, or [`None`] if position is past over end.
     #[track_caller]
-    pub(crate) fn peek(&self) -> Option<&Pointed<Token>> {
+    pub fn peek(&self) -> Option<&Pointed<Token>> {
         let o = Location::caller();
         // debug!("peek: {o}");
         let ret = self.concrete.get(self.current_index.get());
@@ -40,13 +40,13 @@ impl TokenStream {
     
     /// returns cloned token on current position. use [`Self::peek`] where possible, as it does not clone implicitly.
     /// returns [`Token::EndOfFile`] if position is past over end.
-    pub(crate) fn peek_cloned(&self) -> Pointed<Token> {
+    pub fn peek_cloned(&self) -> Pointed<Token> {
         self.peek().unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
     }
     
     /// returns cloned token on current position, and advance position by one.
     #[track_caller]
-    pub(crate) fn next(&self) -> Pointed<Token> {
+    pub fn next(&self) -> Pointed<Token> {
         let o = Location::caller();
         debug!("next: {o}");
         let ret = self.peek_cloned();
@@ -62,7 +62,7 @@ impl TokenStream {
     ///   これによってコパーサがどれだけ壊れていたとしても失敗時にもとのインデックスに戻ることが保証される
     /// # Errors
     /// もしfがErrを返したとき、パーサーの位置を戻し、その後fの値を伝播する。
-    pub(crate) fn parse_fallible<T, E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
+    pub fn parse_fallible<T, E>(&self, f: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
         let old_position = self.current_index.get();
         match f() {
             Ok(t) => Ok(t),

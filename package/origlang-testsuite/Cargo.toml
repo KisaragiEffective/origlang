@@ -15,4 +15,5 @@ origlang-ir = { version = "0.1.0", path = "../origlang-ir" }
 origlang-ir-optimizer = { version = "0.1.0", path = "../origlang-ir-optimizer" }
 origlang-runtime = { version = "0.1.0", path = "../origlang-runtime" }
 origlang-source-span = { version = "*", path = "../origlang-source-span" }
+origlang-parser = { path = "../origlang-parser" }
 thiserror = "1.0.59"

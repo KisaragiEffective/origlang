@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
-pub(crate) mod error;
+pub mod error;
 #[cfg(test)]
 mod tests;
 pub mod token;

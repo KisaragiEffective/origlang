@@ -22,3 +22,4 @@ origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 tap = "1.0.1"
 origlang-lexer = { path = "../origlang-lexer" }
+origlang-parser = { path = "../origlang-parser" }

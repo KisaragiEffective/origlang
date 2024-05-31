@@ -14,4 +14,5 @@ origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 origlang-lexer = { path = "../origlang-lexer" }
+origlang-parser = { path = "../origlang-parser" }
 thiserror = { version = "1.0.59" }

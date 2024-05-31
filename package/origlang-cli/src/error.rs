@@ -1,5 +1,5 @@
 use thiserror::Error;
-use origlang_compiler::parser::error::ParserError;
+use origlang_parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;
 use origlang_runtime::RuntimeError;
 use crate::args::ReadSourceError;

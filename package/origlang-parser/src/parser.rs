@@ -9,14 +9,11 @@ use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
-use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
-use self::error::ParserErrorInner::EndOfFileError;
-use self::recover::PartiallyParseFixCandidate;
+use crate::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
+use crate::error::ParserErrorInner::EndOfFileError;
+use crate::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
-use crate::token_stream::TokenStream;
-
-pub mod error;
-pub mod recover;
+use origlang_compiler::token_stream::TokenStream;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
