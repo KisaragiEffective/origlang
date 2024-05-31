@@ -1,8 +1,8 @@
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
 use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
-use crate::lexer::Lexer;
-use crate::lexer::token::Token;
-use crate::lexer::token::internal::DisplayToken;
+use origlang_lexer::Lexer;
+use origlang_lexer::token::Token;
+use origlang_lexer::token::internal::DisplayToken;
 
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;

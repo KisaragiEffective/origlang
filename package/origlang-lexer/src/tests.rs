@@ -1,5 +1,5 @@
 use origlang_ast::Identifier;
-use crate::lexer::{Lexer, Token};
+use crate::{Lexer, Token};
 
 fn test(str_lit: &str) {
     let src = format!("var x = \"{str_lit}\"\n");
@@ -94,7 +94,7 @@ fn parse_string_literal_mixed_4_3() {
 }
 
 use origlang_source_span::{Pointed, SourcePosition};
-use crate::chars::boundary::Utf8CharBoundaryStartByte;
+use crate::boundary::Utf8CharBoundaryStartByte;
 
 #[test]
 fn token_location() {

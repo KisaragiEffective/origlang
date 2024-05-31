@@ -906,6 +906,7 @@ dependencies = [
  "origlang-compiler",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-lexer",
  "origlang-platform",
  "origlang-runtime",
  "origlang-typesystem-model",
@@ -925,6 +926,7 @@ dependencies = [
  "origlang-diagnostics",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-lexer",
  "origlang-platform",
  "origlang-source-span",
  "origlang-typesystem-model",
@@ -942,6 +944,7 @@ dependencies = [
  "origlang-diagnostics",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-lexer",
  "thiserror",
 ]
 
@@ -1007,6 +1010,20 @@ dependencies = [
  "origlang-typesystem-model",
  "tap",
 ]
+
+[[package]]
+name = "origlang-lexer"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-source-span",
+ "thiserror",
+]
+
+[[package]]
+name = "origlang-parser"
+version = "0.1.0"
 
 [[package]]
 name = "origlang-platform"

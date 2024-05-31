@@ -6,7 +6,7 @@ use std::any::type_name;
 use log::debug;
 use thiserror::Error;
 use origlang_ast::Statement;
-use origlang_compiler::lexer::token::Token as LexerToken;
+use origlang_lexer::token::Token as LexerToken;
 use origlang_compiler::parser::Parser;
 use origlang_compiler::parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;

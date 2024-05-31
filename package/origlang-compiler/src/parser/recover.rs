@@ -1,6 +1,6 @@
 use derive_more::Display;
 use origlang_ast::after_parse::Expression;
-use crate::lexer::token::Token;
+use origlang_lexer::token::Token;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum IntermediateStateCandidate {

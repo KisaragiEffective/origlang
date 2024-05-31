@@ -21,3 +21,4 @@ strum = { version = "0.26.2", features = ["derive"] }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 tap = "1.0.1"
+origlang-lexer = { path = "../origlang-lexer" }

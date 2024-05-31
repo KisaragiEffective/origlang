@@ -3,8 +3,8 @@ use std::cell::Cell;
 use std::panic::Location;
 use log::{debug, warn};
 use origlang_source_span::{Pointed, SourcePosition};
-use crate::lexer::Lexer;
-use crate::lexer::token::Token;
+use origlang_lexer::Lexer;
+use origlang_lexer::token::Token;
 
 pub struct TokenStream {
     concrete: Vec<Pointed<Token>>,

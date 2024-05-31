@@ -1,7 +1,10 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
 pub(crate) mod error;
 #[cfg(test)]
 mod tests;
 pub mod token;
+mod boundary;
 
 use std::cell::Cell;
 
@@ -10,9 +13,9 @@ use log::{debug, trace, warn};
 use self::error::LexerError;
 use origlang_ast::{Comment, Identifier};
 use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
-use crate::chars::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
-use crate::lexer::error::OutOfRangeError;
-use crate::lexer::token::{TemporalLexerUnwindToken, Token};
+use crate::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
+use crate::error::OutOfRangeError;
+use crate::token::{TemporalLexerUnwindToken, Token};
 
 static KEYWORDS: [&str; 12] =
     ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "type", "_"];

@@ -1,5 +1,5 @@
 use thiserror::Error;
-use origlang_compiler::lexer::Lexer;
+use origlang_lexer::Lexer;
 use origlang_compiler::parser::Parser;
 use origlang_compiler::parser::error::ParserError;
 use origlang_compiler::type_check::error::TypeCheckError;
