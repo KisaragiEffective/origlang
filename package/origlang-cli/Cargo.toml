@@ -11,8 +11,8 @@ clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
 log = "0.4.21"
 thiserror = "1.0.59"
-origlang-compiler = { path = "../origlang-compiler" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
+origlang-typecheck = { path = "../origlang-typecheck" }
 origlang-runtime = { path = "../origlang-runtime" }
 ariadne = "0.4.1"
 origlang-platform = { path = "../origlang-platform" }
@@ -21,3 +21,5 @@ strum = { version = "0.26.2", features = ["derive"] }
 origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 tap = "1.0.1"
+origlang-lexer = { path = "../origlang-lexer" }
+origlang-parser = { path = "../origlang-parser" }

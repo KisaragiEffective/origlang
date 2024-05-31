@@ -903,32 +903,16 @@ dependencies = [
  "env_logger",
  "log",
  "origlang-ast",
- "origlang-compiler",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-lexer",
+ "origlang-parser",
  "origlang-platform",
  "origlang-runtime",
+ "origlang-typecheck",
  "origlang-typesystem-model",
  "strum",
  "tap",
- "thiserror",
-]
-
-[[package]]
-name = "origlang-compiler"
-version = "0.1.0"
-dependencies = [
- "derive_more",
- "log",
- "num-traits",
- "origlang-ast",
- "origlang-diagnostics",
- "origlang-ir",
- "origlang-ir-optimizer",
- "origlang-platform",
- "origlang-source-span",
- "origlang-typesystem-model",
- "rand",
  "thiserror",
 ]
 
@@ -938,10 +922,12 @@ version = "0.1.0"
 dependencies = [
  "log",
  "origlang-ast",
- "origlang-compiler",
  "origlang-diagnostics",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-lexer",
+ "origlang-parser",
+ "origlang-typecheck",
  "thiserror",
 ]
 
@@ -949,7 +935,6 @@ dependencies = [
 name = "origlang-compiler-scanner-example"
 version = "0.1.0"
 dependencies = [
- "origlang-compiler",
  "origlang-compiler-entrypoint",
  "origlang-diagnostics",
  "origlang-ir",
@@ -970,10 +955,11 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
- "origlang-compiler",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-parser",
  "origlang-runtime",
+ "origlang-typecheck",
  "origlang-typesystem-model",
  "thiserror",
  "wasm-bindgen",
@@ -1009,6 +995,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "origlang-lexer"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-source-span",
+ "thiserror",
+]
+
+[[package]]
+name = "origlang-parser"
+version = "0.1.0"
+dependencies = [
+ "derive_more",
+ "log",
+ "num-traits",
+ "origlang-ast",
+ "origlang-lexer",
+ "origlang-source-span",
+ "origlang-token-stream",
+ "thiserror",
+]
+
+[[package]]
 name = "origlang-platform"
 version = "0.1.0"
 
@@ -1038,11 +1048,31 @@ dependencies = [
  "env_logger",
  "log",
  "origlang-ast",
- "origlang-compiler",
  "origlang-ir",
  "origlang-ir-optimizer",
+ "origlang-parser",
  "origlang-runtime",
  "origlang-source-span",
+ "origlang-typecheck",
+ "thiserror",
+]
+
+[[package]]
+name = "origlang-token-stream"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-lexer",
+ "origlang-source-span",
+]
+
+[[package]]
+name = "origlang-typecheck"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-typesystem-model",
  "thiserror",
 ]
 

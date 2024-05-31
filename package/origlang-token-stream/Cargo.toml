@@ -1,0 +1,10 @@
+[package]
+name = "origlang-token-stream"
+version = "0.1.0"
+edition = "2021"
+license = "CC0-1.0"
+
+[dependencies]
+log = "0.4.21"
+origlang-lexer = { path = "../origlang-lexer" }
+origlang-source-span = { path = "../origlang-source-span" }

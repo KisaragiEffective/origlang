@@ -3,10 +3,10 @@ use origlang_source_span::{Pointed, SourcePosition as SourcePos, SourcePosition}
 use std::fmt::{Display, Formatter};
 use derive_more::Display;
 use std::num::ParseIntError;
-use crate::lexer::error::LexerError;
-use crate::lexer::token::Token;
+use origlang_lexer::error::LexerError;
+use origlang_lexer::token::Token;
 use crate::parser::TokenKind;
-use crate::parser::recover::{IntermediateStateCandidate, PartiallyParseFixCandidate};
+use crate::recover::{IntermediateStateCandidate, PartiallyParseFixCandidate};
 
 #[derive(ThisError, Debug, Eq, PartialEq)]
 pub struct ParserError(Pointed<ParserErrorInner>);

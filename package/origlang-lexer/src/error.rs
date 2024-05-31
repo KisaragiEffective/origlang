@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 use thiserror::Error;
-use crate::chars::boundary::Utf8CharBoundaryStartByte;
+use crate::boundary::Utf8CharBoundaryStartByte;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]

@@ -1,9 +1,9 @@
 use std::time::Instant;
-use origlang_compiler::parser::Parser;
+use origlang_parser::parser::Parser;
 use origlang_runtime::{PrintToStdout, Runtime};
 use crate::task::Task;
 use crate::error::TaskExecutionError;
-use origlang_compiler::type_check::TypeChecker;
+use origlang_typecheck::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;

@@ -1,9 +1,9 @@
 use thiserror::Error;
-use origlang_compiler::lexer::Lexer;
-use origlang_compiler::parser::Parser;
-use origlang_compiler::parser::error::ParserError;
-use origlang_compiler::type_check::error::TypeCheckError;
-use origlang_compiler::type_check::TypeChecker;
+use origlang_lexer::Lexer;
+use origlang_parser::parser::Parser;
+use origlang_parser::error::ParserError;
+use origlang_typecheck::type_check::error::TypeCheckError;
+use origlang_typecheck::type_check::TypeChecker;
 use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};

@@ -1,7 +1,7 @@
 use origlang_ast::{Comment, Identifier};
-use crate::chars::boundary::Utf8CharBoundaryStartByte;
-use crate::lexer::Lexer;
-use crate::lexer::token::internal::DisplayToken;
+use crate::boundary::Utf8CharBoundaryStartByte;
+use crate::Lexer;
+use crate::token::internal::DisplayToken;
 
 pub struct TemporalLexerUnwindToken {
     unwind_index: Utf8CharBoundaryStartByte,
@@ -171,7 +171,7 @@ impl Token {
     }
 }
 
-pub(crate) mod internal {
+pub mod internal {
     use std::fmt::{Display, Formatter};
 
     #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]

@@ -7,7 +7,6 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-origlang-compiler = { path = "../origlang-compiler" }
 origlang-compiler-entrypoint = { path = "../origlang-compiler-entrypoint" }
 origlang-diagnostics = { path = "../origlang-diagnostics" }
 origlang-ir = { path = "../origlang-ir" }

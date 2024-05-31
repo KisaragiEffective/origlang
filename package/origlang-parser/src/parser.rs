@@ -1,22 +1,19 @@
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
 use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
-use crate::lexer::Lexer;
-use crate::lexer::token::Token;
-use crate::lexer::token::internal::DisplayToken;
+use origlang_lexer::Lexer;
+use origlang_lexer::token::Token;
+use origlang_lexer::token::internal::DisplayToken;
 
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
 use std::string::ToString;
 use derive_more::Display;
 use log::{debug, warn};
 use num_traits::Bounded;
-use self::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
-use self::error::ParserErrorInner::EndOfFileError;
-use self::recover::PartiallyParseFixCandidate;
+use crate::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
+use crate::error::ParserErrorInner::EndOfFileError;
+use crate::recover::PartiallyParseFixCandidate;
 use crate::parser::TokenKind::IntLiteral;
-use crate::token_stream::TokenStream;
-
-pub mod error;
-pub mod recover;
+use origlang_token_stream::TokenStream;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {

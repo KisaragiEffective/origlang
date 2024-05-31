@@ -1,0 +1,15 @@
+[package]
+name = "origlang-parser"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+derive_more = "0.99.17"
+log = "0.4.21"
+num-traits = "0.2.19"
+origlang-ast = { path = "../origlang-ast" }
+origlang-source-span = { path = "../origlang-source-span" }
+origlang-lexer = { path = "../origlang-lexer" }
+origlang-token-stream = { path = "../origlang-token-stream" }
+thiserror = "1.0.61"

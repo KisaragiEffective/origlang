@@ -1,0 +1,11 @@
+[package]
+name = "origlang-lexer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+log = "0.4.21"
+thiserror = "1.0.61"
+origlang-ast = { path = "../origlang-ast" }
+origlang-source-span = { path = "../origlang-source-span" }
