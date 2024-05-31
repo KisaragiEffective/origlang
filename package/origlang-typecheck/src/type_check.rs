@@ -467,7 +467,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    pub(crate) fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
+    pub fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
         match p0 {
             TypeSignature::Simple(ident) => {
                 match ident.as_name() {
@@ -492,7 +492,7 @@ impl TypeChecker {
         }
     }
 
-    pub(crate) fn make_fresh_identifier(&self) -> Identifier {
+    pub fn make_fresh_identifier(&self) -> Identifier {
         // TODO: this implementation is poor. choice more elegant algorithm.
         let hello = RandomState::new().hash_one(());
         let m = hello.to_ne_bytes();

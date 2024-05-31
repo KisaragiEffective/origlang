@@ -2,7 +2,7 @@ use thiserror::Error;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::{AtomicPattern, Identifier, TypeSignature};
 use origlang_typesystem_model::TypedExpression;
-use crate::type_check::Type;
+use origlang_typesystem_model::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
 #[allow(clippy::module_name_repetitions)]

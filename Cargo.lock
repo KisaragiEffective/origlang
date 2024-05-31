@@ -910,6 +910,7 @@ dependencies = [
  "origlang-parser",
  "origlang-platform",
  "origlang-runtime",
+ "origlang-typecheck",
  "origlang-typesystem-model",
  "strum",
  "tap",
@@ -947,6 +948,7 @@ dependencies = [
  "origlang-ir-optimizer",
  "origlang-lexer",
  "origlang-parser",
+ "origlang-typecheck",
  "thiserror",
 ]
 
@@ -980,6 +982,7 @@ dependencies = [
  "origlang-ir-optimizer",
  "origlang-parser",
  "origlang-runtime",
+ "origlang-typecheck",
  "origlang-typesystem-model",
  "thiserror",
  "wasm-bindgen",
@@ -1074,6 +1077,17 @@ dependencies = [
  "origlang-parser",
  "origlang-runtime",
  "origlang-source-span",
+ "origlang-typecheck",
+ "thiserror",
+]
+
+[[package]]
+name = "origlang-typecheck"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "origlang-ast",
+ "origlang-typesystem-model",
  "thiserror",
 ]
 

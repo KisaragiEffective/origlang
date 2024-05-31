@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 wasm-bindgen = "0.2.92"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-runtime = { path = "../origlang-runtime" }
+origlang-typecheck = { path = "../origlang-typecheck" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 origlang-ir = { path = "../origlang-ir" }

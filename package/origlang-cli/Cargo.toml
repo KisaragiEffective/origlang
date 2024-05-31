@@ -13,6 +13,7 @@ log = "0.4.21"
 thiserror = "1.0.59"
 origlang-compiler = { path = "../origlang-compiler" }
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
+origlang-typecheck = { path = "../origlang-typecheck" }
 origlang-runtime = { path = "../origlang-runtime" }
 ariadne = "0.4.1"
 origlang-platform = { path = "../origlang-platform" }

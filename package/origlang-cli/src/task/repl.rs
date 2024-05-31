@@ -8,7 +8,7 @@ use origlang_platform::CTRL_D_NL;
 use origlang_parser::parser::Parser;
 use origlang_parser::error::ParserErrorInner;
 use origlang_runtime::{PrintToStdout, Runtime};
-use origlang_compiler::type_check::TypeChecker;
+use origlang_typecheck::type_check::TypeChecker;
 use origlang_ir::{IntoVerbatimSequencedIR, IR2};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;

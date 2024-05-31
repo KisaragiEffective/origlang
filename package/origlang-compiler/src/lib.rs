@@ -1,5 +1,4 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-pub mod type_check;
 pub mod token_stream;

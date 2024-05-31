@@ -15,4 +15,5 @@ origlang-ir = { path = "../origlang-ir" }
 origlang-ir-optimizer = { path = "../origlang-ir-optimizer" }
 origlang-lexer = { path = "../origlang-lexer" }
 origlang-parser = { path = "../origlang-parser" }
+origlang-typecheck = { path = "../origlang-typecheck" }
 thiserror = { version = "1.0.59" }
