@@ -54,7 +54,7 @@ jobs:
             count_string_match="$(jq -r '.matchStrings | length' < "$item_file")"
             for ((of_string_match=0; of_string_match < "$count_string_match"; of_string_match++)); do
               current_regex="$(jq -r --arg i "$of_string_match" '.matchStrings[$i | tonumber]' < "$item_file")"
-              xargs grep -Pzo "$current_regex" < "$grep_temp" || {
+              xargs grep -Pzo "$current_regex" < "$grep_temp" >/dev/null || {
                 colored_regex=$'\e[38;5;214m'"${current_regex}"$'\e[m'
                 errors="${errors}${err_msg_header} .customManagers[${of_item}].matchStrings[${of_string_match}] (${colored_regex}) does not match to following files:$LF$(sed -E 's/^/- /' "$grep_temp")$LF"
               }
