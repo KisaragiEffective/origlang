@@ -467,6 +467,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+    #[allow(clippy::result_unit_err)]
     pub fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
         match p0 {
             TypeSignature::Simple(ident) => {
