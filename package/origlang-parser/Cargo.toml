@@ -2,6 +2,7 @@
 name = "origlang-parser"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 derive_more = "0.99.17"

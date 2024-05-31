@@ -2,6 +2,7 @@
 name = "origlang-typecheck"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 origlang-typesystem-model = { path = "../origlang-typesystem-model" }
