@@ -13,7 +13,7 @@ permissions:
 jobs:
   lint:
     name: run renovate-config-validator
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: run lint and report
