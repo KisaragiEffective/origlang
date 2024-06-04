@@ -26,10 +26,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             wasmpack_target_triple: x86_64-unknown-linux-musl
             wasmpack_name: wasm-pack
-          - os: windows-latest
+          - os: windows-2022
             wasmpack_target_triple: x86_64-pc-windows-msvc
             wasmpack_name: wasm-pack.exe
       # FIXME: windows does not recognize /usr/local/bin, causing build to be failed
