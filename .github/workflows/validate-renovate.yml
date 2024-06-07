@@ -30,16 +30,19 @@ jobs:
           export H="$(mktemp)"
           se="$(mktemp)"
           echo '{' >> "$H"
-          # let's do main part, but avoid pipefail for soft-error about migration
-          (npx --yes --package "$package" -- renovate-config-validator --strict 2>"$se" || true)\
-            | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
-          echo '}' >> "$H"
-          
-          cat "$se" >&2
-          if [ "$(stat -c %s "$se")" -gt 0 ] && (grep "ERROR" < "$se"); then
-            gh pr comment -F "Error(s) has been occurred: $(cat "$se")" "${URL}"
+          js_output_temp="$(mktemp)"
+          npx --yes --package "$package" -- renovate-config-validator --strict >"$js_output_temp" || true
+          if grep -e "^ERROR: Found errors in configuration" "$js_output_temp"; then
+            # hard error
+            # TODO: collect this as JSON, and display it in more structured way
+            lf=$'\n'
+            gh pr comment -F "Error(s) has been occurred: ${lf}${js_output}" "${URL}"
             exit 1
           fi
+          
+          # let's do main part, but avoid pipefail for soft-error about migration
+          ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }' <"$js_output_temp"
+          echo '}' >> "$H"
           
           # exit early if migration is not required
           if [ "$(stat -c %s "$H")" -le 4 ]; then
