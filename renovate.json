@@ -28,7 +28,7 @@
       "matchUpdateTypes": ["minor", "patch"],
       "matchManagers": ["npm"],
       "matchFileNames": [".github/workflows/validate-renovate.yml"],
-      "matchDepNames": ["renovate"]
+      "matchDepNames": ["renovate"],
       "automerge": true
     }
   ]
