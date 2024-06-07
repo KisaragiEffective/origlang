@@ -28,11 +28,18 @@ jobs:
           echo "npx: $(npx --version)"
           echo "installing: $package..."
           export H="$(mktemp)"
+          se="$(mktemp)"
           echo '{' >> "$H"
-          # let's do main part, but avoid pipefail
-          (npx --yes --package "$package" -- renovate-config-validator --strict || true)\
+          # let's do main part, but avoid pipefail for soft-error about migration
+          (npx --yes --package "$package" -- renovate-config-validator --strict 2>"$se" || true)\
             | ruby -e 'File.open(ENV[?H], ?a) {|r| while gets; puts $_; $> = r if $_.strip == "WARN: Config migration necessary" ;end; }'
           echo '}' >> "$H"
+          
+          cat "$se" >&2
+          if [ "$(stat -c %s "$se")" -gt 0 ] && (echo "$se" | grep "ERROR"); then
+            gh pr comment -F "Error(s) has been occurred: $(cat "$se")" "${URL}"
+            exit 1
+          fi
           
           # exit early if migration is not required
           if [ "$(stat -c %s "$H")" -le 4 ]; then
