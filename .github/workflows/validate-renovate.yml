@@ -36,7 +36,7 @@ jobs:
           echo '}' >> "$H"
           
           cat "$se" >&2
-          if [ "$(stat -c %s "$se")" -gt 0 ] && (echo "$se" | grep "ERROR"); then
+          if [ "$(stat -c %s "$se")" -gt 0 ] && (grep "ERROR" < "$se"); then
             gh pr comment -F "Error(s) has been occurred: $(cat "$se")" "${URL}"
             exit 1
           fi
