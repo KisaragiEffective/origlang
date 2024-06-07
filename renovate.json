@@ -21,5 +21,15 @@
       "packageNameTemplate": "renovate",
       "datasourceTemplate": "npm"
     }    
+  ],
+  "packageRules": [
+    {
+      "description": "automerge for renovate-config-validator",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": ["npm"],
+      "matchFileNames": [".github/workflows/validate-renovate.yml"],
+      "matchDepNames": ["renovate"]
+      "automerge": true
+    }
   ]
 }
