@@ -19,9 +19,7 @@
       "matchStrings": ["#\\s?renovate: npm:renovate\\s*RENOVATE_VERSION:\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "renovate",
       "packageNameTemplate": "renovate",
-      "datasourceTemplate": "npm",
-      "automerge": true,
-      "description": "Detect renovate version for installing renovate-config-validator to keep conforming to latest schema. Doing auto-merge reduces manifest management cost for it."
+      "datasourceTemplate": "npm"
     }    
   ]
 }
