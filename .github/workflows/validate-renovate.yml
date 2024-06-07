@@ -36,11 +36,11 @@ jobs:
             # hard error
             # TODO: collect this as JSON, and display it in more structured way
             lf=$'\n'
-            comment_buffer="$(mktemp)"
-            echo '```' >"$comment_buffer"
-            echo "Error(s) has been occurred: ${lf}$(cat "$js_output_temp")" >"$comment_buffer"
-            echo '```' >"$comment_buffer"
-            gh pr comment -F "$comment_buffer" "${URL}"
+            {
+              echo '```'
+              echo "Error(s) has been occurred: ${lf}$(cat "$js_output_temp")"
+              echo '```'
+            } | gh pr comment -F - "${URL}"
             exit 1
           fi
           
