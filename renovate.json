@@ -26,7 +26,7 @@
     {
       "description": "automerge for renovate-config-validator",
       "matchUpdateTypes": ["minor", "patch"],
-      "matchManagers": ["npm"],
+      "matchManagers": ["custom.regex"],
       "matchFileNames": [".github/workflows/validate-renovate.yml"],
       "matchDepNames": ["renovate"],
       "automerge": true
