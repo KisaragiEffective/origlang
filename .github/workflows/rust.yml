@@ -30,6 +30,11 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: Disable Microsoft Defender for faster build (experimental)
+      run: |
+        Set-MpPreference -DisableRealtimeMonitoring $True
+      shell: powershell
+      if: ${{ matrix.os == 'windows-2022' }}
     - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
     - name: Install compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
       run: |
