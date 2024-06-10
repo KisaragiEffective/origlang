@@ -10,23 +10,50 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # renovate: npm:renovate
+  RENOVATE_VERSION: '37.397.0'
+
 jobs:
   lint:
     name: run renovate-config-validator
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: run lint and report
+      - name: pull npx cache
+        id: pull-path
+        uses: actions/cache@v4
+        with:
+          path: .github/workflows/cache/renovate-npx-path-${{ env.RENOVATE_VERSION }}
+          key: renovate-npx-path-${{ env.RENOVATE_VERSION }}-${{ env.CACHE_VERSION }}
         env:
-          URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ github.token }}
-          # renovate: npm:renovate
-          RENOVATE_VERSION: '37.397.0'
+          CACHE_VERSION: v0
+      - name: extract file
+        id: extract-path
         run: |
+          echo "LOCATION=$(cat ".github/workflows/cache/renovate-npx-path-${{ env.RENOVATE_VERSION }}")" >> "$GITHUB_OUTPUT"
+      - name: pull npx cache (phase 2)
+        if: ${{ steps.pull-path.outputs.cache-hit }}
+        id: pull-actual
+        uses: actions/cache@v4
+        with:
+          path: '${{ steps.extract-path.outputs.LOCATION }}'
+          key: renovate-npx-${{ env.RENOVATE_VERSION }}-${{ env.CACHE_VERSION }}
+      - name: install if necessary
+        if: '${{ ! (steps.pull-path.outputs.cache-hit && steps.pull-actual.outputs.cache-hit ) }}'
+        run: |
+          echo 'missed cache, installing'
           # pinned on exact version
           package="renovate@=$RENOVATE_VERSION"
           echo "npx: $(npx --version)"
           echo "installing: $package..."
+          npx --yes --package "$package" -- which renovate-config-validator
+      - name: run lint and collect
+        env:
+          URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          package="renovate@=$RENOVATE_VERSION"
           export H="$(mktemp)"
           se="$(mktemp)"
           echo '{' >> "$H"
@@ -51,7 +78,6 @@ jobs:
           # exit early if migration is not required
           if [ "$(stat -c %s "$H")" -le 4 ]; then
             echo 'Migration is unnecessary, exiting (early)'
-            exit 0
             exit 0
           fi
           
@@ -118,7 +144,9 @@ jobs:
           echo '--- [DEBUG] REPORTER ---'
           cat "$COMMENT_BUFFER"
           echo '------------------------'
-
+          echo "path=$COMMENT_BUFFER" >>"$GITHUB_OUTPUT"
+      - name: report and fail
+        run: |
           gh pr comment -F "$COMMENT_BUFFER" "${URL}"
-
+          
           exit 1
