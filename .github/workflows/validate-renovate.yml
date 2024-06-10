@@ -12,7 +12,7 @@ permissions:
 
 env:
   # renovate: npm:renovate
-  RENOVATE_VERSION: '37.397.0'
+  RENOVATE_VERSION: '37.401.1'
 
 jobs:
   lint:
@@ -27,9 +27,8 @@ jobs:
           path: .github/workflows/cache/renovate-npx-path-${{ env.RENOVATE_VERSION }}
           key: renovate-npx-path-${{ env.RENOVATE_VERSION }}-${{ env.CACHE_VERSION }}
         env:
-          CACHE_VERSION: v0
-      - name: extract file
-        id: extract-path
+          URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "LOCATION=$(cat ".github/workflows/cache/renovate-npx-path-${{ env.RENOVATE_VERSION }}")" >> "$GITHUB_OUTPUT"
       - name: pull npx cache (phase 2)
