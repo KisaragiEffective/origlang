@@ -29,6 +29,8 @@ jobs:
         env:
           URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ github.token }}
+      - name: output
+        id: extract-path
         run: |
           echo "LOCATION=$(cat ".github/workflows/cache/renovate-npx-path-${{ env.RENOVATE_VERSION }}")" >> "$GITHUB_OUTPUT"
       - name: pull npx cache (phase 2)
