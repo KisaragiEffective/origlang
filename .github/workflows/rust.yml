@@ -22,7 +22,7 @@ jobs:
         include:
           - rustc_channel: stable
             # renovate: rustc-stable
-            rustc_version: '1.78.0'
+            rustc_version: '1.79.0'
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2024-06-12'
