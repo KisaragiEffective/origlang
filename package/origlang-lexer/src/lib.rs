@@ -70,7 +70,7 @@ impl Lexer<'_> {
     fn drain_space(&self) {
         trace!("drain_space: start vvvvvvvvvvvvvvvvvvv");
         while !self.reached_end() {
-            if self.try_and_eat_str(" ") == Some(" ") || self.try_and_eat_str("\t") == Some("\t") {
+            if self.try_and_eat_str(" ") || self.try_and_eat_str("\t") {
             } else {
                 break
             }
@@ -79,50 +79,48 @@ impl Lexer<'_> {
     }
 
     /// Note
-    /// calling [`Self::advance_bytes`], [`Self::advance`], or [`Self::set_current_index`] is error-prone.
-    fn try_and_eat_str<'s>(&self, s: &'s str) -> Option<&'s str> {
+    /// calling [`Self::advance_bytes`] or [`Self::set_current_index`] is error-prone.
+    fn try_and_eat_str(&self, s: &str) -> bool {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
-        self.source.get(start.as_usize()..end_exclusive).and_then(|b| if s == b {
-            self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive));
-            Some(s)
-        } else {
-            None
-        })
+        let Some(b) = self.source.get(start.as_usize()..end_exclusive) else { return false };
+        if s != b {
+            return false
+        }
+
+        self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive));
+        
+        true
     }
 
     fn next_inner(&self) -> Token {
         let v =
-            if self.reached_end() {
-                Some(Token::EndOfFile)
-            } else {
-                None
-            }
-            .or_else(|| self.try_and_eat_str("\r\n").map(|_| Token::NewLine))
-            .or_else(|| self.try_and_eat_str("\n").map(|_| Token::NewLine))
-            .or_else(|| self.try_and_eat_str("==").map(|_| Token::PartEqEq))
-            .or_else(|| self.try_and_eat_str("=").map(|_| Token::SymEq))
-            .or_else(|| self.try_and_eat_str("+").map(|_| Token::SymPlus))
-            .or_else(|| self.try_and_eat_str("-").map(|_| Token::SymMinus))
-            .or_else(|| self.try_and_eat_str("*").map(|_| Token::SymAsterisk))
-            .or_else(|| self.try_and_eat_str("//").map(|_| self.scan_line_comment()))
-            .or_else(|| self.try_and_eat_str("/").map(|_| Token::SymSlash))
-            .or_else(|| self.try_and_eat_str("(").map(|_| Token::SymLeftPar))
-            .or_else(|| self.try_and_eat_str(")").map(|_| Token::SymRightPar))
-            .or_else(|| self.try_and_eat_str("<=>").map(|_| Token::PartLessEqMore))
-            .or_else(|| self.try_and_eat_str("<<").map(|_| Token::PartLessLess))
-            .or_else(|| self.try_and_eat_str("<=").map(|_| Token::PartLessEq))
-            .or_else(|| self.try_and_eat_str("<").map(|_| Token::SymLess))
-            .or_else(|| self.try_and_eat_str(">>").map(|_| Token::PartMoreMore))
-            .or_else(|| self.try_and_eat_str(">=").map(|_| Token::PartMoreEq))
-            .or_else(|| self.try_and_eat_str(">").map(|_| Token::SymMore))
-            .or_else(|| self.try_and_eat_str("!=").map(|_| Token::PartBangEq))
-            .or_else(|| self.try_and_eat_str("!").map(|_| Token::SymBang))    
-            .or_else(|| self.try_and_eat_str("\"").map(|_| self.scan_string_literal()))
+            self.reached_end().then_some(Token::EndOfFile)
+            .or_else(|| self.try_and_eat_str("\r\n").then_some(Token::NewLine))
+            .or_else(|| self.try_and_eat_str("\n").then_some(Token::NewLine))
+            .or_else(|| self.try_and_eat_str("==").then_some(Token::PartEqEq))
+            .or_else(|| self.try_and_eat_str("=").then_some(Token::SymEq))
+            .or_else(|| self.try_and_eat_str("+").then_some(Token::SymPlus))
+            .or_else(|| self.try_and_eat_str("-").then_some(Token::SymMinus))
+            .or_else(|| self.try_and_eat_str("*").then_some(Token::SymAsterisk))
+            .or_else(|| self.try_and_eat_str("//").then_some(self.scan_line_comment()))
+            .or_else(|| self.try_and_eat_str("/").then_some(Token::SymSlash))
+            .or_else(|| self.try_and_eat_str("(").then_some(Token::SymLeftPar))
+            .or_else(|| self.try_and_eat_str(")").then_some(Token::SymRightPar))
+            .or_else(|| self.try_and_eat_str("<=>").then_some(Token::PartLessEqMore))
+            .or_else(|| self.try_and_eat_str("<<").then_some(Token::PartLessLess))
+            .or_else(|| self.try_and_eat_str("<=").then_some(Token::PartLessEq))
+            .or_else(|| self.try_and_eat_str("<").then_some(Token::SymLess))
+            .or_else(|| self.try_and_eat_str(">>").then_some(Token::PartMoreMore))
+            .or_else(|| self.try_and_eat_str(">=").then_some(Token::PartMoreEq))
+            .or_else(|| self.try_and_eat_str(">").then_some(Token::SymMore))
+            .or_else(|| self.try_and_eat_str("!=").then_some(Token::PartBangEq))
+            .or_else(|| self.try_and_eat_str("!").then_some(Token::SymBang))    
+            .or_else(|| self.try_and_eat_str("\"").then_some(self.scan_string_literal()))
             .or_else(|| self.scan_digits())
-            .or_else(|| self.try_and_eat_str(",").map(|_| Token::SymComma))
-            .or_else(|| self.try_and_eat_str(":").map(|_| Token::SymColon))
+            .or_else(|| self.try_and_eat_str(",").then_some(Token::SymComma))
+            .or_else(|| self.try_and_eat_str(":").then_some(Token::SymColon))
             .or_else(|| {
                 self.scan_identifier()
                     .ok()
@@ -213,8 +211,8 @@ impl Lexer<'_> {
         for s in ["i8", "i16", "i32", "i64"] {
             let a = self.try_and_eat_str(s);
 
-            if let Some(a) = a {
-                return Some(a)
+            if a {
+                return Some(s)
             }
         }
 
