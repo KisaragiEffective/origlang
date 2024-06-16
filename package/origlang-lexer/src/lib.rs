@@ -208,15 +208,7 @@ impl Lexer<'_> {
             return None
         }
 
-        for s in ["i8", "i16", "i32", "i64"] {
-            let a = self.try_and_eat_str(s);
-
-            if a {
-                return Some(s)
-            }
-        }
-
-        None
+        ["i8", "i16", "i32", "i64"].into_iter().find(|x| self.try_and_eat_str(x))
     }
 
     fn scan_digits(&self) -> Option<Token> {
