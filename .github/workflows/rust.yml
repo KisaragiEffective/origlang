@@ -26,9 +26,10 @@ jobs:
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2024-06-12'
-          - rustc_channel: nightly
             codegen: default
           - rustc_channel: nightly
+            # renovate: rustc-nightly
+            rustc_version: '2024-06-12'
             codegen: cranelift
 
     runs-on: ${{ matrix.os }}
@@ -51,7 +52,7 @@ jobs:
       run: |
         rustup component add rustc-codegen-cranelift-preview --toolchain nightly-${{ matrix.rustc_version }}
       shell: bash
-      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' }}
+      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' && matrix.os == 'ubuntu-24.04' }}
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.3
       with:
@@ -60,7 +61,7 @@ jobs:
     - name: Setup codegen unstable flag
       run: |
         printf 'CODEGEN_SELECTION=-Zcodegen-backend=cranelift' >> "$GITHUB_ENV"
-      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' }}
+      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' && matrix.os == 'ubuntu-24.04' }}
     - name: Build package
       run: cargo build --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
       env:
