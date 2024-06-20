@@ -59,20 +59,22 @@ jobs:
       run: |
         rustup component add rustc-codegen-cranelift-preview --toolchain nightly-${{ matrix.rustc_version }}
       shell: bash
-      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' && matrix.os == 'ubuntu-24.04' }}
+      if: ${{ matrix.codegen == 'cranelift' }}
+    - name: Setup codegen unstable flag
+      run: |
+        printf 'CODEGEN_SELECTION=-Zcodegen-backend=cranelift' >> "$GITHUB_ENV"
+      if: ${{ matrix.codegen == 'cranelift' }}
+    - name: Build RUSTFLAGS
+      run: |
+        printf 'RUSTFLAGS=${{ env.CODEGEN_SELECTION }}' >> "$GITHUB_ENV"
+      shell: bash
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.3
       with:
         prefix-key: ${{ matrix.os }}-${{ matrix.rustc_version }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # See rust-wasm.yml for CI details about those package
-    - name: Setup codegen unstable flag
-      run: |
-        printf 'CODEGEN_SELECTION=-Zcodegen-backend=cranelift' >> "$GITHUB_ENV"
-      if: ${{ matrix.codegen == 'cranelift' && matrix.rustc_channel == 'nightly' && matrix.os == 'ubuntu-24.04' }}
     - name: Build package
       run: cargo build --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
-      env:
-        RUSTFLAGS: '${{ env.CODEGEN_SELECTION }}'
     - name: Lint with clippy
       run: cargo clippy --workspace --exclude origlang-interop --exclude origlang-interop-frontend-webserver --verbose
     - name: Run tests
