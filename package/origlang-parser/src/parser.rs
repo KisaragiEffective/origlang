@@ -1,5 +1,5 @@
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
-use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
+use origlang_source_span::{Pointed as WithPosition, Pointed, SourcePosition as SourcePos};
 use origlang_lexer::Lexer;
 use origlang_lexer::token::Token;
 use origlang_lexer::token::internal::DisplayToken;
@@ -78,7 +78,8 @@ impl Parser {
         }
 
         {
-            let t = self.lexer.next();
+            let t = self.lexer.peek_cloned();
+            self.lexer.next();
             match t.data {
                 Token::EndOfFile | Token::NewLine => Ok(RootAst {
                     statement: statements,
@@ -132,7 +133,8 @@ impl Parser {
             }
             Token::KeywordType => {
                 self.lexer.next();
-                let aliased = self.lexer.next();
+                let aliased = self.lexer.peek_cloned();
+                self.lexer.next();
 
                 let Token::Identifier { inner: aliased } = aliased.data else {
                     return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
@@ -163,7 +165,9 @@ impl Parser {
         };
 
         // 文は絶対に改行かEOFで終わる必要がある
-        let next = self.lexer.next();
+        let next = self.lexer.peek_cloned();
+        self.lexer.next();
+        
         if next.data != Token::NewLine && next.data != Token::EndOfFile {
             return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
@@ -203,7 +207,9 @@ impl Parser {
                 })
             }
             Token::SymLeftPar => {
-                assert_eq!(self.lexer.next().data, Token::SymLeftPar);
+                
+                assert_eq!(self.lexer.peek().map(|x| &x.data), Some(&Token::SymLeftPar));
+                self.lexer.next();
                 // FIXME: (1 == 2)を受け付けない
                 if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::SymRightPar {
                     self.lexer.next();
@@ -511,7 +517,8 @@ impl Parser {
     /// 違反した場合はErrを返す。
     fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), ParserError> {
         debug!("expr:lit:int");
-        let n = self.lexer.next();
+        let n = self.lexer.peek_cloned();
+        self.lexer.next();
         let Token::Digits { sequence, suffix } = n.data else {
             return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: IntLiteral,
@@ -551,7 +558,8 @@ impl Parser {
     }
 
     fn parse_type(&self) -> Result<TypeSignature, ParserError> {
-        let WithPosition { position, data: maybe_tp } = self.lexer.next();
+        let WithPosition { position, data: maybe_tp } = self.lexer.peek_cloned();
+        self.lexer.next();
 
         match maybe_tp {
             Token::Identifier { inner } => Ok(inner.into()),
@@ -606,10 +614,12 @@ impl Parser {
 
         // optionally, allow type annotation
         let type_annotation = self.lexer.parse_fallible(|| {
-            match self.lexer.next().data {
-                Token::SymColon => {},
+            match self.lexer.peek() {
+                Some(Pointed { data: Token::SymColon, .. }) => {},
                 _ => return Err(())
             }
+            
+            self.lexer.next();
 
             // FIXME: discarding error
             let x = self.parse_type().map_err(|e| {
@@ -634,7 +644,8 @@ impl Parser {
 
     fn parse_variable_assignment(&self) -> Result<Statement, ParserError> {
         debug!("assign:var");
-        let ident_token = self.lexer.next();
+        let ident_token = self.lexer.peek_cloned();
+        self.lexer.next();
         let Token::Identifier { inner: name } = ident_token.data else {
             return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::Identifier,
