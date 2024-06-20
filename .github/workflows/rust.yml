@@ -20,13 +20,17 @@ jobs:
         os: [ubuntu-24.04, windows-2022]
         rustc_channel: [stable, nightly]
         include:
+          # fix stable version across possible matrix
           - rustc_channel: stable
             # renovate: rustc-stable
             rustc_version: '1.79.0'
+          # fix nightly version across possible matrix
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2024-06-12'
-            codegen: default
+          # defaults to widely-used classic code generator
+          - codegen: default
+          # ... but try cranelift if we're on nightly
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2024-06-12'
