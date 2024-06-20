@@ -19,17 +19,29 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2022]
         rustc_channel: [stable, nightly]
+        codegen: [default]
         include:
+          # fix stable version across possible matrix
           - rustc_channel: stable
             # renovate: rustc-stable
             rustc_version: '1.79.0'
+          # fix nightly version across possible matrix
           - rustc_channel: nightly
             # renovate: rustc-nightly
             rustc_version: '2024-06-12'
+          # try cranelift if we're on nightly and build for Linux machines
+          - os: ubuntu-24.04
+            rustc_channel: nightly
+            # renovate: rustc-nightly
+            rustc_version: '2024-06-12'
+            codegen: cranelift
 
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: dump context
+      run: |
+        echo '${{ toJSON(matrix) }}'
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
     - name: Install compiler ${{ matrix.rustc_channel }} ( ${{ matrix.rustc_version }} )
       run: |
@@ -42,8 +54,19 @@ jobs:
           rustup component add clippy --toolchain ${{ matrix.rustc_version }}
           rustup override set ${{ matrix.rustc_version }}
         fi
-        
-        rustup show
+      shell: bash
+    - name: Install cranelift if necessary
+      run: |
+        rustup component add rustc-codegen-cranelift-preview --toolchain nightly-${{ matrix.rustc_version }}
+      shell: bash
+      if: ${{ matrix.codegen == 'cranelift' }}
+    - name: Setup codegen unstable flag
+      run: |
+        printf 'CODEGEN_SELECTION=-Zcodegen-backend=cranelift' >> "$GITHUB_ENV"
+      if: ${{ matrix.codegen == 'cranelift' }}
+    - name: Build RUSTFLAGS
+      run: |
+        printf 'RUSTFLAGS=${{ env.CODEGEN_SELECTION }}' >> "$GITHUB_ENV"
       shell: bash
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2.7.3
