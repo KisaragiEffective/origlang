@@ -39,10 +39,7 @@ impl ParseSource {
         match self {
             Self::RawSource(a) => Ok(a.clone()),
             Self::FromFile(path) => {
-                let mut buf = Vec::new();
-                BufReader::new(File::open(path).unwrap()).read_to_end(&mut buf)?;
-                let src = String::from_utf8(buf)?;
-                Ok(src)
+                Ok(std::fs::read_to_string(path)?)
             }
         }
     }
