@@ -47,16 +47,13 @@ impl TokenStream {
         self.peek().unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
     }
     
-    /// returns cloned token on current position, and advance position by one.
+    /// advance position by one.
     #[track_caller]
-    pub fn next(&self) -> Pointed<Token> {
+    pub fn next(&self) {
         let o = Location::caller();
         debug!("next: {o}");
-        let ret = self.peek_cloned();
         debug!("now[{}] = {:?}", self.current_index.get(), self.peek());
         self.current_index.set(self.current_index.get() + 1);
-        
-        ret
     }
 
     /// パースに失敗するかも知れないものをパースしようと試みる。
