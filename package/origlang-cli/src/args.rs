@@ -1,8 +1,6 @@
 // clap issue?: https://github.com/clap-rs/clap/issues/4733
 #![warn(clippy::almost_swapped)]
 
-use std::fs::File;
-use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::string::FromUtf8Error;
 use clap::{Parser, Subcommand};
