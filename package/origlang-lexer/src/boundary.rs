@@ -56,9 +56,3 @@ impl From<char> for Utf8CharStride {
         }
     }
 }
-
-#[derive(Error, Debug)]
-#[error("invalid value for UTF-8 codepoint stride: {given_value}")]
-pub struct InvalidUtf8CharStrideError {
-    given_value: u8
-}
