@@ -80,7 +80,6 @@ impl Identifier {
     }
 
     #[must_use = "If you don't use it, it will drop entire String"]
-    #[allow(clippy::missing_const_for_fn)] // see https://github.com/rust-lang/rust-clippy/issues/10617
     pub fn name(self) -> String {
         self.0
     }
