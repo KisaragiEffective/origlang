@@ -493,6 +493,8 @@ impl TypeChecker {
         }
     }
 
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)] // do not panic
     pub fn make_fresh_identifier(&self) -> Identifier {
         // TODO: this implementation is poor. choice more elegant algorithm.
         let hello = RandomState::new().hash_one(());
