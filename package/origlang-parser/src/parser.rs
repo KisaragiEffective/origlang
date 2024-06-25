@@ -42,7 +42,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    fn only(token: Token) -> Self {
+    fn only(token: &Token) -> Self {
         Self::Only(token.display())
     }
 }
