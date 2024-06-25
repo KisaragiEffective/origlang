@@ -36,23 +36,6 @@ impl<T: PartialOrd + PartialEq + CastFrom<Ordering>> OutputCompareResultAsSelf f
     }
 }
 
-trait Continue<T> {
-    fn continue_value(self) -> Option<T>;
-}
-
-impl<T> Continue<T> for Option<T> {
-    #[allow(clippy::use_self)]
-    fn continue_value(self) -> Option<T> {
-        self
-    }
-}
-
-impl Continue<Self> for bool {
-    fn continue_value(self) -> Option<Self> {
-        self.then_some(true)
-    }
-}
-
 /// 二項演算子についての定数畳み込みを行う。
 // TODO: 左端以外に畳み込みが行える定数項があっても、それらの項が畳み込まれない。
 //       すなわち、オーバーフローがないものとして`a * 2 / 2`を最適化するとき、`a`に最適化出来ない。
