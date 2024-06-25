@@ -142,7 +142,7 @@ impl Parser {
                             unmatch: aliased.data
                 }, aliased.position)) };
 
-                self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+                self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
                 let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
                     let p = self.lexer.peek_cloned();
                     return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
@@ -218,7 +218,7 @@ impl Parser {
                     Ok(expr_tuple)
                 } else {
                     let inner_expression = self.parse_lowest_precedence_expression()?;
-                    self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+                    self.read_and_consume_or_report_unexpected_token(&Token::SymRightPar)?;
                     Ok(inner_expression)
                 }
             }
@@ -582,7 +582,7 @@ impl Parser {
 
                     debug!("type:tuple:accumulator = {vec:?}");
 
-                    self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+                    self.read_and_consume_or_report_unexpected_token(&Token::SymRightPar)?;
 
                     if vec.len() < 2 {
                         let l = vec.len();
@@ -609,7 +609,7 @@ impl Parser {
 
     fn parse_variable_declaration(&self) -> Result<Statement, ParserError> {
         debug!("decl:var");
-        self.read_and_consume_or_report_unexpected_token(Token::VarKeyword)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::VarKeyword)?;
         let pattern = self.parse_atomic_pattern()?;
 
         // optionally, allow type annotation
@@ -631,7 +631,7 @@ impl Parser {
 
         debug!("decl:var:annotation: {type_annotation:?}");
 
-        self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
         debug!("decl:var:expr");
         let expression = self.parse_lowest_precedence_expression()?;
 
@@ -651,7 +651,7 @@ impl Parser {
                     pat: TokenKind::Identifier,
                     unmatch: ident_token.data }, ident_token.position))
         };
-        self.read_and_consume_or_report_unexpected_token(Token::SymEq)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
         debug!("assign:var:expr");
         let expression = self.parse_lowest_precedence_expression()?;
         Ok(Statement::VariableAssignment {
@@ -670,9 +670,9 @@ impl Parser {
         if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::KeywordIf {
             self.lexer.next();
             let condition = self.parse_lowest_precedence_expression()?;
-            self.read_and_consume_or_report_unexpected_token(Token::KeywordThen)?;
+            self.read_and_consume_or_report_unexpected_token(&Token::KeywordThen)?;
             let then_clause_value = self.parse_lowest_precedence_expression()?;
-            self.read_and_consume_or_report_unexpected_token(Token::KeywordElse)?;
+            self.read_and_consume_or_report_unexpected_token(&Token::KeywordElse)?;
             let else_clause_value = self.parse_lowest_precedence_expression()?;
             Ok(Expression::If {
                 condition: Box::new(condition),
@@ -686,7 +686,7 @@ impl Parser {
 
     fn parse_block_scope(&self) -> Result<Statement, ParserError> {
         debug!("statement:block");
-        self.read_and_consume_or_report_unexpected_token(Token::KeywordBlock)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::KeywordBlock)?;
         if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::NewLine {
             self.lexer.next();
         }
@@ -695,7 +695,7 @@ impl Parser {
         while let Ok(v) = self.parse_statement() {
             statements.push(v);
         }
-        self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::KeywordEnd)?;
 
         Ok(Statement::Block {
             inner_statements: (statements),
@@ -706,7 +706,7 @@ impl Parser {
         debug!("expr:block");
         if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::KeywordBlock {
             self.lexer.next();
-            self.read_and_consume_or_report_unexpected_token(Token::NewLine)?;
+            self.read_and_consume_or_report_unexpected_token(&Token::NewLine)?;
             let mut statements = vec![];
             while let Ok(v) = self.parse_statement() {
                 statements.push(v);
@@ -715,7 +715,7 @@ impl Parser {
             if self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?.data == Token::NewLine {
                 self.lexer.next();
             }
-            self.read_and_consume_or_report_unexpected_token(Token::KeywordEnd)?;
+            self.read_and_consume_or_report_unexpected_token(&Token::KeywordEnd)?;
             Ok(Expression::Block {
                 intermediate_statements: statements,
                 final_expression
@@ -727,7 +727,7 @@ impl Parser {
 
     fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
         debug!("pattern:tuple");
-        self.read_and_consume_or_report_unexpected_token(Token::SymLeftPar)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::SymLeftPar)?;
 
         let mut v = vec![];
 
@@ -740,10 +740,10 @@ impl Parser {
                 break
             }
 
-            self.read_and_consume_or_report_unexpected_token(Token::SymComma)?;
+            self.read_and_consume_or_report_unexpected_token(&Token::SymComma)?;
         }
 
-        self.read_and_consume_or_report_unexpected_token(Token::SymRightPar)?;
+        self.read_and_consume_or_report_unexpected_token(&Token::SymRightPar)?;
 
         Ok(AtomicPattern::Tuple(v))
     }
@@ -774,11 +774,11 @@ impl Parser {
     }
 
     /// 現在のトークンが指定されたトークンならそのトークンをそのまま返した上でレキサーを1個進める。そうではないなら[`ParseError::UnexpectedToken`]を返す。
-    fn read_and_consume_or_report_unexpected_token(&self, token: Token) -> Result<Token, ParserError> {
+    fn read_and_consume_or_report_unexpected_token(&self, token: &Token) -> Result<(), ParserError> {
         let peek = self.lexer.peek().ok_or_else(|| ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position))?;
-        if peek.data == token {
+        if &peek.data == token {
             self.lexer.next();
-            Ok(token)
+            Ok(())
         } else {
             Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::only(token),
