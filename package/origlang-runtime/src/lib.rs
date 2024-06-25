@@ -192,7 +192,6 @@ impl Runtime {
     }
 
     /// Start runtime. Never returns until execution is completed.
-    #[allow(dead_code)]
     pub fn start<'s: 'o, 'o>(&'s self, seq: &[IR2]) -> &'o RefCell<dyn OutputAccumulator> {
         // info!("{ast:?}", ast = &ast);
         let x = seq;
