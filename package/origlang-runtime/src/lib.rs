@@ -342,6 +342,49 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
+fn evaluate_bin_op(runtime: &Runtime, lhs: &CompiledTypedExpression, rhs: &CompiledTypedExpression, operator: &BinaryOperatorKind) -> EvaluateResult {
+    let lhs = lhs.evaluate(runtime)?;
+    let rhs = rhs.evaluate(runtime)?;
+    if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
+        return if lhs.get_type() == rhs.get_type() {
+            let ret = match operator {
+                BinaryOperatorKind::Equal => lhs == rhs,
+                BinaryOperatorKind::NotEqual => lhs != rhs,
+                _ => unreachable!(),
+            };
+            Ok(ret.into())
+        } else {
+            indicate_type_checker_bug!(context = "type checker must deny equality check between different types")
+        }
+    }
+
+    match (lhs, rhs) {
+        (TypeBox::NonCoercedInteger(lhs), TypeBox::NonCoercedInteger(rhs)) => {
+            f!(lhs, operator, rhs as NonCoerced)
+        },
+        (TypeBox::Int8(lhs), TypeBox::Int8(rhs)) => {
+            f!(lhs, operator, rhs)
+        },
+        (TypeBox::Int16(lhs), TypeBox::Int16(rhs)) => {
+            f!(lhs, operator, rhs)
+        },
+        (TypeBox::Int32(lhs), TypeBox::Int32(rhs)) => {
+            f!(lhs, operator, rhs)
+        },
+        (TypeBox::Int64(lhs), TypeBox::Int64(rhs)) => {
+            f!(lhs, operator, rhs as Coerced)
+        },
+        (TypeBox::String(lhs), TypeBox::String(rhs)) => {
+            let mut ret = lhs;
+            // give hint to compiler
+            ret.reserve_exact(rhs.len());
+            ret += rhs.as_str();
+            Ok(ret.into())
+        }
+        _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
+    }
+}
+
 impl CanBeEvaluated for CompiledTypedExpression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
@@ -361,46 +404,7 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone() })
             },
             Self::BinaryOperator { lhs, rhs, operator, return_type: _ } => {
-                let lhs = lhs.as_ref().evaluate(runtime)?;
-                let rhs = rhs.as_ref().evaluate(runtime)?;
-                if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
-                    return if lhs.get_type() == rhs.get_type() {
-                        let ret = match operator {
-                            BinaryOperatorKind::Equal => lhs == rhs,
-                            BinaryOperatorKind::NotEqual => lhs != rhs,
-                            _ => unreachable!(),
-                        };
-                        Ok(ret.into())
-                    } else {
-                        indicate_type_checker_bug!(context = "type checker must deny equality check between different types")
-                    }
-                }
-
-                return match (lhs, rhs) {
-                    (TypeBox::NonCoercedInteger(lhs), TypeBox::NonCoercedInteger(rhs)) => {
-                        f!(lhs, operator, rhs as NonCoerced)
-                    },
-                    (TypeBox::Int8(lhs), TypeBox::Int8(rhs)) => {
-                        f!(lhs, operator, rhs)
-                    },
-                    (TypeBox::Int16(lhs), TypeBox::Int16(rhs)) => {
-                        f!(lhs, operator, rhs)
-                    },
-                    (TypeBox::Int32(lhs), TypeBox::Int32(rhs)) => {
-                        f!(lhs, operator, rhs)
-                    },
-                    (TypeBox::Int64(lhs), TypeBox::Int64(rhs)) => {
-                        f!(lhs, operator, rhs as Coerced)
-                    },
-                    (TypeBox::String(lhs), TypeBox::String(rhs)) => {
-                        let mut ret = lhs;
-                        // give hint to compiler
-                        ret.reserve_exact(rhs.len());
-                        ret += rhs.as_str();
-                        Ok(ret.into())
-                    }
-                    _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
-                };
+                evaluate_bin_op(runtime, lhs, rhs, operator)
             }
             Self::If { condition, then: then_clause_value, els: else_clause_value, return_type: _ } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
