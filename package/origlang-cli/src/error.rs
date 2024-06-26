@@ -1,3 +1,4 @@
+use std::any::Any;
 use thiserror::Error;
 use origlang_parser::error::ParserError;
 use origlang_typecheck::type_check::error::TypeCheckError;
@@ -15,4 +16,6 @@ pub enum TaskExecutionError {
     TypeCheck(#[from] TypeCheckError),
     #[error("{0}")]
     Runtime(#[from] RuntimeError),
+    #[error("Thread returned error")]
+    ThreadJoin(Box<dyn Any + Send>),
 }
