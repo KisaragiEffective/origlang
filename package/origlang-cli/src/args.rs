@@ -1,6 +1,7 @@
 // clap issue?: https://github.com/clap-rs/clap/issues/4733
 #![warn(clippy::almost_swapped)]
 
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::string::FromUtf8Error;
 use clap::{Parser, Subcommand};
@@ -57,10 +58,19 @@ impl Args {
                 task.execute(())?;
                 Ok(())
             }
-            SubCom::Execute { input_file, input_source } => {
+            SubCom::Execute { input_file, input_source, max_stack_size_on_main_thread } => {
                 let task = Interpret;
                 let source = load_either(input_file, input_source);
-                task.execute(source)?;
+                if let Some(ssize) = max_stack_size_on_main_thread {
+                    let a = std::thread::scope(move |a| {
+                        std::thread::Builder::new().stack_size(ssize.get()).spawn_scoped(a, move || {
+                            task.execute(source)
+                        }).unwrap().join()
+                    });
+                    a.map_err(TaskExecutionError::ThreadJoin)??;
+                } else {
+                    task.execute(source)?;
+                }
                 Ok(())
             }
             SubCom::Emit { emit, input_file, input_source, optimize_level } => {
@@ -82,7 +92,9 @@ pub enum SubCom {
         #[clap(long, group = "evaluate_source")]
         input_file: Option<PathBuf>,
         #[clap(long, group = "evaluate_source")]
-        input_source: Option<String>
+        input_source: Option<String>,
+        #[clap(long)]
+        max_stack_size_on_main_thread: Option<NonZeroUsize>,
     },
     /// Emits unstable intermediate representation for only debug purposes.
     Emit {
