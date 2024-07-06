@@ -29,7 +29,8 @@
       "matchManagers": ["custom.regex"],
       "matchFileNames": [".github/workflows/validate-renovate.yml"],
       "matchDepNames": ["renovate"],
-      "automerge": true
+      "automerge": true,
+      "schedule": "before 3pm on Tuesday"
     }
   ]
 }
