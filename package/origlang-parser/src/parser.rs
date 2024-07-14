@@ -168,8 +168,10 @@ impl Parser {
         let next = self.lexer.peek_cloned();
         self.lexer.next();
         
-        if next.data != Token::NewLine && next.data != Token::EndOfFile {
-            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
+        if matches!(next.data, Token::NewLine | Token::EndOfFile) {
+            Ok(s)
+        } else {
+            Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
@@ -178,8 +180,6 @@ impl Parser {
                     intermediate_state: vec![],
             }, next.position))
         }
-
-        Ok(s)
     }
 
     /// 現在のトークン位置から基本式をパースしようと試みる。
