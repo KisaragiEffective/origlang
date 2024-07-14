@@ -463,7 +463,7 @@ impl TryIntoTypeCheckedForm for RootAst {
 }
 
 pub struct TypeChecker {
-    ctx: Box<RefCell<Context>>
+    ctx: RefCell<Context>
 }
 
 impl TypeChecker {
@@ -529,7 +529,7 @@ impl TypeChecker {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            ctx: Box::new(RefCell::new(Context::empty())),
+            ctx: RefCell::new(Context::empty()),
         }
     }
 
