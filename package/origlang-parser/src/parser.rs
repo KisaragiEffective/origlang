@@ -177,9 +177,9 @@ impl Parser {
                     ],
                     intermediate_state: vec![],
             }, next.map_or(self.lexer.last_position, |x| x.position)))
+        } else {
+            Ok(s)
         }
-
-        Ok(s)
     }
 
     /// 現在のトークン位置から基本式をパースしようと試みる。
