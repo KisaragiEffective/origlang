@@ -40,11 +40,9 @@ impl TokenStream {
         
         ret
     }
-    
-    /// returns cloned token on current position. use [`Self::peek`] where possible, as it does not clone implicitly.
-    /// returns [`Token::EndOfFile`] if position is past over end.
-    pub fn peek_cloned(&self) -> Pointed<Token> {
-        self.peek().unwrap_or(&Pointed { data: Token::EndOfFile, position: self.last_position }).clone()
+
+    pub const fn end_of_file_token(&self) -> Pointed<Token> {
+        Pointed { data: Token::EndOfFile, position: self.last_position }
     }
     
     /// advance position by one.

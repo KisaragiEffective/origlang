@@ -78,7 +78,7 @@ impl Parser {
         }
 
         {
-            let t = self.lexer.peek_cloned();
+            let t = self.lexer.peek().unwrap_or(&self.lexer.end_of_file_token()).clone();
             self.lexer.next();
             match t.data {
                 Token::EndOfFile | Token::NewLine => Ok(RootAst {
@@ -133,18 +133,18 @@ impl Parser {
             }
             Token::KeywordType => {
                 self.lexer.next();
-                let aliased = self.lexer.peek_cloned();
+                let aliased = self.lexer.peek();
                 self.lexer.next();
 
-                let Token::Identifier { inner: aliased } = aliased.data else {
+                let Some(Token::Identifier { inner: aliased }) = aliased.map(|x| &x.data) else {
                     return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::Identifier,
-                            unmatch: aliased.data
-                }, aliased.position)) };
+                            unmatch: aliased.map(|x| &x.data).cloned().unwrap_or(Token::EndOfFile)
+                }, aliased.map_or(self.lexer.last_position, |x| x.position))) };
 
                 self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
                 let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
-                    let p = self.lexer.peek_cloned();
+                    let p = self.lexer.peek().unwrap_or(&self.lexer.end_of_file_token()).clone();
                     return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                             pat: TokenKind::StartOfTypeSignature,
                             unmatch: p.data
@@ -152,7 +152,7 @@ impl Parser {
                 };
 
                 Statement::TypeAliasDeclaration {
-                    new_name: aliased,
+                    new_name: aliased.clone(),
                     replace_with,
                 }
             }
@@ -165,21 +165,21 @@ impl Parser {
         };
 
         // 文は絶対に改行かEOFで終わる必要がある
-        let next = self.lexer.peek_cloned();
+        let next = self.lexer.peek();
         self.lexer.next();
         
-        if next.data != Token::NewLine && next.data != Token::EndOfFile {
-            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
+        if next.map(|x| &x.data) != Some(&Token::NewLine) && next.is_some() {
+            Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
                         }
                     ],
                     intermediate_state: vec![],
-            }, next.position))
+            }, next.map_or(self.lexer.last_position, |x| x.position)))
+        } else {
+            Ok(s)
         }
-
-        Ok(s)
     }
 
     /// 現在のトークン位置から基本式をパースしようと試みる。
@@ -517,18 +517,18 @@ impl Parser {
     /// 違反した場合はErrを返す。
     fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), ParserError> {
         debug!("expr:lit:int");
-        let n = self.lexer.peek_cloned();
+        let n = self.lexer.peek();
         self.lexer.next();
-        let Token::Digits { sequence, suffix } = n.data else {
+        let Some(Pointed { data: Token::Digits { sequence, suffix }, position }) = n else {
             return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
                     pat: IntLiteral,
-                    unmatch: n.data
-                }, n.position,))
+                    unmatch: n.map_or(&Token::EndOfFile, |x| &x.data).clone()
+                }, n.map_or(self.lexer.last_position, |x| x.position),))
         };
 
         let x = sequence.as_str().parse::<i64>().map_err(|e| ParserError::new(ParserErrorInner::UnParsableIntLiteral {
                 error: e
-            }, n.position,))?;
+            }, n.map_or(self.lexer.last_position, |x| x.position) ))?;
 
         fn check_bounds<As: Bounded + Into<i64>>(ty: &str, token_pos: SourcePos, v: i64) -> Result<(i64, Option<Box<str>>), ParserError> {
             let s = ty.to_string().into_boxed_str();
@@ -546,10 +546,10 @@ impl Parser {
 
         let (i, suffix) = suffix.as_ref().map(|y| {
             match y.as_ref() {
-                "i8"  => check_bounds::<i8>("i8", n.position, x),
-                "i16" => check_bounds::<i16>("i16", n.position, x),
-                "i32" => check_bounds::<i32>("i32", n.position, x),
-                "i64" => check_bounds::<i64>("i64", n.position, x),
+                "i8"  => check_bounds::<i8>("i8", *position, x),
+                "i16" => check_bounds::<i16>("i16", *position, x),
+                "i32" => check_bounds::<i32>("i32", *position, x),
+                "i64" => check_bounds::<i64>("i64", *position, x),
                 _ => unreachable!()
             }
         }).unwrap_or(Ok((x, None)))?;
@@ -558,11 +558,20 @@ impl Parser {
     }
 
     fn parse_type(&self) -> Result<TypeSignature, ParserError> {
-        let WithPosition { position, data: maybe_tp } = self.lexer.peek_cloned();
+        let Some(WithPosition { position, data: maybe_tp }) = self.lexer.peek() else {
+            return Err(ParserError::new(
+                ParserErrorInner::UnexpectedToken {
+                    pat: TokenKind::StartOfTypeSignature,
+                    unmatch: Token::EndOfFile,
+                },
+                self.lexer.last_position,
+            ))
+        };
+
         self.lexer.next();
 
         match maybe_tp {
-            Token::Identifier { inner } => Ok(inner.into()),
+            Token::Identifier { inner } => Ok(inner.clone().into()),
             Token::SymLeftPar => {
                 debug!("type:tuple");
                 self.lexer.parse_fallible(|| {
@@ -591,7 +600,7 @@ impl Parser {
                             0 => UnexpectedTupleLiteralElementCount::Zero,
                             1 => UnexpectedTupleLiteralElementCount::One,
                             _ => unreachable!(),
-                        }), position))
+                        }), *position))
                     } else {
                         Ok(TypeSignature::Tuple(vec))
                     }
@@ -600,9 +609,9 @@ impl Parser {
             other_token => Err(ParserError::new(
                 ParserErrorInner::UnexpectedToken {
                     pat: TokenKind::StartOfTypeSignature,
-                    unmatch: other_token,
+                    unmatch: other_token.clone(),
                 },
-                position,
+                *position,
             ))
         }
     }
@@ -644,7 +653,7 @@ impl Parser {
 
     fn parse_variable_assignment(&self) -> Result<Statement, ParserError> {
         debug!("assign:var");
-        let ident_token = self.lexer.peek_cloned();
+        let ident_token = self.lexer.peek().unwrap_or(&self.lexer.end_of_file_token()).clone();
         self.lexer.next();
         let Token::Identifier { inner: name } = ident_token.data else {
             return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
