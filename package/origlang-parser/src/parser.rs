@@ -168,8 +168,8 @@ impl Parser {
         let next = self.lexer.peek();
         self.lexer.next();
         
-        if next.data != Token::NewLine && next.data != Token::EndOfFile {
-            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
+        if next.map(|x| &x.data) != Some(&Token::NewLine) && next.is_none() {
+            Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
