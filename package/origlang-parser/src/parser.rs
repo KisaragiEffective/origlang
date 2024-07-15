@@ -168,7 +168,7 @@ impl Parser {
         let next = self.lexer.peek();
         self.lexer.next();
         
-        if next.map(|x| &x.data) != Some(&Token::NewLine) && next.is_none() {
+        if next.map(|x| &x.data) != Some(&Token::NewLine) && next.is_some() {
             Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
