@@ -167,10 +167,8 @@ impl Parser {
         // 文は絶対に改行かEOFで終わる必要がある
         let next = self.lexer.peek();
         self.lexer.next();
-        
-        if matches!(next.map(|x| &x.data), Some(Token::NewLine | Token::EndOfFile)) {
-            Ok(s)
-        } else {
+
+        if !(matches!(next.map(|x| &x.data), Some(Token::NewLine | Token::EndOfFile))) {
             Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
@@ -179,6 +177,8 @@ impl Parser {
                     ],
                     intermediate_state: vec![],
             }, next.map_or(self.lexer.last_position, |x| x.position)))
+        } else {
+            Ok(s)
         }
     }
 
