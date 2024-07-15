@@ -167,9 +167,9 @@ impl Parser {
         // 文は絶対に改行かEOFで終わる必要がある
         let next = self.lexer.peek();
         self.lexer.next();
-
-        if !(matches!(next.map(|x| &x.data), Some(Token::NewLine | Token::EndOfFile))) {
-            Err(ParserError::new(ParserErrorInner::PartiallyParsed {
+        
+        if next.data != Token::NewLine && next.data != Token::EndOfFile {
+            return Err(ParserError::new(ParserErrorInner::PartiallyParsed {
                     hint: vec![
                         PartiallyParseFixCandidate::InsertAfter {
                             tokens: vec![ Token::NewLine ]
@@ -180,6 +180,8 @@ impl Parser {
         } else {
             Ok(s)
         }
+
+        Ok(s)
     }
 
     /// 現在のトークン位置から基本式をパースしようと試みる。
@@ -567,7 +569,7 @@ impl Parser {
                 self.lexer.last_position,
             ))
         };
-        
+
         self.lexer.next();
 
         match maybe_tp {
