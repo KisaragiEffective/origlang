@@ -95,8 +95,7 @@ impl Parser {
             self.lexer.next();
         }
 
-        if self.lexer.peek().is_some_and(|x| x.data == Token::EndOfFile) {
-            self.lexer.next();
+        if self.lexer.peek().is_none() {
             return Ok(Statement::Exit)
         }
 
