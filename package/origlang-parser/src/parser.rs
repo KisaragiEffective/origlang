@@ -1,5 +1,5 @@
 use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
-use origlang_source_span::{Pointed as WithPosition, Pointed, SourcePosition as SourcePos};
+use origlang_source_span::{Pointed as WithPosition, Pointed, SourcePosition as SourcePos, SourcePosition};
 use origlang_lexer::Lexer;
 use origlang_lexer::token::Token;
 use origlang_lexer::token::internal::DisplayToken;
@@ -137,18 +137,15 @@ impl Parser {
                 self.lexer.next();
 
                 let Some(Token::Identifier { inner: aliased }) = aliased.map(|x| &x.data) else {
-                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::Identifier,
-                            unmatch: aliased.map(|x| &x.data).cloned().unwrap_or(Token::EndOfFile)
-                }, aliased.map_or(self.lexer.last_position, |x| x.position))) };
+                    let unmatch = aliased.map(|x| &x.data).cloned().unwrap_or(Token::EndOfFile);
+                    let position = aliased.map_or(self.lexer.last_position, |x| x.position);
+                    return Err(Self::create_unexpected_token_error(TokenKind::Identifier, unmatch, position)); 
+                };
 
                 self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
                 let Ok(replace_with) = self.lexer.parse_fallible(|| self.parse_type()) else {
                     let p = self.lexer.peek().unwrap_or(&self.lexer.end_of_file_token()).clone();
-                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::StartOfTypeSignature,
-                            unmatch: p.data
-                        }, p.position));
+                    return Err(Self::create_unexpected_token_error(TokenKind::StartOfTypeSignature, p.data, p.position));
                 };
 
                 Statement::TypeAliasDeclaration {
@@ -157,10 +154,7 @@ impl Parser {
                 }
             }
             x => {
-                return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                        pat: TokenKind::Statement,
-                        unmatch: x.clone(),
-                    }, pos,))
+                return Err(Self::create_unexpected_token_error(TokenKind::Statement, x.clone(), pos))
             }
         };
 
@@ -237,10 +231,7 @@ impl Parser {
                 self.lexer.next();
                 Ok(Expression::StringLiteral(s.clone()))
             }
-            e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::First,
-                    unmatch: e.clone(),
-                }, token.position,))
+            e => Err(Self::create_unexpected_token_error(TokenKind::First, e.clone(), token.position))
         }
     }
 
@@ -257,10 +248,7 @@ impl Parser {
                     self.lexer.next();
                     break
                 } else if peek.data != Token::SymComma {
-                    return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::Only(Token::SymComma.display()),
-                            unmatch: peek.data.clone(),
-                        }, peek.position,))
+                    return Err(Self::create_unexpected_token_error(TokenKind::Only(Token::SymComma.display()), peek.data.clone(), peek.position))
                 }
 
                 self.lexer.next();
@@ -303,10 +291,7 @@ impl Parser {
                 match &token.data {
                     Token::SymAsterisk => Ok(BinaryOperatorKind::Multiply),
                     Token::SymSlash => Ok(BinaryOperatorKind::Divide),
-                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::MultiplicativeOps,
-                            unmatch: e.clone(),
-                        }, token.position))
+                    e => Err(Self::create_unexpected_token_error(TokenKind::MultiplicativeOps, e.clone(), token.position))
                 }
             };
 
@@ -355,9 +340,7 @@ impl Parser {
                 match &token.data {
                     Token::SymPlus => Ok(BinaryOperatorKind::Plus),
                     Token::SymMinus => Ok(BinaryOperatorKind::Minus),
-                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::AdditiveOps,
-                            unmatch: e.clone() }, token.position))
+                    e => Err(Self::create_unexpected_token_error(TokenKind::AdditiveOps, e.clone(), token.position))
                 }
             };
 
@@ -400,10 +383,7 @@ impl Parser {
                 match &token.data {
                     Token::PartLessLess => Ok(BinaryOperatorKind::ShiftLeft),
                     Token::PartMoreMore => Ok(BinaryOperatorKind::ShiftRight),
-                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::ShiftOps,
-                            unmatch: e.clone(),
-                        }, token.position,)),
+                    e => Err(Self::create_unexpected_token_error(TokenKind::ShiftOps, e.clone(), token.position))
                 }
             };
 
@@ -448,9 +428,7 @@ impl Parser {
                     Token::SymLess => Ok(BinaryOperatorKind::Less),
                     Token::SymMore => Ok(BinaryOperatorKind::More),
                     Token::PartLessEqMore => Ok(BinaryOperatorKind::ThreeWay),
-                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::ComparisonOps,
-                            unmatch: e.clone()}, token.position))
+                    e => Err(Self::create_unexpected_token_error(TokenKind::ComparisonOps, e.clone(), token.position))
                 }
             };
 
@@ -490,10 +468,7 @@ impl Parser {
                 match &token.data {
                     Token::PartEqEq => Ok(BinaryOperatorKind::Equal),
                     Token::PartBangEq => Ok(BinaryOperatorKind::NotEqual),
-                    e => Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                            pat: TokenKind::EqualityOps,
-                            unmatch: e.clone(),
-                        }, token.position,))
+                    e => Err(Self::create_unexpected_token_error(TokenKind::EqualityOps, e.clone(), token.position))
                 }
             };
 
@@ -520,10 +495,9 @@ impl Parser {
         let n = self.lexer.peek();
         self.lexer.next();
         let Some(Pointed { data: Token::Digits { sequence, suffix }, position }) = n else {
-            return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: IntLiteral,
-                    unmatch: n.map_or(&Token::EndOfFile, |x| &x.data).clone()
-                }, n.map_or(self.lexer.last_position, |x| x.position),))
+            let unmatch =n.map_or(&Token::EndOfFile, |x| &x.data).clone();
+            let position = n.map_or(self.lexer.last_position, |x| x.position);
+            return Err(Self::create_unexpected_token_error(TokenKind::IntLiteral, unmatch, position));
         };
 
         let x = sequence.as_str().parse::<i64>().map_err(|e| ParserError::new(ParserErrorInner::UnParsableIntLiteral {
@@ -559,13 +533,7 @@ impl Parser {
 
     fn parse_type(&self) -> Result<TypeSignature, ParserError> {
         let Some(WithPosition { position, data: maybe_tp }) = self.lexer.peek() else {
-            return Err(ParserError::new(
-                ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::StartOfTypeSignature,
-                    unmatch: Token::EndOfFile,
-                },
-                self.lexer.last_position,
-            ))
+            return Err(Self::create_unexpected_token_error(TokenKind::StartOfTypeSignature, Token::EndOfFile, self.lexer.last_position))
         };
 
         self.lexer.next();
@@ -606,13 +574,7 @@ impl Parser {
                     }
                 })
             }
-            other_token => Err(ParserError::new(
-                ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::StartOfTypeSignature,
-                    unmatch: other_token.clone(),
-                },
-                *position,
-            ))
+            other_token => Err(Self::create_unexpected_token_error(TokenKind::StartOfTypeSignature, other_token.clone(), *position))
         }
     }
 
@@ -656,10 +618,9 @@ impl Parser {
         let ident_token = self.lexer.peek().unwrap_or(&self.lexer.end_of_file_token()).clone();
         self.lexer.next();
         let Token::Identifier { inner: name } = ident_token.data else {
-            return Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::Identifier,
-                    unmatch: ident_token.data }, ident_token.position))
+            return Err(Self::create_unexpected_token_error(TokenKind::Identifier, ident_token.data, ident_token.position))
         };
+        
         self.read_and_consume_or_report_unexpected_token(&Token::SymEq)?;
         debug!("assign:var:expr");
         let expression = self.parse_lowest_precedence_expression()?;
@@ -773,12 +734,7 @@ impl Parser {
             Token::SymLeftPar => {
                 self.parse_tuple_destruct_pattern()
             }
-            other_token => {
-                Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::Identifier,
-                    unmatch: other_token.clone()
-                }, it.position))
-            }
+            other_token => Err(Self::create_unexpected_token_error(TokenKind::Identifier, other_token.clone(), it.position)),
         }
     }
 
@@ -789,10 +745,17 @@ impl Parser {
             self.lexer.next();
             Ok(())
         } else {
-            Err(ParserError::new(ParserErrorInner::UnexpectedToken {
-                    pat: TokenKind::only(token),
-                    unmatch: peek.data.clone()
-                }, peek.position))
+            Err(Self::create_unexpected_token_error(TokenKind::only(token), peek.data.clone(), peek.position))
         }
+    }
+    
+    const fn create_unexpected_token_error(expected_kind: TokenKind, token: Token, position: SourcePosition) -> ParserError {
+        ParserError::new(
+            ParserErrorInner::UnexpectedToken {
+                pat: expected_kind,
+                unmatch: token,
+            },
+            position
+        )
     }
 }
