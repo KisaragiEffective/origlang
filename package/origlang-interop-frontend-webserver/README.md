@@ -1,6 +1,9 @@
 # origlang-interop-frontend-webserver
 
-`origlang-interop` に対するフロントエンド
+`origlang-interop` に対する開発用フロントエンド。
+
+> [!WARNING]
+> TLSサポートを意図的に省略しているため、リモートのクライアントに向けて開放するには不向き。
 
 ## ビルド手順
 
