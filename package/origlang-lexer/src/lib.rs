@@ -17,6 +17,7 @@ use crate::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::error::OutOfRangeError;
 use crate::token::{TemporalLexerUnwindToken, Token};
 
+
 static KEYWORDS: [&str; 12] =
     ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "type", "_"];
 
