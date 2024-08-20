@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/cargo-deny.yml'
       - 'Cargo.lock'
+      - 'deny.toml'
 
 permissions:
   contents: read
