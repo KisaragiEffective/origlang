@@ -21,7 +21,7 @@ jobs:
           URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ github.token }}
           # renovate: npm:renovate
-          RENOVATE_VERSION: '38.73.3'
+          RENOVATE_VERSION: '38.73.5'
         run: |
           # pinned on exact version
           package="renovate@=$RENOVATE_VERSION"
