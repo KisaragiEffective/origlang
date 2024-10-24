@@ -12,6 +12,6 @@ jobs:
         steps:
             - uses: "actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332" # v4
             - name: "TODO to Issue"
-              uses: "alstr/todo-to-issue-action@v4"
+              uses: "alstr/todo-to-issue-action@v5"
               with:
                   AUTO_ASSIGN: true
