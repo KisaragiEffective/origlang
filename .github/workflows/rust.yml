@@ -28,12 +28,12 @@ jobs:
           # fix nightly version across possible matrix
           - rustc_channel: nightly
             # renovate: rustc-nightly
-            rustc_version: '2024-06-12'
+            rustc_version: '2024-11-29'
           # try cranelift if we're on nightly and build for Linux machines
           - os: ubuntu-24.04
             rustc_channel: nightly
             # renovate: rustc-nightly
-            rustc_version: '2024-06-12'
+            rustc_version: '2024-11-29'
             codegen: cranelift
 
     runs-on: ${{ matrix.os }}
