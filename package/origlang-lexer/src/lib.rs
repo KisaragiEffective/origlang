@@ -50,15 +50,15 @@ pub struct Lexer<'src> {
 
 impl<'src> Lexer<'src> {
     #[must_use = "Lexer do nothing unless calling parsing function"]
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(clippy::missing_panics_doc)]
     pub fn create(source: &'src str) -> Self {
         Self {
             source_bytes_nth: Cell::new(Utf8CharBoundaryStartByte::new(0)),
             source,
             lc_manager: LcManager {
-                #[allow(clippy::missing_panics_doc)]
+                #[expect(clippy::missing_panics_doc)]
                 line: Cell::new(1.try_into().expect("unreachable!!")),
-                #[allow(clippy::missing_panics_doc)]
+                #[expect(clippy::missing_panics_doc)]
                 column: Cell::new(1.try_into().expect("unreachable!!")),
             }
         }
@@ -160,7 +160,7 @@ impl Lexer<'_> {
 
                     let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
 
-                    #[allow(clippy::or_fun_call)] // latter is fine because it does not cost
+                    #[expect(clippy::or_fun_call)] // latter is fine because it does not cost
                     let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
 
 

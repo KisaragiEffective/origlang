@@ -72,7 +72,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
         }).collect()
     }
 
-    #[allow(clippy::cast_lossless, clippy::too_many_lines)]
+    #[expect(clippy::cast_lossless, clippy::too_many_lines)]
     #[deny(clippy::as_underscore)]
     #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
@@ -189,7 +189,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
         }
     }
 
-    #[allow(clippy::redundant_closure_call)]
+    #[expect(clippy::redundant_closure_call)]
     fn fold_compare_into_bool_literal(lhs: &TypedIntLiteral, rhs: &TypedIntLiteral, compare: BinaryOperatorKind) -> TypedExpression {
         // [T, O] =>> (T, T) => O
         macro_rules! poly_input_lambda {
@@ -222,7 +222,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
             BinaryOperatorKind::LessEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs <= rhs)),
             BinaryOperatorKind::Equal => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs == rhs)),
             BinaryOperatorKind::NotEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs != rhs)),
-            #[allow(clippy::panic)]
+            #[expect(clippy::panic)]
             other => panic!("operator {other} is not supported by this function"),
         }
     }

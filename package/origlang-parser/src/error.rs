@@ -38,7 +38,7 @@ impl ParserError {
 }
 
 #[derive(ThisError, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub enum ParserErrorInner {
     #[error("lexer error: {_0}")]
     LexerError(#[from] LexerError),

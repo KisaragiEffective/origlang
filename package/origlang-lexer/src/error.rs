@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::boundary::Utf8CharBoundaryStartByte;
 
 #[derive(Error, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub enum LexerError {
     #[error("Invalid suffix for integer literal. Supported suffixes are [`i8`, `i16`, `i32`, `i64`]")]
     InvalidSuffix,
@@ -21,7 +21,7 @@ pub enum LexerError {
 
 #[derive(Debug, Error, Eq, PartialEq)]
 #[error("lexer index overflow: {current:?} > {max}")]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub struct OutOfRangeError {
     pub current: Utf8CharBoundaryStartByte,
     pub max: usize,

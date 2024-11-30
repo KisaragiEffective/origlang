@@ -5,7 +5,7 @@ use origlang_typesystem_model::TypedExpression;
 use origlang_typesystem_model::Type;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub enum TypeCheckError {
     #[error("Only ({accepted_lhs}) {operator} ({accepted_rhs}) is defined, but got {got_lhs} {operator} {got_rhs}")]
     InvalidCombinationForBinaryOperator {
