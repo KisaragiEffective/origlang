@@ -6,6 +6,6 @@ license = "MIT"
 
 [dependencies]
 log = "0.4.21"
-thiserror = "1.0.61"
+thiserror = "2.0.0"
 origlang-ast = { path = "../origlang-ast" }
 origlang-source-span = { path = "../origlang-source-span" }

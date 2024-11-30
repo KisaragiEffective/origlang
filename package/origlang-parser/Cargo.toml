@@ -12,4 +12,4 @@ origlang-ast = { path = "../origlang-ast" }
 origlang-source-span = { path = "../origlang-source-span" }
 origlang-lexer = { path = "../origlang-lexer" }
 origlang-token-stream = { path = "../origlang-token-stream" }
-thiserror = "1.0.61"
+thiserror = "2.0.0"
