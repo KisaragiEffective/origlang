@@ -25,7 +25,7 @@ impl TryIntoTypeCheckedForm for Expression {
     type Success = TypedExpression;
     type Err = TypeCheckError;
 
-    #[allow(clippy::too_many_lines, clippy::cast_possible_truncation)]
+    #[expect(clippy::too_many_lines, clippy::cast_possible_truncation)]
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::IntLiteral { value, suffix } => {
@@ -467,7 +467,7 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    #[allow(clippy::result_unit_err)]
+    #[expect(clippy::result_unit_err)]
     pub fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
         match p0 {
             TypeSignature::Simple(ident) => {
@@ -494,7 +494,7 @@ impl TypeChecker {
     }
 
     #[must_use]
-    #[allow(clippy::missing_panics_doc)] // do not panic
+    #[expect(clippy::missing_panics_doc)] // do not panic
     pub fn make_fresh_identifier(&self) -> Identifier {
         // TODO: this implementation is poor. choice more elegant algorithm.
         let hello = RandomState::new().hash_one(());

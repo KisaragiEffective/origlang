@@ -15,7 +15,7 @@ pub struct NoOptimization;
 
 impl OptimizationPreset<IR1> for NoOptimization {
     fn optimize(&self, seq: Vec<IR1>) -> Vec<IR1> {
-        #[allow(unused_imports)]
+        #[expect(unused_imports)]
         use crate::ir1::EliminateAfterExit;
 
         seq
@@ -33,9 +33,9 @@ impl OptimizationPreset<IR2> for NoOptimization {
 pub struct SimpleOptimization;
 
 impl OptimizationPreset<IR1> for SimpleOptimization {
-    #[allow(clippy::redundant_closure_for_method_calls)]
+    #[expect(clippy::redundant_closure_for_method_calls)]
     fn optimize(&self, seq: Vec<IR1>) -> Vec<IR1> {
-        #[allow(clippy::wildcard_imports)]
+        #[expect(clippy::wildcard_imports)]
         use crate::ir1::*;
 
         seq

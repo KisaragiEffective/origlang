@@ -262,7 +262,7 @@ impl Runtime {
 }
 
 #[derive(Error, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub enum RuntimeError {
     #[error("variable {identifier} is not defined in current scope")]
     UndefinedVariable {
@@ -387,7 +387,7 @@ fn evaluate_bin_op(runtime: &Runtime, lhs: &CompiledTypedExpression, rhs: &Compi
 impl CanBeEvaluated for CompiledTypedExpression {
     fn evaluate(&self, runtime: &Runtime) -> EvaluateResult {
         match self {
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             Self::IntLiteral(int) => match int {
                 TypedIntLiteral::Generic(i) => Ok(NonCoerced(*i).into()),
                 TypedIntLiteral::Bit64(i) => Ok(Coerced(*i).into()),

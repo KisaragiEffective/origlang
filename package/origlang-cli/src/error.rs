@@ -6,7 +6,7 @@ use origlang_runtime::RuntimeError;
 use crate::args::ReadSourceError;
 
 #[derive(Error, Debug)]
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 pub enum TaskExecutionError {
     #[error("Failed to read source: {0}")]
     Source(#[from] ReadSourceError),

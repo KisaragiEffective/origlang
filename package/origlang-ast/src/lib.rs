@@ -7,7 +7,7 @@ use crate::after_parse::Expression;
 pub mod after_parse;
 
 /// 現時点のプログラムとは、プリントするべき式の列である
-#[allow(clippy::module_name_repetitions)]
+#[expect(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RootAst {
     pub statement: Vec<Statement>
@@ -84,7 +84,7 @@ impl Identifier {
         self.0
     }
 
-    #[allow(clippy::must_use_candidate)]
+    #[expect(clippy::must_use_candidate)]
     pub fn as_name(&self) -> &str {
         &self.0
     }
