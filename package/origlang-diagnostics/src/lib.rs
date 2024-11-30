@@ -34,11 +34,11 @@ impl<D: Diagnostic + ?Sized> Diagnostic for Box<D> {
 pub enum CauseTree {
     Branch {
         reason: Box<dyn Diagnostic>,
-        children: Vec<Self>
+        children: Vec<Self>,
     },
     Leaf {
-        reason: Box<dyn Diagnostic>
-    }
+        reason: Box<dyn Diagnostic>,
+    },
 }
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]

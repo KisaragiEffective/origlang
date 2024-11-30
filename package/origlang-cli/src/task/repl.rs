@@ -1,24 +1,24 @@
-use std::fmt::{Debug, Display};
-use std::io::{stdout, Write};
-use std::ops::Range;
-use ariadne::{Report, ReportKind, Source};
-use crate::task::Task;
 use crate::error::TaskExecutionError;
-use origlang_platform::CTRL_D_NL;
-use origlang_parser::parser::Parser;
-use origlang_parser::error::ParserErrorInner;
-use origlang_runtime::{PrintToStdout, Runtime};
-use origlang_typecheck::type_check::TypeChecker;
+use crate::task::Task;
+use ariadne::{Report, ReportKind, Source};
 use origlang_ir::{IntoVerbatimSequencedIR, IR2};
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;
+use origlang_parser::error::ParserErrorInner;
+use origlang_parser::parser::Parser;
+use origlang_platform::CTRL_D_NL;
+use origlang_runtime::{PrintToStdout, Runtime};
+use origlang_typecheck::type_check::TypeChecker;
 use origlang_typesystem_model::TypedRootAst;
+use std::fmt::{Debug, Display};
+use std::io::{stdout, Write};
+use std::ops::Range;
 
 struct Dummy((), Source);
 
 impl ariadne::Cache<()> for Dummy {
     type Storage = String;
-    
+
     fn fetch(&mut self, _id: &()) -> Result<&Source, Box<dyn Debug + '_>> {
         Ok(&self.1)
     }
@@ -59,7 +59,7 @@ impl Task for Repl {
             dbg!(&line);
             // FIXME: this is buggy in Windows, causing infinite loop
             if line == CTRL_D_NL {
-                break
+                break;
             }
             let parser = Parser::create(line.as_str());
             match parser.parse() {
@@ -70,7 +70,11 @@ impl Task for Repl {
                 Err(error_message) => {
                     let error = error_message.kind();
                     let handled = false;
-                    if let ParserErrorInner::PartiallyParsed { hint: _, intermediate_state: _ } = &error {
+                    if let ParserErrorInner::PartiallyParsed {
+                        hint: _,
+                        intermediate_state: _,
+                    } = &error
+                    {
                         // TODO: insta-expression eval
                         // TODO: revisit this
                         /*
@@ -114,7 +118,8 @@ impl Task for Repl {
                             .with_message(error.to_string())
                             .finish();
 
-                        d.write(Dummy((), Source::from(line)), std::io::stderr()).expect("TODO: panic message");
+                        d.write(Dummy((), Source::from(line)), std::io::stderr())
+                            .expect("TODO: panic message");
                     }
                 }
             }

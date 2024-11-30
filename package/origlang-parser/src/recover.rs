@@ -12,11 +12,7 @@ pub enum PartiallyParseFixCandidate {
     #[display(fmt = "No fixes available")]
     None,
     #[display(fmt = "Insert before")]
-    InsertBefore {
-        tokens: Vec<Token>,
-    },
+    InsertBefore { tokens: Vec<Token> },
     #[display(fmt = "Insert after")]
-    InsertAfter {
-        tokens: Vec<Token>,
-    },
+    InsertAfter { tokens: Vec<Token> },
 }

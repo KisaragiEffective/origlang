@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
-use std::mem::{MaybeUninit};
-
+use std::mem::MaybeUninit;
 
 #[derive(Debug)]
 pub struct InvokeOnce<T> {

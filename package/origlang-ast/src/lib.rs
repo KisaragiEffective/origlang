@@ -1,8 +1,8 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-use std::fmt::{Display, Formatter};
 use crate::after_parse::Expression;
+use std::fmt::{Display, Formatter};
 
 pub mod after_parse;
 
@@ -10,7 +10,7 @@ pub mod after_parse;
 #[expect(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RootAst {
-    pub statement: Vec<Statement>
+    pub statement: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -53,7 +53,7 @@ pub enum Statement {
         expression: Expression,
     },
     Block {
-        inner_statements: Vec<Self>
+        inner_statements: Vec<Self>,
     },
     Comment {
         content: Comment,
@@ -67,7 +67,7 @@ pub enum Statement {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Comment {
-    pub content: String
+    pub content: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]

@@ -3,19 +3,19 @@
 
 mod invoke_once;
 
+use derive_more::{Display, From};
+use log::debug;
+use origlang_ast::after_parse::BinaryOperatorKind;
+use origlang_ast::Identifier;
+use origlang_ir::{CompiledTypedExpression, IR2};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
-use derive_more::{Display, From};
-use log::debug;
 use tap::Conv;
 use thiserror::Error;
-use origlang_ast::Identifier;
-use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ir::{CompiledTypedExpression, IR2};
 
-use origlang_typesystem_model::{DisplayRecordType, Type, TypedIntLiteral};
 use crate::invoke_once::InvokeOnce;
+use origlang_typesystem_model::{DisplayRecordType, Type, TypedIntLiteral};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -36,17 +36,21 @@ impl From<NonCoerced> for TypeBox {
 }
 
 #[derive(Error, Debug)]
-pub enum TypeBoxUnwrapError {
-}
+pub enum TypeBoxUnwrapError {}
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DisplayTupleValue {
-    pub boxes: Vec<TypeBox>
+    pub boxes: Vec<TypeBox>,
 }
 
 impl Display for DisplayTupleValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = self.boxes.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let s = self
+            .boxes
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
         let s = format!("({s})");
         f.write_str(&s)
     }
@@ -60,7 +64,12 @@ pub struct DisplayRecordValue {
 
 impl Display for DisplayRecordValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = self.values.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
+        let s = self
+            .values
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
         let name = &self.name;
         let s = format!("{name} {{{s}}}");
         f.write_str(&s)
@@ -111,13 +120,17 @@ impl TypeBox {
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,
             Self::Int64(_) => Type::Int64,
-            Self::Tuple(t) => Type::Tuple(t.boxes.iter().map(Self::get_type).collect::<Vec<_>>().into()),
-            Self::Record(r) => Type::Record(
-                DisplayRecordType::new(
-                    r.name.clone(),
-                    r.values.iter().map(Self::get_type).collect::<Vec<_>>()
-                )
+            Self::Tuple(t) => Type::Tuple(
+                t.boxes
+                    .iter()
+                    .map(Self::get_type)
+                    .collect::<Vec<_>>()
+                    .into(),
             ),
+            Self::Record(r) => Type::Record(DisplayRecordType::new(
+                r.name.clone(),
+                r.values.iter().map(Self::get_type).collect::<Vec<_>>(),
+            )),
         }
     }
 }
@@ -130,7 +143,7 @@ pub struct Scope {
 impl Scope {
     fn empty() -> Self {
         Self {
-            variables: (HashMap::new())
+            variables: (HashMap::new()),
         }
     }
 }
@@ -187,7 +200,7 @@ impl Runtime {
         Self {
             scopes,
             o,
-            on_exit: None
+            on_exit: None,
         }
     }
 
@@ -196,24 +209,26 @@ impl Runtime {
         // info!("{ast:?}", ast = &ast);
         let x = seq;
         // info!("{x:?}", x = &x);
-        x
-            .iter().for_each(|x| self.invoke(x));
+        x.iter().for_each(|x| self.invoke(x));
         &self.o
     }
 
     pub fn execute(&self, ir: &[IR2]) {
         ir.iter().for_each(|x| self.invoke(x));
     }
-    
+
     pub fn invoke(&self, ir: &IR2) {
         match ir {
             IR2::Output(e) => {
-                self.o.as_ref().borrow_mut().output(e.evaluate(self).expect("runtime exception"));
+                self.o
+                    .as_ref()
+                    .borrow_mut()
+                    .output(e.evaluate(self).expect("runtime exception"));
             }
             IR2::UpdateVariable { ident, value } => {
                 self.upsert_member_to_current_scope(
                     ident.clone(),
-                    value.evaluate(self).expect("self exception")
+                    value.evaluate(self).expect("self exception"),
                 );
             }
             IR2::PushScope => {
@@ -224,7 +239,9 @@ impl Runtime {
             }
             IR2::Exit => {
                 if let Some(x) = self.on_exit.as_ref() {
-                    x.try_get().expect("exit receiver is already called!").on_exit();
+                    x.try_get()
+                        .expect("exit receiver is already called!")
+                        .on_exit();
                 }
             }
             IR2::EvalAndForget { expression } => {
@@ -246,7 +263,10 @@ impl Runtime {
 
     fn pop_scope(&self) {
         debug!("exit scope({len})", len = self.scopes.borrow().len());
-        self.scopes.borrow_mut().pop_front().expect("scope must not be empty");
+        self.scopes
+            .borrow_mut()
+            .pop_front()
+            .expect("scope must not be empty");
     }
 
     fn search_member(&self, identifier: &Identifier) -> Option<TypeBox> {
@@ -265,9 +285,7 @@ impl Runtime {
 #[expect(clippy::module_name_repetitions)]
 pub enum RuntimeError {
     #[error("variable {identifier} is not defined in current scope")]
-    UndefinedVariable {
-        identifier: Identifier,
-    },
+    UndefinedVariable { identifier: Identifier },
 }
 
 type EvaluateResult = Result<TypeBox, RuntimeError>;
@@ -298,8 +316,9 @@ macro_rules! f {
                     ::std::cmp::Ordering::Equal => 0,
                     ::std::cmp::Ordering::Greater => 1,
                 }
-            }.into(),
-            BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!()
+            }
+            .into(),
+            BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!(),
         };
 
         Ok(ret)
@@ -324,8 +343,10 @@ macro_rules! f {
                     ::std::cmp::Ordering::Equal => 0,
                     ::std::cmp::Ordering::Greater => 1,
                 }
-            }.conv::<$intermediate>().into(),
-            BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!()
+            }
+            .conv::<$intermediate>()
+            .into(),
+            BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual => unreachable!(),
         };
 
         Ok(ret)
@@ -341,10 +362,18 @@ macro_rules! indicate_type_checker_bug {
     };
 }
 
-fn evaluate_bin_op(runtime: &Runtime, lhs: &CompiledTypedExpression, rhs: &CompiledTypedExpression, operator: &BinaryOperatorKind) -> EvaluateResult {
+fn evaluate_bin_op(
+    runtime: &Runtime,
+    lhs: &CompiledTypedExpression,
+    rhs: &CompiledTypedExpression,
+    operator: &BinaryOperatorKind,
+) -> EvaluateResult {
     let lhs = lhs.evaluate(runtime)?;
     let rhs = rhs.evaluate(runtime)?;
-    if matches!(operator, BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual) {
+    if matches!(
+        operator,
+        BinaryOperatorKind::Equal | BinaryOperatorKind::NotEqual
+    ) {
         return if lhs.get_type() == rhs.get_type() {
             let ret = match operator {
                 BinaryOperatorKind::Equal => lhs == rhs,
@@ -353,26 +382,28 @@ fn evaluate_bin_op(runtime: &Runtime, lhs: &CompiledTypedExpression, rhs: &Compi
             };
             Ok(ret.into())
         } else {
-            indicate_type_checker_bug!(context = "type checker must deny equality check between different types")
-        }
+            indicate_type_checker_bug!(
+                context = "type checker must deny equality check between different types"
+            )
+        };
     }
 
     match (lhs, rhs) {
         (TypeBox::NonCoercedInteger(lhs), TypeBox::NonCoercedInteger(rhs)) => {
             f!(lhs, operator, rhs as NonCoerced)
-        },
+        }
         (TypeBox::Int8(lhs), TypeBox::Int8(rhs)) => {
             f!(lhs, operator, rhs)
-        },
+        }
         (TypeBox::Int16(lhs), TypeBox::Int16(rhs)) => {
             f!(lhs, operator, rhs)
-        },
+        }
         (TypeBox::Int32(lhs), TypeBox::Int32(rhs)) => {
             f!(lhs, operator, rhs)
-        },
+        }
         (TypeBox::Int64(lhs), TypeBox::Int64(rhs)) => {
             f!(lhs, operator, rhs as Coerced)
-        },
+        }
         (TypeBox::String(lhs), TypeBox::String(rhs)) => {
             let mut ret = lhs;
             // give hint to compiler
@@ -380,7 +411,9 @@ fn evaluate_bin_op(runtime: &Runtime, lhs: &CompiledTypedExpression, rhs: &Compi
             ret += rhs.as_str();
             Ok(ret.into())
         }
-        _ => indicate_type_checker_bug!(context = "type checker must deny operator application between different type")
+        _ => indicate_type_checker_bug!(
+            context = "type checker must deny operator application between different type"
+        ),
     }
 }
 
@@ -399,13 +432,24 @@ impl CanBeEvaluated for CompiledTypedExpression {
             Self::StringLiteral(s) => Ok(s.clone().into()),
             Self::UnitLiteral => Ok(().into()),
             Self::Variable { ident, tp: _ } => {
-                runtime.search_member(ident)
-                    .ok_or(RuntimeError::UndefinedVariable { identifier: ident.clone() })
-            },
-            Self::BinaryOperator { lhs, rhs, operator, return_type: _ } => {
-                evaluate_bin_op(runtime, lhs, rhs, operator)
+                runtime
+                    .search_member(ident)
+                    .ok_or(RuntimeError::UndefinedVariable {
+                        identifier: ident.clone(),
+                    })
             }
-            Self::If { condition, then: then_clause_value, els: else_clause_value, return_type: _ } => {
+            Self::BinaryOperator {
+                lhs,
+                rhs,
+                operator,
+                return_type: _,
+            } => evaluate_bin_op(runtime, lhs, rhs, operator),
+            Self::If {
+                condition,
+                then: then_clause_value,
+                els: else_clause_value,
+                return_type: _,
+            } => {
                 let ret = condition.as_ref().evaluate(runtime)?;
                 if let TypeBox::Boolean(b) = ret {
                     runtime.push_scope();
@@ -422,7 +466,11 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     indicate_type_checker_bug!(context = "if clause's expression must be Bool")
                 }
             }
-            Self::Block { inner: intermediate_statements, final_expression, return_type: _ } => {
+            Self::Block {
+                inner: intermediate_statements,
+                final_expression,
+                return_type: _,
+            } => {
                 runtime.push_scope();
                 runtime.execute(intermediate_statements);
                 runtime.pop_scope();
@@ -435,20 +483,16 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     res.push(e.evaluate(runtime)?);
                 }
 
-                Ok(TypeBox::Tuple(DisplayTupleValue {
-                    boxes: res
-                }))
+                Ok(TypeBox::Tuple(DisplayTupleValue { boxes: res }))
             }
             Self::ExtractTuple { expr, index } => {
                 let x = expr.evaluate(runtime)?;
                 match x {
-                    TypeBox::Tuple(x) => {
-                        x.boxes.get(*index).map_or_else(
-                            || indicate_type_checker_bug!(context = "tuple_destruction: out of bounds"),
-                            |x| Ok(x.clone())
-                        )
-                    }
-                    _other => indicate_type_checker_bug!(context = "must be tuple")
+                    TypeBox::Tuple(x) => x.boxes.get(*index).map_or_else(
+                        || indicate_type_checker_bug!(context = "tuple_destruction: out of bounds"),
+                        |x| Ok(x.clone()),
+                    ),
+                    _other => indicate_type_checker_bug!(context = "must be tuple"),
                 }
             }
         }

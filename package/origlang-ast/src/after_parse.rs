@@ -1,7 +1,7 @@
 //! パース時の優先順位が消去された構造体の定義
 
-use derive_more::Display;
 use crate::{Identifier, Statement};
+use derive_more::Display;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Expression {
@@ -18,7 +18,7 @@ pub enum Expression {
     UnitLiteral,
     /// 変数
     Variable {
-        ident: Identifier
+        ident: Identifier,
     },
     /// 四則演算、比較演算、等価性判定
     BinaryOperator {
@@ -38,11 +38,15 @@ pub enum Expression {
     },
     Tuple {
         expressions: Vec<Self>,
-    }
+    },
 }
 
 impl Expression {
-    pub fn binary<Operator: Into<BinaryOperatorKind>>(operator: Operator, lhs: Self, rhs: Self) -> Self {
+    pub fn binary<Operator: Into<BinaryOperatorKind>>(
+        operator: Operator,
+        lhs: Self,
+        rhs: Self,
+    ) -> Self {
         Self::BinaryOperator {
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),

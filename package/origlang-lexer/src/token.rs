@@ -1,7 +1,7 @@
-use origlang_ast::{Comment, Identifier};
 use crate::boundary::Utf8CharBoundaryStartByte;
-use crate::Lexer;
 use crate::token::internal::DisplayToken;
+use crate::Lexer;
+use origlang_ast::{Comment, Identifier};
 
 pub struct TemporalLexerUnwindToken {
     unwind_index: Utf8CharBoundaryStartByte,
@@ -11,7 +11,7 @@ impl TemporalLexerUnwindToken {
     #[must_use = "call Self::reset to invoke"]
     pub const fn new(reset_to: Utf8CharBoundaryStartByte) -> Self {
         Self {
-            unwind_index: reset_to
+            unwind_index: reset_to,
         }
     }
 
@@ -27,7 +27,7 @@ pub enum Token {
     },
     Digits {
         sequence: String,
-        suffix: Option<Box<str>>
+        suffix: Option<Box<str>>,
     },
     UnexpectedChar {
         index: Utf8CharBoundaryStartByte,

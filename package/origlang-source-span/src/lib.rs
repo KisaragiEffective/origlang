@@ -14,9 +14,7 @@ pub struct SourcePosition {
 impl SourcePosition {
     #[must_use]
     pub const fn new(line: NonZeroUsize, column: NonZeroUsize) -> Self {
-        Self {
-            line, column
-        }
+        Self { line, column }
     }
 
     pub fn try_new<E>(lc: impl TryIntoSourcePosition<Err = E>) -> Result<Self, E> {
@@ -77,7 +75,12 @@ mod tests {
     #[test]
     fn source_pos_order() {
         // 辞書式順序の理解があっているかどうか
-        assert!(SourcePosition::try_new((1, 1)).unwrap() < SourcePosition::try_new((1, 2)).unwrap());
-        assert!(SourcePosition::try_new((1, usize::MAX)).unwrap() < SourcePosition::try_new((2, 1)).unwrap());
+        assert!(
+            SourcePosition::try_new((1, 1)).unwrap() < SourcePosition::try_new((1, 2)).unwrap()
+        );
+        assert!(
+            SourcePosition::try_new((1, usize::MAX)).unwrap()
+                < SourcePosition::try_new((2, 1)).unwrap()
+        );
     }
 }

@@ -2,22 +2,22 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 use js_sys::JsString;
-use thiserror::Error;
-use wasm_bindgen::{JsCast, JsValue};
-use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::console;
-use origlang_parser::parser::Parser;
-use origlang_parser::error::ParserError;
-use origlang_typecheck::type_check::error::TypeCheckError;
-use origlang_typecheck::type_check::TypeChecker;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;
+use origlang_parser::error::ParserError;
+use origlang_parser::parser::Parser;
 use origlang_runtime::{OutputAccumulator, Runtime, TypeBox};
+use origlang_typecheck::type_check::error::TypeCheckError;
+use origlang_typecheck::type_check::TypeChecker;
 use origlang_typesystem_model::TypedRootAst;
+use thiserror::Error;
+use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::console;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     fn get_source() -> JsValue;
 
     fn set_compile_error(s: JsString);
@@ -57,7 +57,7 @@ impl OutputAccumulator for PseudoStdout {
 }
 
 struct Timer<'a> {
-    name: &'a str
+    name: &'a str,
 }
 
 impl<'a> Timer<'a> {
@@ -93,12 +93,12 @@ pub fn run() {
     };
 
     src.dyn_ref::<JsString>().map_or_else(
-        || {
-            panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG")
-        },
+        || panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG"),
         |src| {
             let inner: fn(&JsString) -> Result<(), ExecutionError> = |src| {
-                let src = src.as_string().expect("Source code must not contain invalid surrogate codepoint");
+                let src = src
+                    .as_string()
+                    .expect("Source code must not contain invalid surrogate codepoint");
                 let parser = {
                     let _ = Timer::new("parse.construction");
                     Parser::create(&src)
@@ -132,6 +132,6 @@ pub fn run() {
             if let Err(e) = inner(src) {
                 set_compile_error(JsString::from(e.to_string()));
             }
-        }
+        },
     );
 }

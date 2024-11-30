@@ -1,8 +1,8 @@
-use thiserror::Error;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::{AtomicPattern, Identifier, TypeSignature};
-use origlang_typesystem_model::TypedExpression;
 use origlang_typesystem_model::Type;
+use origlang_typesystem_model::TypedExpression;
+use thiserror::Error;
 
 #[derive(Debug, Eq, PartialEq, Clone, Error)]
 #[expect(clippy::module_name_repetitions)]
@@ -35,18 +35,13 @@ pub enum TypeCheckError {
         actual_type: Type,
     },
     #[error("value of {from} cannot be assigned to {to}")]
-    UnassignableType {
-        from: Type,
-        to: Type,
-    },
+    UnassignableType { from: Type, to: Type },
     #[error("type {name} is not defined")]
-    UnknownType {
-        name: TypeSignature,
-    },
+    UnknownType { name: TypeSignature },
     #[error("pattern {pattern} may not be satisfied where the expression has type of {expr_type}")]
     UnsatisfiablePattern {
         pattern: AtomicPattern,
         expression: TypedExpression,
         expr_type: Type,
-    }
+    },
 }

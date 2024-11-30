@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests;
 
-use std::cmp::Ordering;
+pub use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub};
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ir::IR1;
 use origlang_typesystem_model::{TypedExpression, TypedIntLiteral};
-pub use num_traits::{CheckedAdd, CheckedSub, CheckedDiv, CheckedMul};
+use std::cmp::Ordering;
 
-trait OutputCompareResultAsSelf : Sized + PartialOrd + PartialEq {
+trait OutputCompareResultAsSelf: Sized + PartialOrd + PartialEq {
     fn compare_self(&self, other: &Self) -> Option<Self>;
 }
 
@@ -61,15 +61,17 @@ pub struct FoldBinaryOperatorInvocationWithConstant(pub Vec<IR1>);
 impl FoldBinaryOperatorInvocationWithConstant {
     #[must_use = "Dropping return value implies drop optimized IRs"]
     pub fn optimize(self) -> Vec<IR1> {
-        self.0.into_iter().map(|ir| {
-            match ir {
+        self.0
+            .into_iter()
+            .map(|ir| match ir {
                 IR1::Output(value) => IR1::Output(Self::walk_expression(value)),
                 IR1::UpdateVariable { ident, value } => IR1::UpdateVariable {
-                    ident, value: Self::walk_expression(value),
+                    ident,
+                    value: Self::walk_expression(value),
                 },
-                other => other
-            }
-        }).collect()
+                other => other,
+            })
+            .collect()
     }
 
     #[expect(clippy::cast_lossless, clippy::too_many_lines)]
@@ -77,29 +79,43 @@ impl FoldBinaryOperatorInvocationWithConstant {
     #[must_use]
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
         let (lhs, rhs, operator, return_type) = match expr {
-            TypedExpression::If { condition, then, els, return_type } => {
+            TypedExpression::If {
+                condition,
+                then,
+                els,
+                return_type,
+            } => {
                 return TypedExpression::If {
                     condition: Box::new(Self::walk_expression(*condition)),
                     then: Box::new(Self::walk_expression(*then)),
                     els: Box::new(Self::walk_expression(*els)),
-                    return_type
+                    return_type,
                 }
             }
-            TypedExpression::Block { inner, final_expression, return_type } => {
+            TypedExpression::Block {
+                inner,
+                final_expression,
+                return_type,
+            } => {
                 return TypedExpression::Block {
                     inner,
                     final_expression: Box::new(Self::walk_expression(*final_expression)),
-                    return_type
+                    return_type,
                 }
             }
             TypedExpression::Tuple { expressions } => {
-                return TypedExpression::Tuple { expressions: expressions.into_iter().map(Self::walk_expression).collect() }
+                return TypedExpression::Tuple {
+                    expressions: expressions.into_iter().map(Self::walk_expression).collect(),
+                }
             }
-            TypedExpression::BinaryOperator { lhs, rhs, operator, return_type } => (lhs, rhs, operator, return_type),
+            TypedExpression::BinaryOperator {
+                lhs,
+                rhs,
+                operator,
+                return_type,
+            } => (lhs, rhs, operator, return_type),
             // these expressions are optimal for this path
-            other => {
-                return other
-            }
+            other => return other,
         };
 
         // handle recursively
@@ -112,7 +128,9 @@ impl FoldBinaryOperatorInvocationWithConstant {
         let rhs_ref = rhs.as_ref();
         let operands = (lhs_ref, rhs_ref);
 
-        if let (TypedExpression::IntLiteral(lhs_lit), TypedExpression::IntLiteral(rhs_lit)) = operands {
+        if let (TypedExpression::IntLiteral(lhs_lit), TypedExpression::IntLiteral(rhs_lit)) =
+            operands
+        {
             if lhs_lit.actual_type() == rhs_lit.actual_type() {
                 macro_rules! fold_opt_to_discriminator {
                     ($binary_function:expr, $arg1:expr, $arg2:expr, $into:ident) => {
@@ -121,11 +139,11 @@ impl FoldBinaryOperatorInvocationWithConstant {
                                 lhs,
                                 rhs,
                                 operator,
-                                return_type
+                                return_type,
                             },
-                            |v| TypedExpression::IntLiteral(TypedIntLiteral::$into(v))
+                            |v| TypedExpression::IntLiteral(TypedIntLiteral::$into(v)),
                         )
-                    }
+                    };
                 }
 
                 macro_rules! fold_int_literals {
@@ -133,22 +151,22 @@ impl FoldBinaryOperatorInvocationWithConstant {
                         match (lhs_lit, rhs_lit) {
                             (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
                                 fold_opt_to_discriminator!($method, lhs, rhs, Generic)
-                            },
+                            }
                             (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
                                 fold_opt_to_discriminator!($method, lhs, rhs, Bit64)
-                            },
+                            }
                             (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
                                 fold_opt_to_discriminator!($method, lhs, rhs, Bit32)
-                            },
+                            }
                             (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
                                 fold_opt_to_discriminator!($method, lhs, rhs, Bit16)
-                            },
+                            }
                             (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
                                 fold_opt_to_discriminator!($method, lhs, rhs, Bit8)
-                            },
+                            }
                             _ => unreachable!(),
                         }
-                    }
+                    };
                 }
 
                 match operator {
@@ -157,7 +175,9 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     BinaryOperatorKind::Minus => fold_int_literals!(CheckedSub::checked_sub),
                     BinaryOperatorKind::Multiply => fold_int_literals!(CheckedMul::checked_mul),
                     BinaryOperatorKind::Divide => fold_int_literals!(CheckedDiv::checked_div),
-                    BinaryOperatorKind::ThreeWay => fold_int_literals!(OutputCompareResultAsSelf::compare_self),
+                    BinaryOperatorKind::ThreeWay => {
+                        fold_int_literals!(OutputCompareResultAsSelf::compare_self)
+                    }
                     compare => Self::fold_compare_into_bool_literal(lhs_lit, rhs_lit, compare),
                 }
             } else {
@@ -165,10 +185,14 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     lhs,
                     rhs,
                     operator,
-                    return_type
+                    return_type,
                 }
             }
-        } else if let (TypedExpression::BooleanLiteral(lhs_lit), TypedExpression::BooleanLiteral(rhs_lit)) = operands {
+        } else if let (
+            TypedExpression::BooleanLiteral(lhs_lit),
+            TypedExpression::BooleanLiteral(rhs_lit),
+        ) = operands
+        {
             match operator {
                 BinaryOperatorKind::Equal => TypedExpression::BooleanLiteral(lhs_lit == rhs_lit),
                 BinaryOperatorKind::NotEqual => TypedExpression::BooleanLiteral(lhs_lit != rhs_lit),
@@ -176,7 +200,7 @@ impl FoldBinaryOperatorInvocationWithConstant {
                     lhs,
                     rhs,
                     operator,
-                    return_type
+                    return_type,
                 },
             }
         } else {
@@ -184,44 +208,58 @@ impl FoldBinaryOperatorInvocationWithConstant {
                 lhs,
                 rhs,
                 operator,
-                return_type
+                return_type,
             }
         }
     }
 
     #[expect(clippy::redundant_closure_call)]
-    fn fold_compare_into_bool_literal(lhs: &TypedIntLiteral, rhs: &TypedIntLiteral, compare: BinaryOperatorKind) -> TypedExpression {
+    fn fold_compare_into_bool_literal(
+        lhs: &TypedIntLiteral,
+        rhs: &TypedIntLiteral,
+        compare: BinaryOperatorKind,
+    ) -> TypedExpression {
         // [T, O] =>> (T, T) => O
         macro_rules! poly_input_lambda {
             ($closure:expr) => {
                 match (lhs, rhs) {
                     (TypedIntLiteral::Generic(lhs), TypedIntLiteral::Generic(rhs)) => {
                         $closure(lhs, rhs)
-                    },
+                    }
                     (TypedIntLiteral::Bit64(lhs), TypedIntLiteral::Bit64(rhs)) => {
                         $closure(lhs, rhs)
-                    },
+                    }
                     (TypedIntLiteral::Bit32(lhs), TypedIntLiteral::Bit32(rhs)) => {
                         $closure(lhs, rhs)
-                    },
+                    }
                     (TypedIntLiteral::Bit16(lhs), TypedIntLiteral::Bit16(rhs)) => {
                         $closure(lhs, rhs)
-                    },
-                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => {
-                        $closure(lhs, rhs)
-                    },
+                    }
+                    (TypedIntLiteral::Bit8(lhs), TypedIntLiteral::Bit8(rhs)) => $closure(lhs, rhs),
                     _ => unreachable!(),
                 }
             };
         }
 
         match compare {
-            BinaryOperatorKind::More => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs > rhs)),
-            BinaryOperatorKind::MoreEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs >= rhs)),
-            BinaryOperatorKind::Less => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs < rhs)),
-            BinaryOperatorKind::LessEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs <= rhs)),
-            BinaryOperatorKind::Equal => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs == rhs)),
-            BinaryOperatorKind::NotEqual => poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs != rhs)),
+            BinaryOperatorKind::More => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs > rhs))
+            }
+            BinaryOperatorKind::MoreEqual => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs >= rhs))
+            }
+            BinaryOperatorKind::Less => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs < rhs))
+            }
+            BinaryOperatorKind::LessEqual => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs <= rhs))
+            }
+            BinaryOperatorKind::Equal => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs == rhs))
+            }
+            BinaryOperatorKind::NotEqual => {
+                poly_input_lambda!(|lhs, rhs| TypedExpression::BooleanLiteral(lhs != rhs))
+            }
             #[expect(clippy::panic)]
             other => panic!("operator {other} is not supported by this function"),
         }
@@ -234,21 +272,27 @@ pub struct FoldIfWithConstantCondition(pub Vec<IR1>);
 impl FoldIfWithConstantCondition {
     #[must_use = "return value is optimized IR, dropping it will waste it"]
     pub fn optimize(self) -> Vec<IR1> {
-        self.0.into_iter().map(|x| {
-            match x {
-                IR1::Output(expression) => {
-                    IR1::Output(Self::walk_expression(expression))
-                }
-                IR1::UpdateVariable { ident, value: expr } => {
-                    IR1::UpdateVariable { ident, value: Self::walk_expression(expr) }
-                }
-                other => other
-            }
-        }).collect()
+        self.0
+            .into_iter()
+            .map(|x| match x {
+                IR1::Output(expression) => IR1::Output(Self::walk_expression(expression)),
+                IR1::UpdateVariable { ident, value: expr } => IR1::UpdateVariable {
+                    ident,
+                    value: Self::walk_expression(expr),
+                },
+                other => other,
+            })
+            .collect()
     }
 
     fn walk_expression(expr: TypedExpression) -> TypedExpression {
-        if let TypedExpression::If { condition, then, els, return_type } = expr {
+        if let TypedExpression::If {
+            condition,
+            then,
+            els,
+            return_type,
+        } = expr
+        {
             let condition_lit = condition.as_ref();
             if let TypedExpression::BooleanLiteral(const_cond) = condition_lit {
                 dbg!(&then);
@@ -258,7 +302,12 @@ impl FoldIfWithConstantCondition {
                     *els
                 }
             } else {
-                TypedExpression::If { condition, then, els, return_type }
+                TypedExpression::If {
+                    condition,
+                    then,
+                    els,
+                    return_type,
+                }
             }
         } else {
             expr
@@ -272,21 +321,26 @@ pub struct InlineSimpleBlock(pub Vec<IR1>);
 impl InlineSimpleBlock {
     #[must_use = "return value is optimized IR, dropping it will waste it"]
     pub fn optimize(self) -> Vec<IR1> {
-        self.0.into_iter().map(|x| match x {
-            IR1::Output(x) => IR1::Output(Self::walk_expression(x)),
-            IR1::UpdateVariable { ident, value } => IR1::UpdateVariable { 
-                ident,
-                value: Self::walk_expression(value)
-            },
-            other => other,
-        }).collect()
+        self.0
+            .into_iter()
+            .map(|x| match x {
+                IR1::Output(x) => IR1::Output(Self::walk_expression(x)),
+                IR1::UpdateVariable { ident, value } => IR1::UpdateVariable {
+                    ident,
+                    value: Self::walk_expression(value),
+                },
+                other => other,
+            })
+            .collect()
     }
-    
+
     fn walk_expression(checked: TypedExpression) -> TypedExpression {
         match checked {
-            TypedExpression::Block { inner, final_expression, return_type: _ } if inner.is_empty() => {
-                *final_expression
-            }
+            TypedExpression::Block {
+                inner,
+                final_expression,
+                return_type: _,
+            } if inner.is_empty() => *final_expression,
             other => other,
         }
     }
@@ -297,7 +351,11 @@ pub struct EliminateAfterExit(pub Vec<IR1>);
 impl EliminateAfterExit {
     #[must_use = "return value is optimized IR, dropping it will waste it"]
     pub fn optimize(self) -> Vec<IR1> {
-        let mut x = self.0.into_iter().take_while(|x| *x != IR1::Exit).collect::<Vec<_>>();
+        let mut x = self
+            .0
+            .into_iter()
+            .take_while(|x| *x != IR1::Exit)
+            .collect::<Vec<_>>();
         x.push(IR1::Exit);
         x
     }

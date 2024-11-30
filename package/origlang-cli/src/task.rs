@@ -1,6 +1,6 @@
+pub mod emit;
 pub mod interpret;
 pub mod repl;
-pub mod emit;
 
 pub trait Task {
     type Environment;

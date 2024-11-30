@@ -2,5 +2,5 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 
 pub mod ir1;
-pub mod preset;
 pub mod lower;
+pub mod preset;

@@ -52,7 +52,7 @@ impl From<char> for Utf8CharStride {
             3 => Self::Three,
             4 => Self::Four,
             // SAFETY: this branch is actually not reachable because of res' range.
-            _ => unsafe { unreachable_unchecked() }
+            _ => unsafe { unreachable_unchecked() },
         }
     }
 }
