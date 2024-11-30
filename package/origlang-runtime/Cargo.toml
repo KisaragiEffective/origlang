@@ -8,7 +8,6 @@ license = "MPL-2.0"
 
 [dependencies]
 thiserror = "1.0.59"
-derivative = "2.2.0"
 derive_more = "0.99.17"
 log = "0.4.21"
 tap = "1.0.1"
