@@ -16,4 +16,4 @@ origlang-runtime = { version = "0.1.0", path = "../origlang-runtime" }
 origlang-source-span = { version = "*", path = "../origlang-source-span" }
 origlang-parser = { path = "../origlang-parser" }
 origlang-typecheck = { path = "../origlang-typecheck" }
-thiserror = "1.0.59"
+thiserror = "2.0.0"
