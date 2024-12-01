@@ -7,7 +7,11 @@ fn main() {
 
     let www = cd.join("www");
 
-    let interop_dir = cd.parent().expect("no parent").join("origlang-interop").join("pkg");
+    let interop_dir = cd
+        .parent()
+        .expect("no parent")
+        .join("origlang-interop")
+        .join("pkg");
     println!("interop_dir: {}", interop_dir.display());
 
     for interop_file in read_dir(interop_dir).expect("fail") {
@@ -15,9 +19,12 @@ fn main() {
         let from = x.path();
         let name = x.file_name();
         if name == *".gitignore" {
-            continue
+            continue;
         }
-        let common_parent = from.iter().take(from.components().count() - 3).collect::<PathBuf>();
+        let common_parent = from
+            .iter()
+            .take(from.components().count() - 3)
+            .collect::<PathBuf>();
         println!("cpar: {}", common_parent.display());
 
         let to = www.join(name);
@@ -27,8 +34,11 @@ fn main() {
         copy_file(from, to).expect("copy failed, please build origlang-interop first.");
     }
 
-    let useful_example_dir =         cd.parent().expect("parent")
-        .parent().expect("parent.parent")
+    let useful_example_dir = cd
+        .parent()
+        .expect("parent")
+        .parent()
+        .expect("parent.parent")
         .join("compile")
         .join("positive")
         .join("non-perf");
@@ -39,14 +49,17 @@ fn main() {
     }
     std::fs::copy(
         useful_example_dir.join("99_bottles_of_beer.origlang"),
-        www_example_dir.join("99_bottles_of_beer.origlang")
-    ).expect("99 bottles");
+        www_example_dir.join("99_bottles_of_beer.origlang"),
+    )
+    .expect("99 bottles");
     std::fs::copy(
         useful_example_dir.join("hello_world.origlang"),
-        www_example_dir.join("hello_world.origlang")
-    ).expect("Hello world");
+        www_example_dir.join("hello_world.origlang"),
+    )
+    .expect("Hello world");
     std::fs::copy(
         useful_example_dir.join("fizz_buzz.origlang"),
-        www_example_dir.join("fizz_buzz.origlang")
-    ).expect("Fizz Buzz");
+        www_example_dir.join("fizz_buzz.origlang"),
+    )
+    .expect("Fizz Buzz");
 }

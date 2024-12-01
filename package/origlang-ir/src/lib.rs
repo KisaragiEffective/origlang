@@ -1,10 +1,12 @@
 #![deny(clippy::all, clippy::panicking_unwrap, clippy::panic)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-use std::collections::VecDeque;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
-use origlang_typesystem_model::{Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement};
+use origlang_typesystem_model::{
+    Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement,
+};
+use std::collections::VecDeque;
 
 pub trait IntoVerbatimSequencedIR {
     fn into_ir(self) -> Vec<IR1>;
@@ -16,21 +18,26 @@ impl IntoVerbatimSequencedIR for TypedStatement {
 
         match statement {
             Self::Print { expression } => {
-                vec![
-                    (IR1::Output(expression))
-                ]
+                vec![(IR1::Output(expression))]
             }
-            Self::VariableDeclaration { identifier, expression }
-            | Self::VariableAssignment { identifier, expression } => {
+            Self::VariableDeclaration {
+                identifier,
+                expression,
+            }
+            | Self::VariableAssignment {
+                identifier,
+                expression,
+            } => {
                 vec![
                     (IR1::UpdateVariable {
                         ident: identifier,
                         value: expression,
-                    })
+                    }),
                 ]
             }
             Self::Block { inner_statements } => {
-                let mut vec = inner_statements.into_iter()
+                let mut vec = inner_statements
+                    .into_iter()
                     .flat_map(<Self as IntoVerbatimSequencedIR>::into_ir)
                     .collect::<VecDeque<_>>();
                 vec.push_front(IR1::PushScope);
@@ -40,14 +47,15 @@ impl IntoVerbatimSequencedIR for TypedStatement {
             Self::Exit => vec![(IR1::Exit)],
             Self::EvalAndForget { expression } => {
                 vec![(IR1::EvalAndForget { expression })]
-            },
+            }
         }
     }
 }
 
 impl IntoVerbatimSequencedIR for TypedRootAst {
     fn into_ir(self) -> Vec<IR1> {
-        self.statements.into_iter()
+        self.statements
+            .into_iter()
             .flat_map(<TypedStatement as IntoVerbatimSequencedIR>::into_ir)
             .collect()
     }
@@ -55,7 +63,9 @@ impl IntoVerbatimSequencedIR for TypedRootAst {
 
 impl<T: IntoVerbatimSequencedIR> IntoVerbatimSequencedIR for Vec<T> {
     fn into_ir(self) -> Vec<IR1> {
-        self.into_iter().flat_map(IntoVerbatimSequencedIR::into_ir).collect()
+        self.into_iter()
+            .flat_map(IntoVerbatimSequencedIR::into_ir)
+            .collect()
     }
 }
 
@@ -70,8 +80,8 @@ pub enum IR1 {
     PopScope,
     Exit,
     EvalAndForget {
-        expression: TypedExpression
-    }
+        expression: TypedExpression,
+    },
 }
 
 /// Same as [`IR1`], except that statements in blocks are lowered to this type.
@@ -86,8 +96,8 @@ pub enum IR2 {
     PopScope,
     Exit,
     EvalAndForget {
-        expression: CompiledTypedExpression
-    }
+        expression: CompiledTypedExpression,
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -110,7 +120,7 @@ pub enum CompiledTypedExpression {
         condition: Box<Self>,
         then: Box<Self>,
         els: Box<Self>,
-        return_type: Type
+        return_type: Type,
     },
     Block {
         inner: Vec<IR2>,
@@ -118,7 +128,10 @@ pub enum CompiledTypedExpression {
         return_type: Type,
     },
     Tuple {
-        expressions: Vec<Self>
+        expressions: Vec<Self>,
     },
-    ExtractTuple { expr: Box<CompiledTypedExpression>, index: usize },
+    ExtractTuple {
+        expr: Box<CompiledTypedExpression>,
+        index: usize,
+    },
 }

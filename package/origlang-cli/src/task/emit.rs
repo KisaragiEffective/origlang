@@ -1,15 +1,15 @@
-use thiserror::Error;
-use origlang_lexer::Lexer;
-use origlang_parser::parser::Parser;
-use origlang_parser::error::ParserError;
-use origlang_typecheck::type_check::error::TypeCheckError;
-use origlang_typecheck::type_check::TypeChecker;
-use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
-use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
-use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
 use crate::args::{EmitPhase, OptimizeLevel, ParseSource, ReadSourceError};
 use crate::error::TaskExecutionError;
 use crate::task::Task;
+use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
+use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
+use origlang_ir_optimizer::preset::{NoOptimization, SimpleOptimization};
+use origlang_lexer::Lexer;
+use origlang_parser::error::ParserError;
+use origlang_parser::parser::Parser;
+use origlang_typecheck::type_check::error::TypeCheckError;
+use origlang_typecheck::type_check::TypeChecker;
+use thiserror::Error;
 
 pub struct UnstableEmit {
     pub(crate) phase: EmitPhase,
@@ -47,7 +47,7 @@ impl Task for UnstableEmit {
                 let a = lexer.next();
                 println!("{a:?}");
                 if a.data.is_error() || a.data.is_end() {
-                    return Ok(())
+                    return Ok(());
                 }
             }
         }
@@ -57,7 +57,7 @@ impl Task for UnstableEmit {
 
         if self.phase == EmitPhase::Ast {
             println!("{root:#?}");
-            return Ok(())
+            return Ok(());
         }
 
         let checker = TypeChecker::new();
@@ -65,7 +65,7 @@ impl Task for UnstableEmit {
 
         if self.phase == EmitPhase::TypedAst {
             println!("{expr:#?}");
-            return Ok(())
+            return Ok(());
         }
 
         let ir_sequence = expr.into_ir();
@@ -81,7 +81,7 @@ impl Task for UnstableEmit {
             let ir_sequence: Vec<IR1> = the_lower.optimizer().optimize(ir_sequence);
 
             println!("{ir_sequence:#?}");
-            return Ok(())
+            return Ok(());
         }
 
         let ir_sequence = the_lower.lower(ir_sequence);

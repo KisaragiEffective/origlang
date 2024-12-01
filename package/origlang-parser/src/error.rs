@@ -1,12 +1,12 @@
-use thiserror::Error as ThisError;
-use origlang_source_span::{Pointed, SourcePosition as SourcePos, SourcePosition};
-use std::fmt::{Display, Formatter};
-use derive_more::Display;
-use std::num::ParseIntError;
-use origlang_lexer::error::LexerError;
-use origlang_lexer::token::Token;
 use crate::parser::TokenKind;
 use crate::recover::{IntermediateStateCandidate, PartiallyParseFixCandidate};
+use derive_more::Display;
+use origlang_lexer::error::LexerError;
+use origlang_lexer::token::Token;
+use origlang_source_span::{Pointed, SourcePosition as SourcePos, SourcePosition};
+use std::fmt::{Display, Formatter};
+use std::num::ParseIntError;
+use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug, Eq, PartialEq)]
 pub struct ParserError(Pointed<ParserErrorInner>);
@@ -22,7 +22,7 @@ impl ParserError {
     pub const fn new(kind: ParserErrorInner, position: SourcePos) -> Self {
         Self(Pointed {
             data: kind,
-            position
+            position,
         })
     }
 
@@ -43,27 +43,20 @@ pub enum ParserErrorInner {
     #[error("lexer error: {_0}")]
     LexerError(#[from] LexerError),
     #[error("unconsumed token found: {token:?}")]
-    UnconsumedToken {
-        token: Token
-    },
+    UnconsumedToken { token: Token },
     #[error("statement must be terminated by a newline")]
     StatementTerminationError,
     #[error("EOF Error")]
     EndOfFileError,
     #[error("Expected {pat}, but got {unmatch:?}")]
-    UnexpectedToken {
-        pat: TokenKind,
-        unmatch: Token,
-    },
+    UnexpectedToken { pat: TokenKind, unmatch: Token },
     #[error("Incomplete program snippet. Check hint for fix candidates. hint:{hint:?} state:{intermediate_state:?}")]
     PartiallyParsed {
         hint: Vec<PartiallyParseFixCandidate>,
         intermediate_state: Vec<IntermediateStateCandidate>,
     },
     #[error("input sequence cannot be parsed as a int literal: {error}")]
-    UnParsableIntLiteral {
-        error: ParseIntError
-    },
+    UnParsableIntLiteral { error: ParseIntError },
     #[error("int literal type of {tp} must be in range ({min}..={max}), but its value is {value}")]
     OverflowedLiteral {
         tp: Box<str>,

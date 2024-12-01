@@ -1,13 +1,13 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
+use log::{debug, warn};
+use origlang_lexer::token::Token;
+use origlang_lexer::Lexer;
+use origlang_source_span::{Pointed, SourcePosition};
 use std::backtrace::Backtrace;
 use std::cell::Cell;
 use std::panic::Location;
-use log::{debug, warn};
-use origlang_source_span::{Pointed, SourcePosition};
-use origlang_lexer::Lexer;
-use origlang_lexer::token::Token;
 
 pub struct TokenStream {
     concrete: Vec<Pointed<Token>>,
@@ -20,10 +20,10 @@ impl TokenStream {
         Self {
             last_position: tokens.last().map_or_else(
                 || SourcePosition::new(1.try_into().unwrap(), 1.try_into().unwrap()),
-                |x| x.position
+                |x| x.position,
             ),
             concrete: tokens,
-            current_index: Cell::new(0)
+            current_index: Cell::new(0),
         }
     }
 
@@ -37,14 +37,17 @@ impl TokenStream {
             warn!("out of bound: {o}");
             warn!("stacktrace: \n{}", Backtrace::force_capture());
         }
-        
+
         ret
     }
 
     pub const fn end_of_file_token(&self) -> Pointed<Token> {
-        Pointed { data: Token::EndOfFile, position: self.last_position }
+        Pointed {
+            data: Token::EndOfFile,
+            position: self.last_position,
+        }
     }
-    
+
     /// advance position by one.
     #[track_caller]
     pub fn next(&self) {
@@ -75,16 +78,16 @@ impl TokenStream {
 impl From<Lexer<'_>> for TokenStream {
     fn from(value: Lexer<'_>) -> Self {
         let mut buf = vec![];
-        
+
         loop {
             let n = value.next();
             if n.data == Token::EndOfFile {
                 break;
             }
-            
+
             buf.push(n);
         }
-        
+
         Self::new(buf)
     }
 }

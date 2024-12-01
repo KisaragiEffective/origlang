@@ -1,34 +1,40 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
+mod boundary;
 pub mod error;
 #[cfg(test)]
 mod tests;
 pub mod token;
-mod boundary;
 
 use std::cell::Cell;
 
-use std::num::NonZeroUsize;
-use log::{debug, trace, warn};
 use self::error::LexerError;
-use origlang_ast::{Comment, Identifier};
-use origlang_source_span::{SourcePosition as SourcePos, Pointed as WithPosition};
 use crate::boundary::{Utf8CharBoundaryStartByte, Utf8CharStride};
 use crate::error::OutOfRangeError;
 use crate::token::{TemporalLexerUnwindToken, Token};
+use log::{debug, trace, warn};
+use origlang_ast::{Comment, Identifier};
+use origlang_source_span::{Pointed as WithPosition, SourcePosition as SourcePos};
+use std::num::NonZeroUsize;
 
-static KEYWORDS: [&str; 12] =
-    ["var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "type", "_"];
+static KEYWORDS: [&str; 12] = [
+    "var", "if", "else", "then", "exit", "true", "false", "print", "block", "end", "type", "_",
+];
 
 trait AssociateWithPos {
-    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized;
+    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self>
+    where
+        Self: Sized;
 }
 
 impl<T> AssociateWithPos for T {
-    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self> where Self: Sized {
+    fn with_pos(self, lexer: &Lexer) -> WithPosition<Self>
+    where
+        Self: Sized,
+    {
         WithPosition {
             position: lexer.current_pos(),
-            data: self
+            data: self,
         }
     }
 }
@@ -60,7 +66,7 @@ impl<'src> Lexer<'src> {
                 line: Cell::new(1.try_into().expect("unreachable!!")),
                 #[expect(clippy::missing_panics_doc)]
                 column: Cell::new(1.try_into().expect("unreachable!!")),
-            }
+            },
         }
     }
 }
@@ -72,7 +78,7 @@ impl Lexer<'_> {
         while !self.reached_end() {
             if self.try_and_eat_str(" ") || self.try_and_eat_str("\t") {
             } else {
-                break
+                break;
             }
         }
         trace!("drain_space: end   ^^^^^^^^^^^^^^^^^^^");
@@ -84,19 +90,22 @@ impl Lexer<'_> {
         trace!("lexer:try:{s:?}");
         let start = self.source_bytes_nth.get();
         let end_exclusive = start.as_usize() + s.len();
-        let Some(b) = self.source.get(start.as_usize()..end_exclusive) else { return false };
+        let Some(b) = self.source.get(start.as_usize()..end_exclusive) else {
+            return false;
+        };
         if s != b {
-            return false
+            return false;
         }
 
         self.set_current_index(Utf8CharBoundaryStartByte::new(end_exclusive));
-        
+
         true
     }
 
     fn next_inner(&self) -> Token {
-        let v =
-            self.reached_end().then_some(Token::EndOfFile)
+        let v = self
+            .reached_end()
+            .then_some(Token::EndOfFile)
             .or_else(|| self.try_and_eat_str("\r\n").then_some(Token::NewLine))
             .or_else(|| self.try_and_eat_str("\n").then_some(Token::NewLine))
             .or_else(|| self.try_and_eat_str("==").then_some(Token::PartEqEq))
@@ -117,38 +126,38 @@ impl Lexer<'_> {
             .or_else(|| self.try_and_eat_str(">").then_some(Token::SymMore))
             .or_else(|| self.try_and_eat_str("!=").then_some(Token::PartBangEq))
             .or_else(|| self.try_and_eat_str("!").then_some(Token::SymBang))
-            .or_else(|| self.try_and_eat_str("\"").then(|| self.scan_string_literal()))
+            .or_else(|| {
+                self.try_and_eat_str("\"")
+                    .then(|| self.scan_string_literal())
+            })
             .or_else(|| self.scan_digits())
             .or_else(|| self.try_and_eat_str(",").then_some(Token::SymComma))
             .or_else(|| self.try_and_eat_str(":").then_some(Token::SymColon))
             .or_else(|| {
-                self.scan_identifier()
-                    .ok()
-                    .flatten()
-                    .map(|scanned| {
-                        let is_keyword = KEYWORDS.contains(&scanned.as_name());
-                        if is_keyword {
-                            match scanned.as_name() {
-                                "var" => Token::VarKeyword,
-                                "true" => Token::KeywordTrue,
-                                "false" => Token::KeywordFalse,
-                                "if" => Token::KeywordIf,
-                                "then" => Token::KeywordThen,
-                                "else" => Token::KeywordElse,
-                                "print" => Token::KeywordPrint,
-                                "block" => Token::KeywordBlock,
-                                "end" => Token::KeywordEnd,
-                                "exit" => Token::KeywordExit,
-                                "type" => Token::KeywordType,
-                                "_" => Token::SymUnderscore,
-                                other => Token::Reserved {
-                                    matched: other.to_string(),
-                                }
-                            }
-                        } else {
-                            Token::Identifier { inner: scanned }
+                self.scan_identifier().ok().flatten().map(|scanned| {
+                    let is_keyword = KEYWORDS.contains(&scanned.as_name());
+                    if is_keyword {
+                        match scanned.as_name() {
+                            "var" => Token::VarKeyword,
+                            "true" => Token::KeywordTrue,
+                            "false" => Token::KeywordFalse,
+                            "if" => Token::KeywordIf,
+                            "then" => Token::KeywordThen,
+                            "else" => Token::KeywordElse,
+                            "print" => Token::KeywordPrint,
+                            "block" => Token::KeywordBlock,
+                            "end" => Token::KeywordEnd,
+                            "exit" => Token::KeywordExit,
+                            "type" => Token::KeywordType,
+                            "_" => Token::SymUnderscore,
+                            other => Token::Reserved {
+                                matched: other.to_string(),
+                            },
                         }
-                    })
+                    } else {
+                        Token::Identifier { inner: scanned }
+                    }
+                })
             })
             // dont eager evaluate
             .unwrap_or_else(|| {
@@ -157,32 +166,33 @@ impl Lexer<'_> {
                     let index = current_boundary.as_usize();
                     let stride = this.current_char_stride()?;
 
-
-                    let s = unsafe { this.source.get_unchecked(index..(index + stride.as_usize())) };
+                    let s = unsafe {
+                        this.source
+                            .get_unchecked(index..(index + stride.as_usize()))
+                    };
 
                     #[expect(clippy::or_fun_call)] // latter is fine because it does not cost
                     let c = s.chars().next().ok_or(this.report_out_of_range_error())?;
 
-
                     Ok(c)
                 }
-                
+
                 Token::UnexpectedChar {
                     // TODO: this is cold path, so may convert boundary to char_nth.
                     index: self.source_bytes_nth.get(),
                     char: current_char(self).expect("unexpected_char"),
                 }
             });
-        
+
         v
     }
 
     pub fn next(&self) -> WithPosition<Token> {
         debug!("-------------------------------------------------");
         self.drain_space();
-        
+
         if self.reached_end() {
-            return Token::EndOfFile.with_pos(self)
+            return Token::EndOfFile.with_pos(self);
         }
 
         let pos = self.current_pos();
@@ -205,14 +215,14 @@ impl Lexer<'_> {
 
     fn scan_digit_suffix_opt(&self) -> Option<&str> {
         if self.reached_end() {
-            return None
+            return None;
         }
 
         for s in ["i8", "i16", "i32", "i64"] {
             let a = self.try_and_eat_str(s);
 
             if a {
-                return Some(s)
+                return Some(s);
             }
         }
 
@@ -230,10 +240,10 @@ impl Lexer<'_> {
                 if b.is_ascii_digit() {
                     plus += 1;
                 } else {
-                    break
+                    break;
                 }
             } else {
-                break
+                break;
             }
         }
 
@@ -245,23 +255,24 @@ impl Lexer<'_> {
             self.set_current_index(Utf8CharBoundaryStartByte::new(end_inclusive));
 
             let scanned = self.source[start..end_inclusive].to_string();
-            let builtin_suffix = self.scan_digit_suffix_opt().map(|s| s.to_string().into_boxed_str());
+            let builtin_suffix = self
+                .scan_digit_suffix_opt()
+                .map(|s| s.to_string().into_boxed_str());
 
             debug!("digit: done ({scanned} {builtin_suffix:?})");
 
-            Some(
-                Token::Digits {
-                    sequence: scanned,
-                    suffix: builtin_suffix,
-                }
-            )
+            Some(Token::Digits {
+                sequence: scanned,
+                suffix: builtin_suffix,
+            })
         }
-
     }
 
     fn scan_string_literal(&self) -> Token {
         let start = self.source_bytes_nth.get().as_usize();
-        let rel_pos = self.source[start..].find('"').unwrap_or(self.source.len() - start);
+        let rel_pos = self.source[start..]
+            .find('"')
+            .unwrap_or(self.source.len() - start);
         self.advance_bytes(rel_pos + 1);
 
         let s = self.source[start..(start + rel_pos)].to_string();
@@ -269,7 +280,9 @@ impl Lexer<'_> {
     }
 
     fn advance_bytes(&self, advance: usize) {
-        self.set_current_index(Utf8CharBoundaryStartByte::new(self.source_bytes_nth.get().as_usize() + advance));
+        self.set_current_index(Utf8CharBoundaryStartByte::new(
+            self.source_bytes_nth.get().as_usize() + advance,
+        ));
     }
 
     #[inline(never)]
@@ -279,7 +292,7 @@ impl Lexer<'_> {
         debug!("index: {old} -> {future_index:?}");
 
         if old == new {
-            return
+            return;
         }
 
         let current_line = self.line().get();
@@ -288,14 +301,15 @@ impl Lexer<'_> {
         if old < new {
             // forward
             let new_line = current_line + src[old..new].bytes().filter(|x| *x == b'\n').count();
-            let new_col = src[old..new].rfind('\n').map_or_else(|| {
-                let mut c = self.column().get();
-                c += new - old;
+            let new_col = src[old..new].rfind('\n').map_or_else(
+                || {
+                    let mut c = self.column().get();
+                    c += new - old;
 
-                c
-            }, |old_relative| {
-                new - (old + old_relative)
-            });
+                    c
+                },
+                |old_relative| new - (old + old_relative),
+            );
 
             self.set_line(NonZeroUsize::new(new_line).expect("overflow"));
             self.set_column(NonZeroUsize::new(new_col).expect("overflow"));
@@ -303,26 +317,29 @@ impl Lexer<'_> {
             // THIS BRANCH IS IMPORTANT!!! OTHERWISE, RESET OPERATION WILL NOT WORK!!!
             // back
             let new_line = current_line - src[new..old].bytes().filter(|x| *x == b'\n').count();
-            let new_col = src[new..old].find('\n').map_or_else(|| {
-                let mut c = self.column().get();
-                c -= old - new;
+            let new_col = src[new..old].find('\n').map_or_else(
+                || {
+                    let mut c = self.column().get();
+                    c -= old - new;
 
-                c
-            }, |new_relative| {
-                // .......................NEW.................OLD
-                //                         |<--------N------>|
-                let nr = new + new_relative;
-                src[..nr].rfind('\n').map_or(nr, |most_recent_nl| {
-                    // ..............NEW.................OLD
-                    //                |<--------N------>|
-                    // |<-----MRN-------------->|
+                    c
+                },
+                |new_relative| {
+                    // .......................NEW.................OLD
+                    //                         |<--------N------>|
+                    let nr = new + new_relative;
+                    src[..nr].rfind('\n').map_or(nr, |most_recent_nl| {
+                        // ..............NEW.................OLD
+                        //                |<--------N------>|
+                        // |<-----MRN-------------->|
 
-                    // this is effectively static assertion, should not
-                    // cost on runtime.
-                    assert!(most_recent_nl < nr);
-                    nr - most_recent_nl
-                })
-            });
+                        // this is effectively static assertion, should not
+                        // cost on runtime.
+                        assert!(most_recent_nl < nr);
+                        nr - most_recent_nl
+                    })
+                },
+            );
 
             self.set_line(NonZeroUsize::new(new_line).expect("overflow: line"));
             self.set_column(NonZeroUsize::new(new_col).expect("overflow: col"));
@@ -338,9 +355,7 @@ impl Lexer<'_> {
 
         let content = self.source[start..(start + rel_pos)].to_string();
         Token::Comment {
-            content: Comment {
-                content
-            }
+            content: Comment { content },
         }
     }
 
@@ -360,7 +375,7 @@ impl Lexer<'_> {
         } else {
             return Err(LexerError::MalformedAsUtf8 {
                 boundary: current_boundary,
-            })
+            });
         };
 
         Ok(stride)
@@ -408,12 +423,12 @@ impl Lexer<'_> {
                         if b.is_ascii_alphanumeric() || b == b'_' {
                             plus += 1;
                         } else {
-                            break
+                            break;
                         }
                     }
                     Err(e) => {
                         warn!("discarding error: {e}");
-                        break
+                        break;
                     }
                 }
             }
@@ -430,11 +445,19 @@ impl Lexer<'_> {
     }
 
     fn current_byte(&self) -> Result<u8, LexerError> {
-        self.source.as_bytes().get(self.source_bytes_nth.get().as_usize()).copied().ok_or_else(|| self.report_out_of_range_error())
+        self.source
+            .as_bytes()
+            .get(self.source_bytes_nth.get().as_usize())
+            .copied()
+            .ok_or_else(|| self.report_out_of_range_error())
     }
 
     fn byte_skip_n(&self, skip: usize) -> Result<u8, LexerError> {
-        self.source.as_bytes().get(self.source_bytes_nth.get().as_usize() + skip).copied().ok_or_else(|| self.report_out_of_range_error())
+        self.source
+            .as_bytes()
+            .get(self.source_bytes_nth.get().as_usize() + skip)
+            .copied()
+            .ok_or_else(|| self.report_out_of_range_error())
     }
 
     fn report_out_of_range_error(&self) -> LexerError {
@@ -443,20 +466,20 @@ impl Lexer<'_> {
             max: self.source.len(),
         })
     }
-    
+
     fn line(&self) -> NonZeroUsize {
         self.lc_manager.line.get()
     }
-    
+
     fn set_line(&self, line: NonZeroUsize) {
         debug!("line: {old} -> {new}", old = self.line(), new = line);
         self.lc_manager.line.set(line);
     }
-    
+
     fn column(&self) -> NonZeroUsize {
         self.lc_manager.column.get()
     }
-    
+
     fn set_column(&self, column: NonZeroUsize) {
         debug!("column: {old} -> {new}", old = self.column(), new = column);
         self.lc_manager.column.set(column);

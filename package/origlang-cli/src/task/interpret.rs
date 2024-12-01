@@ -1,13 +1,13 @@
-use std::time::Instant;
-use origlang_parser::parser::Parser;
-use origlang_runtime::{PrintToStdout, Runtime};
-use crate::task::Task;
+use crate::args::ParseSource;
 use crate::error::TaskExecutionError;
-use origlang_typecheck::type_check::TypeChecker;
+use crate::task::Task;
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;
-use crate::args::ParseSource;
+use origlang_parser::parser::Parser;
+use origlang_runtime::{PrintToStdout, Runtime};
+use origlang_typecheck::type_check::TypeChecker;
+use std::time::Instant;
 
 pub struct Interpret;
 

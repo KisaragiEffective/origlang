@@ -1,13 +1,13 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-use clap::Parser;
 use crate::args::Args;
 use crate::error::TaskExecutionError;
+use clap::Parser;
 
-mod task;
 mod args;
 mod error;
+mod task;
 
 fn main() -> Result<(), TaskExecutionError> {
     let args = Args::parse();
@@ -15,7 +15,7 @@ fn main() -> Result<(), TaskExecutionError> {
 
     if let Err(e) = args.execute() {
         log::error!("{e}", e = &e);
-        return Err(e)
+        return Err(e);
     }
     Ok(())
 }

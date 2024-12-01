@@ -1,5 +1,5 @@
-use tap::Pipe;
 use origlang_ir::{IR1, IR2};
+use tap::Pipe;
 
 pub trait OptimizationPreset<IR> {
     /// 最適化をする。
@@ -18,8 +18,8 @@ impl OptimizationPreset<IR1> for NoOptimization {
         #[expect(unused_imports)]
         use crate::ir1::EliminateAfterExit;
 
-        seq
-            .pipe(EliminateAfterExit).pipe(EliminateAfterExit::optimize)
+        seq.pipe(EliminateAfterExit)
+            .pipe(EliminateAfterExit::optimize)
     }
 }
 
@@ -38,11 +38,14 @@ impl OptimizationPreset<IR1> for SimpleOptimization {
         #[expect(clippy::wildcard_imports)]
         use crate::ir1::*;
 
-        seq
-            .pipe(FoldBinaryOperatorInvocationWithConstant).pipe(|x| x.optimize())
-            .pipe(FoldIfWithConstantCondition).pipe(|x| x.optimize())
-            .pipe(InlineSimpleBlock).pipe(|x| x.optimize())
-            .pipe(EliminateAfterExit).pipe(|x| x.optimize())
+        seq.pipe(FoldBinaryOperatorInvocationWithConstant)
+            .pipe(|x| x.optimize())
+            .pipe(FoldIfWithConstantCondition)
+            .pipe(|x| x.optimize())
+            .pipe(InlineSimpleBlock)
+            .pipe(|x| x.optimize())
+            .pipe(EliminateAfterExit)
+            .pipe(|x| x.optimize())
     }
 }
 

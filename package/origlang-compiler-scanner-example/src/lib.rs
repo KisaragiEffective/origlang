@@ -3,11 +3,11 @@
 
 #[cfg(test)]
 mod tests {
-    use std::cell::Cell;
     use origlang_compiler_entrypoint::{PreOrPost, Scanner, TheCompiler};
     use origlang_diagnostics::{CauseTree, Diagnostic, DiagnosticSeverity, DiagnosticSink};
     use origlang_ir::IR1;
     use origlang_source_span::CanonicalSourceSpan;
+    use std::cell::Cell;
 
     struct MyScanner;
 
@@ -16,10 +16,8 @@ mod tests {
             values
                 .iter()
                 .filter(|x| match x {
-                    IR1::UpdateVariable { ident, .. } => {
-                        ident.as_name() == "foo"
-                    }
-                    _ => false
+                    IR1::UpdateVariable { ident, .. } => ident.as_name() == "foo",
+                    _ => false,
                 })
                 .map(|_| Box::new(GiveItMorePreciseName) as Box<_>)
                 .collect()
@@ -51,7 +49,7 @@ mod tests {
     }
 
     struct TestDiagnosticReceiver {
-        triggered: Cell<bool>
+        triggered: Cell<bool>,
     }
 
     impl DiagnosticSink for TestDiagnosticReceiver {
@@ -70,7 +68,9 @@ mod tests {
     #[test]
     fn it_works() {
         let entry = TheCompiler::new();
-        let tdr = TestDiagnosticReceiver { triggered: Cell::new(false) };
+        let tdr = TestDiagnosticReceiver {
+            triggered: Cell::new(false),
+        };
 
         let a = entry
             .scanners(|s| {

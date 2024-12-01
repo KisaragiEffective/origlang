@@ -4,17 +4,17 @@
 use std::any::type_name;
 
 use log::debug;
-use thiserror::Error;
 use origlang_ast::Statement;
-use origlang_lexer::token::Token as LexerToken;
-use origlang_parser::parser::Parser;
-use origlang_parser::error::ParserError;
-use origlang_typecheck::type_check::error::TypeCheckError;
-use origlang_typecheck::type_check::TypeChecker;
 use origlang_diagnostics::{Diagnostic, DiagnosticSink};
 use origlang_ir::{IntoVerbatimSequencedIR, IR1, IR2};
 use origlang_ir_optimizer::lower::TheTranspiler;
 use origlang_ir_optimizer::preset::{NoOptimization, OptimizationPreset};
+use origlang_lexer::token::Token as LexerToken;
+use origlang_parser::error::ParserError;
+use origlang_parser::parser::Parser;
+use origlang_typecheck::type_check::error::TypeCheckError;
+use origlang_typecheck::type_check::TypeChecker;
+use thiserror::Error;
 
 pub struct TheCompiler {
     /// The linter, built-in diagnostics, etc... See [`ScannerRegistry`].
@@ -25,7 +25,8 @@ pub struct TheCompiler {
 
 impl TheCompiler {
     /// Creates new instance without any optimization, scanner, nor diagnostic receiver.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             scanner: ScannerRegistry::default(),
             optimization_preset: OptimizationPresetCollection::none(),
@@ -40,7 +41,11 @@ impl TheCompiler {
         self
     }
 
-    #[must_use] pub fn register_diagnostic_receiver<DS: DiagnosticSink + 'static>(mut self, receiver: Box<DS>) -> Self {
+    #[must_use]
+    pub fn register_diagnostic_receiver<DS: DiagnosticSink + 'static>(
+        mut self,
+        receiver: Box<DS>,
+    ) -> Self {
         debug!("registered {ds}", ds = type_name::<DS>());
 
         self.diagnostic_receivers.push(receiver as _);
@@ -49,7 +54,10 @@ impl TheCompiler {
     }
 
     #[must_use]
-    pub fn optimization_preset(mut self, modify: impl FnOnce(&mut OptimizationPresetCollection)) -> Self {
+    pub fn optimization_preset(
+        mut self,
+        modify: impl FnOnce(&mut OptimizationPresetCollection),
+    ) -> Self {
         modify(&mut self.optimization_preset);
 
         self
@@ -61,12 +69,15 @@ impl TheCompiler {
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();
         let the_transpiler = TheTranspiler {
-            optimization_preset: &self.optimization_preset
+            optimization_preset: &self.optimization_preset,
         };
 
         let ir1_seq = ir0_seq;
-        let (pre, post): (Vec<_>, Vec<_>) =
-            self.scanner.ir1_scanner.iter().partition(|x| matches!(x, PreOrPost::Pre(..)));
+        let (pre, post): (Vec<_>, Vec<_>) = self
+            .scanner
+            .ir1_scanner
+            .iter()
+            .partition(|x| matches!(x, PreOrPost::Pre(..)));
 
         for s in pre {
             if let PreOrPost::Pre(s) = s {

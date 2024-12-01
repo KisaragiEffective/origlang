@@ -1,28 +1,27 @@
 // clap issue?: https://github.com/clap-rs/clap/issues/4733
 #![warn(clippy::almost_swapped)]
 
-use std::num::NonZeroUsize;
-use std::path::PathBuf;
-use std::string::FromUtf8Error;
-use clap::{Parser, Subcommand};
-use strum::EnumString;
-use thiserror::Error;
+use crate::error::TaskExecutionError;
+use crate::task::emit::UnstableEmit;
 use crate::task::interpret::Interpret;
 use crate::task::repl::Repl;
 use crate::task::Task;
-use crate::error::TaskExecutionError;
-use crate::task::emit::UnstableEmit;
-
+use clap::{Parser, Subcommand};
+use std::num::NonZeroUsize;
+use std::path::PathBuf;
+use std::string::FromUtf8Error;
+use strum::EnumString;
+use thiserror::Error;
 
 #[derive(Parser)]
 pub struct Args {
     #[clap(subcommand)]
-    sub_command: SubCom
+    sub_command: SubCom,
 }
 
 pub enum ParseSource {
     RawSource(String),
-    FromFile(PathBuf)
+    FromFile(PathBuf),
 }
 
 #[derive(Debug, Error)]
@@ -37,19 +36,23 @@ impl ParseSource {
     pub fn source(&self) -> Result<String, ReadSourceError> {
         match self {
             Self::RawSource(a) => Ok(a.clone()),
-            Self::FromFile(path) => {
-                Ok(std::fs::read_to_string(path)?)
-            }
+            Self::FromFile(path) => Ok(std::fs::read_to_string(path)?),
         }
     }
 }
 
-
 impl Args {
     pub fn execute(self) -> Result<(), TaskExecutionError> {
-
         let load_either = |input_file: Option<PathBuf>, input_source: Option<String>| {
-            input_file.map_or_else(|| input_source.map_or_else(|| panic!("please specify file or source"), ParseSource::RawSource), ParseSource::FromFile)
+            input_file.map_or_else(
+                || {
+                    input_source.map_or_else(
+                        || panic!("please specify file or source"),
+                        ParseSource::RawSource,
+                    )
+                },
+                ParseSource::FromFile,
+            )
         };
 
         match self.sub_command {
@@ -58,14 +61,20 @@ impl Args {
                 task.execute(())?;
                 Ok(())
             }
-            SubCom::Execute { input_file, input_source, max_stack_size_on_main_thread } => {
+            SubCom::Execute {
+                input_file,
+                input_source,
+                max_stack_size_on_main_thread,
+            } => {
                 let task = Interpret;
                 let source = load_either(input_file, input_source);
                 if let Some(ssize) = max_stack_size_on_main_thread {
                     let a = std::thread::scope(move |a| {
-                        std::thread::Builder::new().stack_size(ssize.get()).spawn_scoped(a, move || {
-                            task.execute(source)
-                        }).unwrap().join()
+                        std::thread::Builder::new()
+                            .stack_size(ssize.get())
+                            .spawn_scoped(a, move || task.execute(source))
+                            .unwrap()
+                            .join()
                     });
                     a.map_err(TaskExecutionError::ThreadJoin)??;
                 } else {
@@ -73,7 +82,12 @@ impl Args {
                 }
                 Ok(())
             }
-            SubCom::Emit { emit, input_file, input_source, optimize_level } => {
+            SubCom::Emit {
+                emit,
+                input_file,
+                input_source,
+                optimize_level,
+            } => {
                 let task = UnstableEmit { phase: emit };
                 let source = load_either(input_file, input_source);
 

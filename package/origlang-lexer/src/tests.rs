@@ -1,14 +1,17 @@
-use origlang_ast::Identifier;
 use crate::{Lexer, Token};
+use origlang_ast::Identifier;
 
 fn test(str_lit: &str) {
     let src = format!("var x = \"{str_lit}\"\n");
     let p = Lexer::create(&src);
 
     assert_eq!(p.next().data, Token::VarKeyword);
-    assert_eq!(p.next().data, Token::Identifier {
-        inner: Identifier::new("x".to_string()),
-    });
+    assert_eq!(
+        p.next().data,
+        Token::Identifier {
+            inner: Identifier::new("x".to_string()),
+        }
+    );
     assert_eq!(p.next().data, Token::SymEq);
     assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string()));
 }
@@ -93,8 +96,8 @@ fn parse_string_literal_mixed_4_3() {
     test("\u{10000}あ");
 }
 
-use origlang_source_span::{Pointed, SourcePosition};
 use crate::boundary::Utf8CharBoundaryStartByte;
+use origlang_source_span::{Pointed, SourcePosition};
 
 #[test]
 fn token_location() {
@@ -102,70 +105,100 @@ fn token_location() {
     let src = "var x = 1\nvar y = 2\n";
     let lexer = Lexer::create(src);
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::VarKeyword,
-        position: SourcePosition::try_new((1, 1)).unwrap(),
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::VarKeyword,
+            position: SourcePosition::try_new((1, 1)).unwrap(),
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Identifier {
-            inner: Identifier::new("x".to_string())
-        },
-        position: SourcePosition::try_new((1, 5)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Identifier {
+                inner: Identifier::new("x".to_string())
+            },
+            position: SourcePosition::try_new((1, 5)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::SymEq,
-        position: SourcePosition::try_new((1, 7)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::SymEq,
+            position: SourcePosition::try_new((1, 7)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Digits {
-            sequence: "1".to_string(),
-            suffix: None,
-        },
-        position: SourcePosition::try_new((1, 9)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Digits {
+                sequence: "1".to_string(),
+                suffix: None,
+            },
+            position: SourcePosition::try_new((1, 9)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::NewLine,
-        position: SourcePosition::try_new((1, 10)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::NewLine,
+            position: SourcePosition::try_new((1, 10)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::VarKeyword,
-        position: SourcePosition::try_new((2, 1)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::VarKeyword,
+            position: SourcePosition::try_new((2, 1)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Identifier {
-            inner: Identifier::new("y".to_string())
-        },
-        position: SourcePosition::try_new((2, 5)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Identifier {
+                inner: Identifier::new("y".to_string())
+            },
+            position: SourcePosition::try_new((2, 5)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::SymEq,
-        position: SourcePosition::try_new((2, 7)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::SymEq,
+            position: SourcePosition::try_new((2, 7)).unwrap()
+        }
+    );
 
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Digits {
-            sequence: "2".to_string(),
-            suffix: None,
-        },
-        position: SourcePosition::try_new((2, 9)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Digits {
+                sequence: "2".to_string(),
+                suffix: None,
+            },
+            position: SourcePosition::try_new((2, 9)).unwrap()
+        }
+    );
 }
 
 #[test]
 fn digit_regression() {
     const D: &str = "123456";
     let lexer = Lexer::create(D);
-    assert_eq!(lexer.next().data, Token::Digits {
-        sequence: D.to_string(),
-        suffix: None,
-    });
+    assert_eq!(
+        lexer.next().data,
+        Token::Digits {
+            sequence: D.to_string(),
+            suffix: None,
+        }
+    );
 
     const EMPTY: &str = "";
     let lexer = Lexer::create(EMPTY);
@@ -184,49 +217,70 @@ fn crlf_positive() {
 fn crlf_negative() {
     const S: &str = "\r";
     let lexer = Lexer::create(S);
-    assert_eq!(lexer.next().data, Token::UnexpectedChar {
-        index: Utf8CharBoundaryStartByte::new(0),
-        char: '\r',
-    });
+    assert_eq!(
+        lexer.next().data,
+        Token::UnexpectedChar {
+            index: Utf8CharBoundaryStartByte::new(0),
+            char: '\r',
+        }
+    );
 }
 
 #[test]
 fn off_by_one_range_regression() {
     const S: &str = "9";
     let lexer = Lexer::create(S);
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Digits {
-            sequence: "9".to_string(),
-            suffix: None,
-        },
-        position: SourcePosition::try_new((1, 1)).unwrap()
-    });
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Digits {
+                sequence: "9".to_string(),
+                suffix: None,
+            },
+            position: SourcePosition::try_new((1, 1)).unwrap()
+        }
+    );
 }
 
 #[test]
 fn skip_whitespace_only_lines() {
-    let lexer  = Lexer::create("    \n    \n    \nprint 1");
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::NewLine,
-        position: SourcePosition::try_new((1, 5)).unwrap()
-    });
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::NewLine,
-        position: SourcePosition::try_new((2, 5)).unwrap()
-    });
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::NewLine,
-        position: SourcePosition::try_new((3, 5)).unwrap()
-    });
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::KeywordPrint,
-        position: SourcePosition::try_new((4, 1)).unwrap()
-    });
-    assert_eq!(lexer.next(), Pointed {
-        data: Token::Digits {
-            sequence: "1".to_string(),
-            suffix: None,
-        },
-        position: SourcePosition::try_new((4, 7)).unwrap(),
-    });
+    let lexer = Lexer::create("    \n    \n    \nprint 1");
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::NewLine,
+            position: SourcePosition::try_new((1, 5)).unwrap()
+        }
+    );
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::NewLine,
+            position: SourcePosition::try_new((2, 5)).unwrap()
+        }
+    );
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::NewLine,
+            position: SourcePosition::try_new((3, 5)).unwrap()
+        }
+    );
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::KeywordPrint,
+            position: SourcePosition::try_new((4, 1)).unwrap()
+        }
+    );
+    assert_eq!(
+        lexer.next(),
+        Pointed {
+            data: Token::Digits {
+                sequence: "1".to_string(),
+                suffix: None,
+            },
+            position: SourcePosition::try_new((4, 7)).unwrap(),
+        }
+    );
 }
