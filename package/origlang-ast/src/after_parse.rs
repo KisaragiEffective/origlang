@@ -13,7 +13,7 @@ pub enum Expression {
     /// 真偽値リテラル
     BooleanLiteral(bool),
     /// 文字列リテラル
-    StringLiteral(String),
+    StringLiteral(Box<str>),
     /// ユニットリテラル
     UnitLiteral,
     /// 変数

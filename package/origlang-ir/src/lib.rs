@@ -103,7 +103,7 @@ pub enum CompiledTypedExpression {
     IntLiteral(TypedIntLiteral),
     BooleanLiteral(bool),
     FloatLiteral(TypedFloatLiteral),
-    StringLiteral(String),
+    StringLiteral(Box<str>),
     UnitLiteral,
     Variable {
         ident: Identifier,

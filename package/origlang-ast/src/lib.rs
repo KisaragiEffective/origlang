@@ -67,20 +67,20 @@ pub enum Statement {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Comment {
-    pub content: String,
+    pub content: Box<str>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Hash)]
-pub struct Identifier(String);
+pub struct Identifier(Box<str>);
 
 impl Identifier {
-    #[must_use = "If you don't use it, it will drop entire String"]
-    pub const fn new(s: String) -> Self {
+    #[must_use = "If you don't use it, it will drop entire string"]
+    pub const fn new(s: Box<str>) -> Self {
         Self(s)
     }
 
-    #[must_use = "If you don't use it, it will drop entire String"]
-    pub fn name(self) -> String {
+    #[must_use = "If you don't use it, it will drop entire string"]
+    pub fn name(self) -> Box<str> {
         self.0
     }
 

@@ -95,7 +95,7 @@ pub enum TypeBox {
     Boolean(bool),
     #[display(fmt = "{_0}")]
     #[from]
-    String(String),
+    String(Box<str>),
     #[display(fmt = "()")]
     #[from]
     Unit,
@@ -406,11 +406,11 @@ fn evaluate_bin_op(
             f!(lhs, operator, rhs as Coerced)
         }
         (TypeBox::String(lhs), TypeBox::String(rhs)) => {
-            let mut ret = lhs;
+            let mut ret = lhs.to_string();
             // give hint to compiler
             ret.reserve_exact(rhs.len());
-            ret += rhs.as_str();
-            Ok(ret.into())
+            ret += rhs.as_ref();
+            Ok(ret.into_boxed_str().into())
         }
         _ => indicate_type_checker_bug!(
             context = "type checker must deny operator application between different type"

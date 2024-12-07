@@ -9,11 +9,11 @@ fn test(str_lit: &str) {
     assert_eq!(
         p.next().data,
         Token::Identifier {
-            inner: Identifier::new("x".to_string()),
+            inner: Identifier::new("x".to_string().into_boxed_str()),
         }
     );
     assert_eq!(p.next().data, Token::SymEq);
-    assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string()));
+    assert_eq!(p.next().data, Token::StringLiteral(str_lit.to_string().into_boxed_str()));
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn token_location() {
         lexer.next(),
         Pointed {
             data: Token::Identifier {
-                inner: Identifier::new("x".to_string())
+                inner: Identifier::new("x".to_string().into_boxed_str())
             },
             position: SourcePosition::try_new((1, 5)).unwrap()
         }
@@ -162,7 +162,7 @@ fn token_location() {
         lexer.next(),
         Pointed {
             data: Token::Identifier {
-                inner: Identifier::new("y".to_string())
+                inner: Identifier::new("y".to_string().into_boxed_str())
             },
             position: SourcePosition::try_new((2, 5)).unwrap()
         }

@@ -454,7 +454,7 @@ impl Test {
     fn test_string_literal() {
         assert_eq!(
             Self::evaluated_expressions("print \"123\"\n").expect("properly parsed and typed"),
-            type_boxes!("123".to_string() => String)
+            type_boxes!("123".to_string().into_boxed_str() => String)
         );
     }
 
@@ -462,7 +462,7 @@ impl Test {
         assert_eq!(
             Self::evaluated_expressions("print \"123\" + \"456\"\n")
                 .expect("properly parsed and typed"),
-            type_boxes!("123456".to_string() => String)
+            type_boxes!("123456".to_string().into_boxed_str() => String)
         );
     }
 
@@ -633,7 +633,7 @@ print a
             .expect("properly parsed")
             .statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".to_string())),
+                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
                 expression: Expression::Tuple {
                     expressions: vec![
                         Expression::IntLiteral {
@@ -647,8 +647,8 @@ print a
                     ],
                 },
                 type_annotation: Some(TypeSignature::Tuple(vec![
-                    TypeSignature::Simple(Identifier::new("Int32".to_string())),
-                    TypeSignature::Simple(Identifier::new("Int32".to_string())),
+                    TypeSignature::Simple(Identifier::new("Int32".into())),
+                    TypeSignature::Simple(Identifier::new("Int32".into())),
                 ])),
             }]
         );
@@ -667,7 +667,7 @@ print 1
                 statement: vec![
                     Statement::Comment {
                         content: Comment {
-                            content: "Hello, World!".to_string()
+                            content: "Hello, World!".into()
                         },
                     },
                     Statement::Print {
@@ -696,7 +696,7 @@ print 1
                     },
                     Statement::Comment {
                         content: Comment {
-                            content: "Hello, World!".to_string()
+                            content: "Hello, World!".into()
                         },
                     },
                 ]
@@ -745,8 +745,8 @@ print 1
                 .expect("properly parsed")
                 .statement,
             [Statement::TypeAliasDeclaration {
-                new_name: Identifier::new("Ik".to_string()),
-                replace_with: TypeSignature::Simple(Identifier::new("Int32".to_string()))
+                new_name: Identifier::new("Ik".into()),
+                replace_with: TypeSignature::Simple(Identifier::new("Int32".into()))
             }]
         );
         assert_eq!(
@@ -764,7 +764,7 @@ print 1
         assert_eq!(
             Self::ast("var a = 1 << 2\n").expect("fail").statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".to_owned())),
+                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
                 expression: Expression::BinaryOperator {
                     lhs: Box::new(Expression::IntLiteral {
                         value: 1,
@@ -788,7 +788,7 @@ print 1
         assert_eq!(
             Self::ast("var a = 4 >> 2\n").expect("fail").statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".to_owned())),
+                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
                 expression: Expression::BinaryOperator {
                     lhs: Box::new(Expression::IntLiteral {
                         value: 4,

@@ -97,10 +97,10 @@ pub enum Token {
     Comment {
         content: Comment,
     },
-    StringLiteral(String),
+    StringLiteral(Box<str>),
     /// reserved for future use.
     Reserved {
-        matched: String,
+        matched: Box<str>,
     },
     /// `_`
     SymUnderscore,
