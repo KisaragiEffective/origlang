@@ -3,9 +3,7 @@
 
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
-use origlang_typesystem_model::{
-    Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement,
-};
+use origlang_typesystem_model::{Type, TypedExpression, TypedFloatLiteral, TypedIntLiteral, TypedRootAst, TypedStatement};
 use std::collections::VecDeque;
 
 pub trait IntoVerbatimSequencedIR {
@@ -104,6 +102,7 @@ pub enum IR2 {
 pub enum CompiledTypedExpression {
     IntLiteral(TypedIntLiteral),
     BooleanLiteral(bool),
+    FloatLiteral(TypedFloatLiteral),
     StringLiteral(String),
     UnitLiteral,
     Variable {

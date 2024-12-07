@@ -29,6 +29,7 @@ impl TheTranspiler<'_> {
         match te {
             TypedExpression::IntLiteral(v) => CompiledTypedExpression::IntLiteral(v),
             TypedExpression::BooleanLiteral(v) => CompiledTypedExpression::BooleanLiteral(v),
+            TypedExpression::FloatLiteral(v) => CompiledTypedExpression::FloatLiteral(v),
             TypedExpression::StringLiteral(v) => CompiledTypedExpression::StringLiteral(v),
             TypedExpression::UnitLiteral => CompiledTypedExpression::UnitLiteral,
             TypedExpression::Variable { ident, tp } => {

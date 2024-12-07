@@ -5,6 +5,7 @@ use derive_more::Display;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
 use std::fmt::{Display, Formatter};
+use ordered_float::NotNan;
 
 // TODO: this is implementation detail, should be unreachable.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -79,6 +80,12 @@ pub enum Type {
     Int32,
     #[display(fmt = "Int64")]
     Int64,
+    /// Indicates single precision floating point which is specified in IEEE 754.
+    #[display(fmt = "Float32")]
+    Float32,
+    /// Indicates double precision floating point which is specified in IEEE 754.
+    #[display(fmt = "Float64")]
+    Float64,
     #[display(fmt = "{_0}")]
     Tuple(DisplayTupleType),
     #[display(fmt = "{_0}")]
@@ -176,6 +183,7 @@ pub enum TypedStatement {
 pub enum TypedExpression {
     IntLiteral(TypedIntLiteral),
     BooleanLiteral(bool),
+    FloatLiteral(TypedFloatLiteral),
     StringLiteral(String),
     UnitLiteral,
     Variable {
@@ -214,6 +222,7 @@ impl TypedExpression {
         match self {
             Self::IntLiteral(i) => i.actual_type(),
             Self::BooleanLiteral(_) => Type::Boolean,
+            Self::FloatLiteral(f) => f.actual_type(),
             Self::StringLiteral(_) => Type::String,
             Self::UnitLiteral => Type::Unit,
             Self::Variable { tp, .. } => tp.clone(),
@@ -261,6 +270,21 @@ impl TypedIntLiteral {
             Self::Bit32(_) => Type::Int32,
             Self::Bit16(_) => Type::Int16,
             Self::Bit8(_) => Type::Int8,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum TypedFloatLiteral {
+    Float32(NotNan<f32>),
+    Float64(NotNan<f64>),
+}
+
+impl TypedFloatLiteral {
+    pub const fn actual_type(&self) -> Type {
+        match self {
+            TypedFloatLiteral::Float32(_) => Type::Float32,
+            TypedFloatLiteral::Float64(_) => Type::Float64,
         }
     }
 }

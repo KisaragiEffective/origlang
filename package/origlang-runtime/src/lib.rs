@@ -15,7 +15,7 @@ use tap::Conv;
 use thiserror::Error;
 
 use crate::invoke_once::InvokeOnce;
-use origlang_typesystem_model::{DisplayRecordType, Type, TypedIntLiteral};
+use origlang_typesystem_model::{DisplayRecordType, Type, TypedFloatLiteral, TypedIntLiteral};
 
 #[derive(From)]
 pub struct Coerced(i64);
@@ -38,7 +38,7 @@ impl From<NonCoerced> for TypeBox {
 #[derive(Error, Debug)]
 pub enum TypeBoxUnwrapError {}
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct DisplayTupleValue {
     pub boxes: Vec<TypeBox>,
 }
@@ -56,7 +56,7 @@ impl Display for DisplayTupleValue {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct DisplayRecordValue {
     pub name: Identifier,
     pub values: Vec<TypeBox>,
@@ -76,7 +76,7 @@ impl Display for DisplayRecordValue {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Display, From)]
+#[derive(PartialEq, Clone, Debug, Display, From)]
 pub enum TypeBox {
     #[display(fmt = "{_0}")]
     NonCoercedInteger(i64),
@@ -91,6 +91,8 @@ pub enum TypeBox {
     Int32(i32),
     #[display(fmt = "{_0}")]
     Int64(i64),
+    Float32(f32),
+    Float64(f64),
     #[display(fmt = "{_0}")]
     #[from]
     Boolean(bool),
@@ -120,6 +122,8 @@ impl TypeBox {
             Self::Int16(_) => Type::Int16,
             Self::Int32(_) => Type::Int32,
             Self::Int64(_) => Type::Int64,
+            Self::Float32(_) => Type::Float32,
+            Self::Float64(_) => Type::Float64,
             Self::Tuple(t) => Type::Tuple(
                 t.boxes
                     .iter()
@@ -429,6 +433,10 @@ impl CanBeEvaluated for CompiledTypedExpression {
                 TypedIntLiteral::Bit8(i) => Ok((*i).into()),
             },
             Self::BooleanLiteral(b) => Ok((*b).into()),
+            Self::FloatLiteral(f) => match f {
+                TypedFloatLiteral::Float32(v) => Ok(TypeBox::Float32(v.into_inner())),
+                TypedFloatLiteral::Float64(v) => Ok(TypeBox::Float64(v.into_inner())),
+            }
             Self::StringLiteral(s) => Ok(s.clone().into()),
             Self::UnitLiteral => Ok(().into()),
             Self::Variable { ident, tp: _ } => {

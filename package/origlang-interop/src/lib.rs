@@ -41,6 +41,8 @@ impl OutputAccumulator for PseudoStdout {
             TypeBox::Int16(i) => i.to_string(),
             TypeBox::Int32(i) => i.to_string(),
             TypeBox::Int64(i) => i.to_string(),
+            TypeBox::Float32(f) => f.to_string(),
+            TypeBox::Float64(f) => f.to_string(),
             TypeBox::Boolean(i) => i.to_string(),
             TypeBox::String(s) => s,
             TypeBox::Unit => "()".to_string(),

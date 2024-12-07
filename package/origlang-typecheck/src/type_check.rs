@@ -559,6 +559,8 @@ impl TypeChecker {
                 "Int16" => Ok(Type::Int16),
                 "Int32" => Ok(Type::Int32),
                 "Int64" => Ok(Type::Int64),
+                "Float32" => Ok(Type::Float32),
+                "Float64" => Ok(Type::Float64),
                 _other => self
                     .ctx
                     .borrow()
