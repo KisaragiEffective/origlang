@@ -8,4 +8,5 @@ license = "MPL-2.0"
 
 [dependencies]
 derive_more = "0.99.17"
+ordered-float = "4.5.0"
 origlang-ast = { path = "../origlang-ast" }
