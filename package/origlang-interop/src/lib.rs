@@ -50,7 +50,7 @@ impl OutputAccumulator for PseudoStdout {
             TypeBox::Record(r) => r.to_string(),
         };
 
-        echo(JsString::from(s));
+        echo(JsString::from(s.as_str()));
     }
 
     fn acc(&self) -> Option<Vec<TypeBox>> {

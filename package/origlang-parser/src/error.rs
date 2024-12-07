@@ -52,8 +52,8 @@ pub enum ParserErrorInner {
     UnexpectedToken { pat: TokenKind, unmatch: Token },
     #[error("Incomplete program snippet. Check hint for fix candidates. hint:{hint:?} state:{intermediate_state:?}")]
     PartiallyParsed {
-        hint: Vec<PartiallyParseFixCandidate>,
-        intermediate_state: Vec<IntermediateStateCandidate>,
+        hint: Box<[PartiallyParseFixCandidate]>,
+        intermediate_state: Box<[IntermediateStateCandidate]>,
     },
     #[error("input sequence cannot be parsed as a int literal: {error}")]
     UnParsableIntLiteral { error: ParseIntError },

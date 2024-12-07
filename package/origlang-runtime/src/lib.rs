@@ -3,6 +3,9 @@
 
 mod invoke_once;
 
+#[cfg(test)]
+mod tests;
+
 use derive_more::{Display, From};
 use log::debug;
 use origlang_ast::after_parse::BinaryOperatorKind;
@@ -13,7 +16,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display, Formatter};
 use tap::Conv;
 use thiserror::Error;
-
+use origlang_type_stringify::write_comma_separated_items;
 use crate::invoke_once::InvokeOnce;
 use origlang_typesystem_model::{DisplayRecordType, Type, TypedFloatLiteral, TypedIntLiteral};
 
@@ -40,19 +43,16 @@ pub enum TypeBoxUnwrapError {}
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct DisplayTupleValue {
-    pub boxes: Vec<TypeBox>,
+    pub boxes: Box<[TypeBox]>,
 }
 
 impl Display for DisplayTupleValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = self
-            .boxes
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        let s = format!("({s})");
-        f.write_str(&s)
+        f.write_str("(")?;
+
+        write_comma_separated_items(f, &self.boxes)?;
+
+        f.write_str(")")
     }
 }
 
@@ -64,15 +64,12 @@ pub struct DisplayRecordValue {
 
 impl Display for DisplayRecordValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = self
-            .values
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        let name = &self.name;
-        let s = format!("{name} {{{s}}}");
-        f.write_str(&s)
+        f.write_str(self.name.as_name())?;
+        f.write_str(" {")?;
+
+        write_comma_separated_items(f, &self.values)?;
+
+        f.write_str("}")
     }
 }
 
@@ -128,12 +125,12 @@ impl TypeBox {
                 t.boxes
                     .iter()
                     .map(Self::get_type)
-                    .collect::<Vec<_>>()
+                    .collect::<Box<_>>()
                     .into(),
             ),
             Self::Record(r) => Type::Record(DisplayRecordType::new(
                 r.name.clone(),
-                r.values.iter().map(Self::get_type).collect::<Vec<_>>(),
+                r.values.iter().map(Self::get_type).collect(),
             )),
         }
     }
@@ -491,7 +488,7 @@ impl CanBeEvaluated for CompiledTypedExpression {
                     res.push(e.evaluate(runtime)?);
                 }
 
-                Ok(TypeBox::Tuple(DisplayTupleValue { boxes: res }))
+                Ok(TypeBox::Tuple(DisplayTupleValue { boxes: res.into_boxed_slice() }))
             }
             Self::ExtractTuple { expr, index } => {
                 let x = expr.evaluate(runtime)?;

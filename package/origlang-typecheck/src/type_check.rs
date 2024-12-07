@@ -336,19 +336,18 @@ fn desugar_recursive_pattern_match(
                 continue;
             }
             TypedExpression::Tuple { expressions } => {
-                let m = outer_destruction
+                let typed_statements_checked_result_collection = outer_destruction
                     .iter()
                     .zip(expressions)
                     .map(|(element_binding, expression)| {
                         handle_atomic_pattern(expression, element_binding, checker)
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Box<[_]>>();
 
                 let mut k = vec![];
 
-                for mx in m {
-                    let Ok(y) = mx else { return mx };
-                    k.extend(y);
+                for typed_statements_checked_result in typed_statements_checked_result_collection {
+                    k.extend(typed_statements_checked_result?);
                 }
 
                 break Ok(k);
@@ -570,10 +569,9 @@ impl TypeChecker {
                     .ok_or(()),
             },
             TypeSignature::Tuple(x) => {
-                let mut types = Vec::with_capacity(x.capacity());
-                for ts in x {
-                    types.push(self.lower_type_signature_into_type(ts)?);
-                }
+                let types = origlang_slice_in_box::try_create_initialized_boxed_slice(x.len(), |i| {
+                    self.lower_type_signature_into_type(&x[i])
+                })?;
 
                 Ok(Type::tuple(types))
             }

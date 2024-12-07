@@ -4,29 +4,26 @@
 use derive_more::Display;
 use origlang_ast::after_parse::BinaryOperatorKind;
 use origlang_ast::Identifier;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 use ordered_float::NotNan;
+use origlang_type_stringify::write_comma_separated_items;
 
 // TODO: this is implementation detail, should be unreachable.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct DisplayTupleType(pub Vec<Type>);
+pub struct DisplayTupleType(pub Box<[Type]>);
 
 impl Display for DisplayTupleType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let content = self
-            .0
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        let output = format!("({content})");
+        f.write_char('(')?;
 
-        f.write_str(&output)
+        origlang_type_stringify::write_comma_separated_items(f, &self.0)?;
+        
+        f.write_char(')')
     }
 }
 
-impl From<Vec<Type>> for DisplayTupleType {
-    fn from(value: Vec<Type>) -> Self {
+impl From<Box<[Type]>> for DisplayTupleType {
+    fn from(value: Box<[Type]>) -> Self {
         Self(value)
     }
 }
@@ -35,12 +32,12 @@ impl From<Vec<Type>> for DisplayTupleType {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct DisplayRecordType {
     identifier: Identifier,
-    components: Vec<Type>,
+    components: Box<[Type]>,
 }
 
 impl DisplayRecordType {
     #[must_use]
-    pub fn new(identifier: Identifier, components: Vec<Type>) -> Self {
+    pub fn new(identifier: Identifier, components: Box<[Type]>) -> Self {
         Self {
             identifier,
             components,
@@ -49,16 +46,12 @@ impl DisplayRecordType {
 }
 impl Display for DisplayRecordType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let serialized_component = self
-            .components
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        let identifier = &self.identifier;
-        let output = format!("{identifier} {{{serialized_component}}}");
-
-        f.write_str(&output)
+        f.write_str(self.identifier.as_name())?;
+        f.write_str(" {")?;
+        
+        write_comma_separated_items(f, &self.components)?;
+        
+        f.write_str("}")
     }
 }
 
@@ -120,7 +113,7 @@ impl Type {
     }
 
     #[must_use]
-    pub fn tuple(tuple_elements: Vec<Self>) -> Self {
+    pub fn tuple(tuple_elements: Box<[Self]>) -> Self {
         Self::Tuple(DisplayTupleType(tuple_elements))
     }
 

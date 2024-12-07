@@ -193,9 +193,9 @@ impl Parser {
             Err(ParserError::new(
                 ParserErrorInner::PartiallyParsed {
                     hint: vec![PartiallyParseFixCandidate::InsertAfter {
-                        tokens: vec![Token::NewLine],
-                    }],
-                    intermediate_state: vec![],
+                        tokens: vec![Token::NewLine].into_boxed_slice(),
+                    }].into_boxed_slice(),
+                    intermediate_state: Box::new([]),
                 },
                 next.map_or(self.lexer.last_position, |x| x.position),
             ))

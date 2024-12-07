@@ -10,3 +10,4 @@ license = "MPL-2.0"
 derive_more = "0.99.17"
 ordered-float = "4.5.0"
 origlang-ast = { path = "../origlang-ast" }
+origlang-type-stringify = { path = "../origlang-type-stringify"}

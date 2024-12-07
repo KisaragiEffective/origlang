@@ -621,7 +621,7 @@ print a
             )
             .expect("properly parsed and typed"),
             &[TypeBox::Tuple(DisplayTupleValue {
-                boxes: vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]
+                boxes: Box::new([TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)])
             })]
         );
 

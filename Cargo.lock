@@ -937,11 +937,15 @@ dependencies = [
  "log",
  "origlang-ast",
  "origlang-ir",
- "origlang-ir-optimizer",
+ "origlang-type-stringify",
  "origlang-typesystem-model",
  "tap",
  "thiserror",
 ]
+
+[[package]]
+name = "origlang-slice-in-box"
+version = "0.1.0"
 
 [[package]]
 name = "origlang-source-span"
@@ -973,11 +977,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "origlang-type-stringify"
+version = "0.1.0"
+
+[[package]]
 name = "origlang-typecheck"
 version = "0.1.0"
 dependencies = [
  "log",
  "origlang-ast",
+ "origlang-slice-in-box",
  "origlang-typesystem-model",
  "thiserror",
 ]
@@ -989,6 +998,7 @@ dependencies = [
  "derive_more",
  "ordered-float",
  "origlang-ast",
+ "origlang-type-stringify",
 ]
 
 [[package]]
