@@ -63,8 +63,8 @@ impl TheCompiler {
         self
     }
 
-    pub fn compile(&self, source: String) -> Result<Vec<IR1>, PartialCompilation> {
-        let x = Parser::create(&source);
+    pub fn compile(&self, source: &str) -> Result<Vec<IR1>, PartialCompilation> {
+        let x = Parser::create(source);
         let root = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();

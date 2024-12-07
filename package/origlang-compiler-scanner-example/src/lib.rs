@@ -77,7 +77,7 @@ mod tests {
                 s.ir1_scanner.push(PreOrPost::Pre(Box::new(MyScanner)));
             })
             .register_diagnostic_receiver(Box::new(tdr))
-            .compile("var foo = 1i32\n".to_string());
+            .compile("var foo = 1i32\n");
 
         assert!(a.is_ok());
     }

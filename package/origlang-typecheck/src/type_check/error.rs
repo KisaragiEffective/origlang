@@ -30,7 +30,7 @@ pub enum TypeCheckError {
     },
     #[error("{context} must be {expected_type}, got {actual_type}")]
     GenericTypeMismatch {
-        context: String,
+        context: Box<str>,
         expected_type: Type,
         actual_type: Type,
     },

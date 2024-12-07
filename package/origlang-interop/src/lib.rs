@@ -35,6 +35,7 @@ struct PseudoStdout;
 
 impl OutputAccumulator for PseudoStdout {
     fn output(&mut self, tb: TypeBox) {
+        // TODO: this shall be Box<str> whenever possible.
         let s: String = match tb {
             TypeBox::NonCoercedInteger(x) => x.to_string(),
             TypeBox::Int8(i) => i.to_string(),

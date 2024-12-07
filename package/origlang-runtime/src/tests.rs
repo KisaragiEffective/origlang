@@ -6,7 +6,7 @@ mod display {
         #[test]
         fn empty() {
             let x = DisplayRecordValue {
-                name: Identifier::new("abcdef".to_string()),
+                name: Identifier::new("abcdef".to_string().into_boxed_str()),
                 values: vec![],
             };
 
@@ -17,9 +17,9 @@ mod display {
         #[test]
         fn one() {
             let x = DisplayRecordValue {
-                name: Identifier::new("abcdef".to_string()),
+                name: Identifier::new("abcdef".to_string().into_boxed_str()),
                 values: vec![
-                    TypeBox::String("defg".to_string())
+                    TypeBox::String("defg".to_string().into_boxed_str())
                 ],
             };
 
@@ -30,11 +30,11 @@ mod display {
         #[test]
         fn many() {
             let x = DisplayRecordValue {
-                name: Identifier::new("abcdef".to_string()),
+                name: Identifier::new("abcdef".to_string().into_boxed_str()),
                 values: vec![
-                    TypeBox::String("abcdef".to_string()),
-                    TypeBox::String("ghijkl".to_string()),
-                    TypeBox::String("alice".to_string())
+                    TypeBox::String("abcdef".to_string().into_boxed_str()),
+                    TypeBox::String("ghijkl".to_string().into_boxed_str()),
+                    TypeBox::String("alice".to_string().into_boxed_str())
                 ],
             };
 
@@ -59,7 +59,7 @@ mod display {
         #[test]
         fn one() {
             let x = DisplayTupleValue {
-                boxes: Box::new([TypeBox::String("abcd".to_string())]),
+                boxes: Box::new([TypeBox::String("abcd".to_string().into_boxed_str())]),
             };
 
             let x = format!("{x}");
@@ -69,7 +69,7 @@ mod display {
         #[test]
         fn many() {
             let x = DisplayTupleValue {
-                boxes: Box::new([TypeBox::String("abcd".to_string()), TypeBox::String("defg".to_string())]),
+                boxes: Box::new([TypeBox::String("abcd".to_string().into_boxed_str()), TypeBox::String("defg".to_string().into_boxed_str())]),
             };
 
             let x = format!("{x}");

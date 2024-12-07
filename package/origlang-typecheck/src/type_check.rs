@@ -208,7 +208,7 @@ impl TryIntoTypeCheckedForm for Expression {
                     }
                 } else {
                     Err(TypeCheckError::GenericTypeMismatch {
-                        context: "The condition of if-expression".to_string(),
+                        context: "The condition of if-expression".to_string().into_boxed_str(),
                         expected_type: Type::Boolean,
                         actual_type: cond_type,
                     })
@@ -490,7 +490,7 @@ impl TryIntoTypeCheckedForm for Statement {
                     }])
                 } else {
                     Err(TypeCheckError::GenericTypeMismatch {
-                        context: "variable assignment".to_string(),
+                        context: "variable assignment".to_string().into_boxed_str(),
                         expected_type,
                         actual_type: checked.actual_type(),
                     })
