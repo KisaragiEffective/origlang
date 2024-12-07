@@ -1,3 +1,4 @@
+use std::alloc::{alloc, Layout};
 use std::mem::MaybeUninit;
 
 pub type BoxedSlice<I> = Box<[I]>;

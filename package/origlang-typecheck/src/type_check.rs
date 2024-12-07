@@ -597,7 +597,7 @@ impl TypeChecker {
             m[7].clamp(b'a', b'z'),
         ];
 
-        Identifier::new(core::str::from_utf8(&m).expect("not panic").to_owned())
+        Identifier::new(core::str::from_utf8(&m).expect("not panic").into())
     }
 }
 

@@ -151,7 +151,7 @@ impl Lexer<'_> {
                             "type" => Token::KeywordType,
                             "_" => Token::SymUnderscore,
                             other => Token::Reserved {
-                                matched: other.to_string(),
+                                matched: other.to_string().into_boxed_str(),
                             },
                         }
                     } else {
@@ -275,7 +275,7 @@ impl Lexer<'_> {
             .unwrap_or(self.source.len() - start);
         self.advance_bytes(rel_pos + 1);
 
-        let s = self.source[start..(start + rel_pos)].to_string();
+        let s = self.source[start..(start + rel_pos)].to_string().into_boxed_str();
         Token::StringLiteral(s)
     }
 
@@ -353,7 +353,7 @@ impl Lexer<'_> {
         let rel_pos = self.source[start..].find('\n').unwrap_or(self.source.len());
         self.advance_bytes(rel_pos);
 
-        let content = self.source[start..(start + rel_pos)].to_string();
+        let content = self.source[start..(start + rel_pos)].into();
         Token::Comment {
             content: Comment { content },
         }
@@ -435,7 +435,7 @@ impl Lexer<'_> {
 
             debug!("lexer:identifier: length of {plus}");
             let start = self.source_bytes_nth.get().as_usize();
-            let s = Identifier::new(self.source[start..(start + plus)].to_string());
+            let s = Identifier::new(self.source[start..(start + plus)].into());
             self.advance_bytes(plus);
 
             Ok(Some(s))
