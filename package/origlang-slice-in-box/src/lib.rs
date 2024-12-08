@@ -1,5 +1,8 @@
-use std::alloc::{alloc, Layout};
-use std::mem::MaybeUninit;
+#![no_std]
+
+extern crate alloc;
+
+use alloc::boxed::Box;
 
 pub type BoxedSlice<I> = Box<[I]>;
 
