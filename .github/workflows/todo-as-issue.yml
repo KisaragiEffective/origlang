@@ -3,15 +3,19 @@ on:
     push:
         branches:
             - master
-permissions:
-    contents: read
-    issues: write
 jobs:
     build:
+        permissions:
+            contents: read
+            issues: write
         runs-on: "ubuntu-24.04"
         steps:
-            - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4
-            - name: "TODO to Issue"
-              uses: "alstr/todo-to-issue-action@v5"
-              with:
-                  AUTO_ASSIGN: true
+            -
+                uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4
+                with:
+                    persist-credentials: false
+            -
+                  name: "TODO to Issue"
+                  uses: "alstr/todo-to-issue-action@v5"
+                  with:
+                      AUTO_ASSIGN: true

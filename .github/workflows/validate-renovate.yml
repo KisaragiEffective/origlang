@@ -6,16 +6,17 @@ on:
       - 'renovate.json'
       - '.github/workflows/validate-renovate.yml'
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   lint:
+    permissions:
+      contents: read
+      pull-requests: write
     name: run renovate-config-validator
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: run lint and report
         env:
           URL: ${{ github.event.pull_request.html_url }}

@@ -20,6 +20,8 @@ jobs:
           cargo install cargo-deny
       - name: checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: check
         run: |
           cargo deny check
