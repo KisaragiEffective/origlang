@@ -1,5 +1,5 @@
 use origlang_ast::after_parse::BinaryOperatorKind;
-use origlang_ast::{AtomicPattern, Identifier, TypeSignature};
+use origlang_ast::{SinglePattern, Identifier, TypeSignature};
 use origlang_typesystem_model::Type;
 use origlang_typesystem_model::TypedExpression;
 use thiserror::Error;
@@ -40,8 +40,10 @@ pub enum TypeCheckError {
     UnknownType { name: TypeSignature },
     #[error("pattern {pattern} may not be satisfied where the expression has type of {expr_type}")]
     UnsatisfiablePattern {
-        pattern: AtomicPattern,
+        pattern: SinglePattern,
         expression: TypedExpression,
         expr_type: Type,
     },
+    #[error("cannot use this pattern at here because it is not exhaustive")]
+    RefutablePattern,
 }

@@ -13,14 +13,24 @@ pub struct RootAst {
     pub statement: Vec<Statement>,
 }
 
+/// 分岐を含まない任意のパターン
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub enum AtomicPattern {
+pub enum SinglePattern {
     Discard,
     Bind(Identifier),
     Tuple(Vec<Self>),
+    // TODO: 定数パターンやガード付きパターンを記述できるようにする
 }
 
-impl Display for AtomicPattern {
+impl SinglePattern {
+    // 将来実装するので今は黙らせる
+    #[expect(clippy::must_use_candidate, clippy::missing_const_for_fn)]
+    pub fn is_irrefutable_with_scrutinee_type_information(&self) -> bool {
+        true
+    }
+}
+
+impl Display for SinglePattern {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Discard => f.write_str("_"),
@@ -44,7 +54,7 @@ pub enum Statement {
         expression: Expression,
     },
     VariableDeclaration {
-        pattern: AtomicPattern,
+        pattern: SinglePattern,
         expression: Expression,
         type_annotation: Option<TypeSignature>,
     },
