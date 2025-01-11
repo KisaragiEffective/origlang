@@ -232,7 +232,7 @@ impl Parser {
                 self.parse_int_literal()
                     .map(|(parsed, suffix)| Expression::IntLiteral {
                         value: parsed,
-                        suffix,
+                        suffix: suffix.map(std::convert::Into::into),
                     })
             }
             Token::SymLeftPar => {
@@ -607,7 +607,7 @@ impl Parser {
     /// 現在のトークンを消費して整数リテラルの生成を試みる。
     /// 事前条件: 現在のトークンが整数として有効である必要がある
     /// 違反した場合はErrを返す。
-    fn parse_int_literal(&self) -> Result<(i64, Option<Box<str>>), ParserError> {
+    fn parse_int_literal(&self) -> Result<(i64, Option<&str>), ParserError> {
         debug!("expr:lit:int");
         let n = self.lexer.peek();
         self.lexer.next();
@@ -636,12 +636,11 @@ impl Parser {
             ty: &str,
             token_pos: SourcePos,
             v: i64,
-        ) -> Result<(i64, Option<Box<str>>), ParserError> {
-            let s = ty.to_string().into_boxed_str();
+        ) -> Result<(i64, Option<&str>), ParserError> {
             if v < As::min_value().into() || As::max_value().into() < v {
                 Err(ParserError::new(
                     ParserErrorInner::OverflowedLiteral {
-                        tp: s,
+                        tp: ty.to_string().into_boxed_str(),
                         min: As::min_value().into(),
                         max: As::max_value().into(),
                         value: v,
@@ -649,13 +648,13 @@ impl Parser {
                     token_pos,
                 ))
             } else {
-                Ok((v, Some(s)))
+                Ok((v, Some(ty)))
             }
         }
 
         let (i, suffix) = suffix
             .as_ref()
-            .map(|y| match y.as_ref() {
+            .map(|suffix| match suffix.as_ref() {
                 "i8" => check_bounds::<i8>("i8", *position, x),
                 "i16" => check_bounds::<i16>("i16", *position, x),
                 "i32" => check_bounds::<i32>("i32", *position, x),
@@ -664,7 +663,7 @@ impl Parser {
             })
             .unwrap_or(Ok((x, None)))?;
 
-        Ok((i, suffix.map(|x| x.to_string().into_boxed_str())))
+        Ok((i, suffix))
     }
 
     fn parse_type(&self) -> Result<TypeSignature, ParserError> {
