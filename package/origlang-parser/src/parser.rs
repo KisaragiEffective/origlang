@@ -1,4 +1,4 @@
-use origlang_ast::{AtomicPattern, RootAst, Statement, TypeSignature};
+use origlang_ast::{SinglePattern, RootAst, Statement, TypeSignature};
 use origlang_lexer::token::internal::DisplayToken;
 use origlang_lexer::token::Token;
 use origlang_lexer::Lexer;
@@ -911,7 +911,7 @@ impl Parser {
         }
     }
 
-    fn parse_tuple_destruct_pattern(&self) -> Result<AtomicPattern, ParserError> {
+    fn parse_tuple_destruct_pattern(&self) -> Result<SinglePattern, ParserError> {
         debug!("pattern:tuple");
         self.read_and_consume_or_report_unexpected_token(&Token::SymLeftPar)?;
 
@@ -939,10 +939,10 @@ impl Parser {
 
         self.read_and_consume_or_report_unexpected_token(&Token::SymRightPar)?;
 
-        Ok(AtomicPattern::Tuple(v))
+        Ok(SinglePattern::Tuple(v))
     }
 
-    fn parse_atomic_pattern(&self) -> Result<AtomicPattern, ParserError> {
+    fn parse_atomic_pattern(&self) -> Result<SinglePattern, ParserError> {
         debug!("pattern:atomic");
         let it = self.lexer.peek().ok_or_else(|| {
             ParserError::new(ParserErrorInner::EndOfFileError, self.lexer.last_position)
@@ -951,11 +951,11 @@ impl Parser {
         match &it.data {
             Token::Identifier { inner: name } => {
                 self.lexer.next();
-                Ok(AtomicPattern::Bind(name.clone()))
+                Ok(SinglePattern::Bind(name.clone()))
             }
             Token::SymUnderscore => {
                 self.lexer.next();
-                Ok(AtomicPattern::Discard)
+                Ok(SinglePattern::Discard)
             }
             Token::SymLeftPar => self.parse_tuple_destruct_pattern(),
             other_token => Err(Self::create_unexpected_token_error(

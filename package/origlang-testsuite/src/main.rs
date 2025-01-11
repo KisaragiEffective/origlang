@@ -10,7 +10,7 @@ fn main() {
 
 use log::{debug, info};
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_ast::{AtomicPattern, Comment, Identifier, RootAst, Statement, TypeSignature};
+use origlang_ast::{SinglePattern, Comment, Identifier, RootAst, Statement, TypeSignature};
 use origlang_ir::IntoVerbatimSequencedIR;
 use origlang_ir_optimizer::lower::{EachStep, LowerStep, TheTranspiler};
 use origlang_ir_optimizer::preset::NoOptimization;
@@ -633,7 +633,7 @@ print a
             .expect("properly parsed")
             .statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
+                pattern: SinglePattern::Bind(Identifier::new("a".into())),
                 expression: Expression::Tuple {
                     expressions: vec![
                         Expression::IntLiteral {
@@ -764,7 +764,7 @@ print 1
         assert_eq!(
             Self::ast("var a = 1 << 2\n").expect("fail").statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
+                pattern: SinglePattern::Bind(Identifier::new("a".into())),
                 expression: Expression::BinaryOperator {
                     lhs: Box::new(Expression::IntLiteral {
                         value: 1,
@@ -788,7 +788,7 @@ print 1
         assert_eq!(
             Self::ast("var a = 4 >> 2\n").expect("fail").statement,
             [Statement::VariableDeclaration {
-                pattern: AtomicPattern::Bind(Identifier::new("a".into())),
+                pattern: SinglePattern::Bind(Identifier::new("a".into())),
                 expression: Expression::BinaryOperator {
                     lhs: Box::new(Expression::IntLiteral {
                         value: 4,

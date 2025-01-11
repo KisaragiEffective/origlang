@@ -2,7 +2,7 @@ pub mod error;
 
 use log::debug;
 use origlang_ast::after_parse::{BinaryOperatorKind, Expression};
-use origlang_ast::{AtomicPattern, Identifier, RootAst, Statement, TypeSignature};
+use origlang_ast::{SinglePattern, Identifier, RootAst, Statement, TypeSignature};
 use origlang_typesystem_model::{
     AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement,
 };
@@ -250,12 +250,16 @@ impl TryIntoTypeCheckedForm for Expression {
 
 fn handle_atomic_pattern(
     expr: TypedExpression,
-    element_binding: &AtomicPattern,
+    element_binding: &SinglePattern,
     checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
+    if !element_binding.is_irrefutable_with_scrutinee_type_information() {
+        return Err(TypeCheckError::RefutablePattern)
+    }
+    
     match element_binding {
-        AtomicPattern::Discard => Ok(vec![TypedStatement::EvalAndForget { expression: expr }]),
-        AtomicPattern::Bind(identifier) => {
+        SinglePattern::Discard => Ok(vec![TypedStatement::EvalAndForget { expression: expr }]),
+        SinglePattern::Bind(identifier) => {
             checker
                 .ctx
                 .borrow_mut()
@@ -266,7 +270,7 @@ fn handle_atomic_pattern(
                 expression: expr,
             }])
         }
-        AtomicPattern::Tuple(tp) => desugar_recursive_pattern_match(tp, expr, checker),
+        SinglePattern::Tuple(tp) => desugar_recursive_pattern_match(tp, expr, checker),
     }
 }
 
@@ -276,7 +280,7 @@ enum RecursivePatternMatchDesugarStrategy {
 }
 
 fn desugar_recursive_pattern_match(
-    outer_destruction: &[AtomicPattern],
+    outer_destruction: &[SinglePattern],
     mut rhs: TypedExpression,
     checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
@@ -289,7 +293,7 @@ fn desugar_recursive_pattern_match(
                 let Type::Tuple(tuple_element_types) = tp else {
                     debug!("non-tuple expression");
                     break Err(TypeCheckError::UnsatisfiablePattern {
-                        pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
+                        pattern: SinglePattern::Tuple(outer_destruction.to_vec()),
                         expression: TypedExpression::Variable {
                             ident,
                             tp: tp.clone(),
@@ -318,7 +322,7 @@ fn desugar_recursive_pattern_match(
 
                 debug!("tuple arity mismatch");
                 break Err(TypeCheckError::UnsatisfiablePattern {
-                    pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
+                    pattern: SinglePattern::Tuple(outer_destruction.to_vec()),
                     expression: TypedExpression::Variable {
                         ident,
                         tp: Type::tuple(tuple_element_types.clone()),
@@ -420,7 +424,7 @@ fn desugar_recursive_pattern_match(
             other => {
                 debug!("unsupported expression");
                 break Err(TypeCheckError::UnsatisfiablePattern {
-                    pattern: AtomicPattern::Tuple(outer_destruction.to_vec()),
+                    pattern: SinglePattern::Tuple(outer_destruction.to_vec()),
                     expr_type: other.actual_type(),
                     expression: other,
                 });
@@ -431,7 +435,7 @@ fn desugar_recursive_pattern_match(
 
 fn extract_pattern(
     expr: TypedExpression,
-    pattern: &AtomicPattern,
+    pattern: &SinglePattern,
     type_annotation: Option<TypeSignature>,
     checker: &TypeChecker,
 ) -> Result<Vec<TypedStatement>, TypeCheckError> {
