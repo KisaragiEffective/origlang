@@ -24,7 +24,7 @@ jobs:
           # fix stable version across possible matrix
           - rustc_channel: stable
             # renovate: rustc-stable
-            rustc_version: '1.84.0'
+            rustc_version: '1.86.0'
           # fix nightly version across possible matrix
           - rustc_channel: nightly
             # renovate: rustc-nightly
