@@ -31,7 +31,7 @@ dependencies = [
  "actix-web",
  "bitflags",
  "bytes",
- "derive_more 0.99.19",
+ "derive_more 0.99.20",
  "futures-core",
  "http-range",
  "log",
@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "0.99.19"
+version = "0.99.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3da29a38df43d6f156149c9b43ded5e018ddff2a855cf2cfd62e8cd7d079c69f"
+checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -961,7 +961,7 @@ dependencies = [
 name = "origlang-ast"
 version = "0.1.0"
 dependencies = [
- "derive_more 0.99.19",
+ "derive_more 0.99.20",
 ]
 
 [[package]]
@@ -1078,7 +1078,7 @@ dependencies = [
 name = "origlang-parser"
 version = "0.1.0"
 dependencies = [
- "derive_more 0.99.19",
+ "derive_more 0.99.20",
  "log",
  "num-traits",
  "origlang-ast",
@@ -1096,7 +1096,7 @@ version = "0.1.0"
 name = "origlang-runtime"
 version = "0.1.0"
 dependencies = [
- "derive_more 0.99.19",
+ "derive_more 0.99.20",
  "log",
  "origlang-ast",
  "origlang-ir",
@@ -1158,7 +1158,7 @@ dependencies = [
 name = "origlang-typesystem-model"
 version = "0.1.0"
 dependencies = [
- "derive_more 0.99.19",
+ "derive_more 0.99.20",
  "ordered-float",
  "origlang-ast",
  "origlang-type-stringify",
