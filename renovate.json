@@ -7,7 +7,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["(^|/)\\.github/workflows/rust\\.yml$"],
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/rust\\.yml$/"],
       "matchStrings": ["#\\s?renovate: rustc-stable\\s*rustc_version:\\s*'(?<currentValue>\\d\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "rust",
       "packageNameTemplate": "rust-lang/rust",
@@ -15,7 +15,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["(^|/)\\.github/workflows/validate-renovate\\.yml$"],
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/validate-renovate\\.yml$/"],
       "matchStrings": ["#\\s?renovate: npm:renovate\\s*RENOVATE_VERSION:\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "renovate",
       "packageNameTemplate": "renovate",
