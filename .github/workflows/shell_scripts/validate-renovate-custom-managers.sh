@@ -26,7 +26,7 @@ jq --arg of_item "$of_item" '.[$of_item | tonumber]' < "$root_file" > "$item_fil
 # echo "----"
 count_file_match="$(jq -r '.managerFilePatterns | length' < "$item_file")"
 for ((of_file_match=0; of_file_match < "$count_file_match"; of_file_match++)); do
-  current_regex="$(jq -r --arg i "$of_file_match" '.managerFilePatterns[$i | tonumber]' < "$item_file")"
+  current_regex="$(jq -r --arg i "$of_file_match" '.managerFilePatterns[$i | tonumber]' < "$item_file" | awk '{print substr($0, 2, length($0)-2)}')"
   # echo "regex: $current_regex"
   grep -aE "$current_regex" < "$all_files_matcher_temp" >> "$grep_temp" || {
     colored_regex=$'\e[38;5;214m'"${current_regex}"$'\e[m'
