@@ -248,6 +248,7 @@ impl TryIntoTypeCheckedForm for Expression {
     }
 }
 
+#[expect(clippy::result_large_err)] // #739 で急に出てきた
 fn handle_atomic_pattern(
     expr: TypedExpression,
     element_binding: &SinglePattern,
@@ -279,6 +280,7 @@ enum RecursivePatternMatchDesugarStrategy {
     InsertTemporary(TypedExpression),
 }
 
+#[expect(clippy::result_large_err)] // #739 で急に出てきた
 fn desugar_recursive_pattern_match(
     outer_destruction: &[SinglePattern],
     mut rhs: TypedExpression,
@@ -657,6 +659,7 @@ impl Context {
         }
     }
 
+    #[expect(clippy::result_large_err)] // #739 で急に出てきた
     fn lookup_variable_type(&self, variable_name: &Identifier) -> Result<Type, TypeCheckError> {
         self.known_typed_variables
             .get(variable_name)
