@@ -433,6 +433,7 @@ fn desugar_recursive_pattern_match(
     }
 }
 
+#[expect(clippy::result_large_err)] // #739 で急に出てきた
 fn extract_pattern(
     expr: TypedExpression,
     pattern: &SinglePattern,
