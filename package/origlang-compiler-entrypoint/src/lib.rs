@@ -63,6 +63,7 @@ impl TheCompiler {
         self
     }
 
+    #[expect(clippy::result_large_err)] // #739 で急に出てきた
     pub fn compile(&self, source: &str) -> Result<Vec<IR1>, PartialCompilation> {
         let x = Parser::create(source);
         let root = x.parse()?;
