@@ -42,6 +42,7 @@ impl ParseSource {
 }
 
 impl Args {
+    #[expect(clippy::result_large_err)] // #739 で急に出てきた
     pub fn execute(self) -> Result<(), TaskExecutionError> {
         let load_either = |input_file: Option<PathBuf>, input_source: Option<String>| {
             input_file.map_or_else(
