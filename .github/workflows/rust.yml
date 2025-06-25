@@ -71,7 +71,7 @@ jobs:
         printf 'RUSTFLAGS=${{ env.CODEGEN_SELECTION }}' >> "$GITHUB_ENV"
       shell: bash
     - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.7.8
+      uses: Swatinem/rust-cache@v2.8.0
       with:
         prefix-key: ${{ matrix.os }}-${{ matrix.rustc_version }}-${{ env.CI_RUST_CACHE_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
     # See rust-wasm.yml for CI details about those package
