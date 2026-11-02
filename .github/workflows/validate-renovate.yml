@@ -1,3 +1,5 @@
+# This workflow is managed by gh actions-lock.
+
 name: validate renovate
 
 on:
@@ -14,7 +16,7 @@ jobs:
     name: run renovate-config-validator
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.1.0
         with:
           persist-credentials: false
       - name: run lint and report
