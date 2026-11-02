@@ -1,3 +1,5 @@
+# This workflow is managed by gh actions-lock.
+
 name: cargo-deny
 
 on:
@@ -19,7 +21,7 @@ jobs:
         run: |
           cargo install cargo-deny
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.1.0
         with:
           persist-credentials: false
       - name: check

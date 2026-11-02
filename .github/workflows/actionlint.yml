@@ -1,3 +1,4 @@
+# This workflow is managed by gh actions-lock.
 # This file is adopted from https://github.com/yanorei32/discord-spam-reporter/blob/d466b88a76fc0c3a468ed02b47bcac2c5bbc2f95/.github/workflows/actionlint.yml
 # License:
 # BSD 2-Clause License
@@ -41,7 +42,7 @@ jobs:
     name: actionlint with reviewdog
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.1.0
         with:
           persist-credentials: false
       - name: actionlint
