@@ -98,6 +98,7 @@ pub fn run() {
     src.dyn_ref::<JsString>().map_or_else(
         || panic!("get_source implementation did not return string, this is IMPLEMENTATION BUG"),
         |src| {
+            #[expect(clippy::result_large_err)]
             let inner: fn(&JsString) -> Result<(), ExecutionError> = |src| {
                 let src = src
                     .as_string()
