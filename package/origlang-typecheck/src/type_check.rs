@@ -30,16 +30,13 @@ impl TryIntoTypeCheckedForm for Expression {
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::IntLiteral { value, suffix } => {
-                let lit = suffix.as_ref().map_or_else(
-                    || TypedIntLiteral::Generic(value),
-                    |s| match &**s {
-                        "i8" => TypedIntLiteral::Bit8(value as i8),
-                        "i16" => TypedIntLiteral::Bit16(value as i16),
-                        "i32" => TypedIntLiteral::Bit32(value as i32),
-                        "i64" => TypedIntLiteral::Bit64(value),
-                        _ => unreachable!(),
-                    },
-                );
+                let lit = suffix.as_ref().map_or(TypedIntLiteral::Generic(value), |s| match &**s {
+                    "i8" => TypedIntLiteral::Bit8(value as i8),
+                    "i16" => TypedIntLiteral::Bit16(value as i16),
+                    "i32" => TypedIntLiteral::Bit32(value as i32),
+                    "i64" => TypedIntLiteral::Bit64(value),
+                    _ => unreachable!(),
+                });
 
                 Ok(TypedExpression::IntLiteral(lit))
             }
