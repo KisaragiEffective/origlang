@@ -10,11 +10,11 @@ workflows:
         - 'actions/checkout@v6.1.0'
     '.github/workflows/rust-wasm.yml':
         - 'actions/checkout@v6.0.1'
-        - 'swatinem/rust-cache@v2.8.0'
+        - 'swatinem/rust-cache@v2.9.3'
     '.github/workflows/rust.yml':
         - 'actions/checkout@v6.0.1'
         - 'codecov/codecov-action@v5.5.5'
-        - 'swatinem/rust-cache@v2.8.0'
+        - 'swatinem/rust-cache@v2.9.3'
     '.github/workflows/todo-as-issue.yml':
         - 'actions/checkout@v6.0.1'
         - 'alstr/todo-to-issue-action@v5.1.15'
@@ -55,8 +55,8 @@ dependencies:
         commit: 'sha1-e58ee9d111489c31395fbe4857b0be6e7635dbda'
         owner_id: 48765237
         repo_id: 385059686
-    'swatinem/rust-cache@v2.8.0':
-        ref: 'v2.8.0'
-        commit: 'sha1-98c8021b550208e191a6a3145459bfc9fb29c4c0'
+    'swatinem/rust-cache@v2.9.3':
+        ref: 'v2.9.3'
+        commit: 'sha1-d1527c8f67ef9af357290475d4af4b0fab8f12e0'
         owner_id: 580492
         repo_id: 298565987
