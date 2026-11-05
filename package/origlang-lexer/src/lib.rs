@@ -202,7 +202,7 @@ impl Lexer<'_> {
             position: pos,
         };
 
-        debug!("next: {r:?}", r = &r);
+        debug!("next: {r:?}");
         r
     }
 

@@ -15,7 +15,7 @@ fn main() -> Result<(), TaskExecutionError> {
     env_logger::init();
 
     if let Err(e) = args.execute() {
-        log::error!("{e}", e = &e);
+        log::error!("{e}");
         return Err(e);
     }
     Ok(())
