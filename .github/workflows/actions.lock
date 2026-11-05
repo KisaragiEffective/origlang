@@ -5,7 +5,7 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/actionlint.yml':
         - 'actions/checkout@v6.1.0'
-        - 'reviewdog/action-actionlint@v1.70.0'
+        - 'reviewdog/action-actionlint@v1.81.1'
     '.github/workflows/cargo-deny.yml':
         - 'actions/checkout@v6.1.0'
     '.github/workflows/rust-wasm.yml':
@@ -50,9 +50,9 @@ dependencies:
         repo_id: 200299178
         uses:
             - 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
-    'reviewdog/action-actionlint@v1.70.0':
-        ref: 'v1.70.0'
-        commit: 'sha1-e58ee9d111489c31395fbe4857b0be6e7635dbda'
+    'reviewdog/action-actionlint@v1.81.1':
+        ref: 'v1.81.1'
+        commit: 'sha1-619a81ec64ff8c0211cd6146eb2b21e8f1d7f440'
         owner_id: 48765237
         repo_id: 385059686
     'swatinem/rust-cache@v2.9.3':
