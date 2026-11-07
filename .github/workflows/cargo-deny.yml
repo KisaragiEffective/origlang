@@ -17,13 +17,11 @@ jobs:
     name: check
     runs-on: ubuntu-24.04
     steps:
-      - name: Install cargo-deny from source
-        run: |
-          cargo install cargo-deny
       - name: checkout
         uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: check
-        run: |
-          cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@v2.1.1
+        with:
+          arguments: ''
