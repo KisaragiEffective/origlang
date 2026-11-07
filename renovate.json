@@ -24,9 +24,9 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)\\.github/workflows/cargo-deny\\.yml$/"],
-      "matchStrings": ["EmbarkStudios/cargo-deny-action@(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
-      "depNameTemplate": "cargo-deny-action",
-      "packageNameTemplate": "EmbarkStudios/cargo-deny-action",
+      "matchStrings": ["#\\s?renovate: cargo-deny\\s*CARGO_DENY_VERSION:\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      "depNameTemplate": "cargo-deny",
+      "packageNameTemplate": "EmbarkStudios/cargo-deny",
       "datasourceTemplate": "github-releases"
     }
   ],
