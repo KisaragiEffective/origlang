@@ -57,49 +57,49 @@ impl Display for DisplayRecordType {
 
 #[derive(Clone, Eq, PartialEq, Debug, Display)]
 pub enum Type {
-    #[display(fmt = "{{integer}}")]
+    #[display("{{integer}}")]
     GenericInteger,
-    #[display(fmt = "Bool")]
+    #[display("Bool")]
     Boolean,
-    #[display(fmt = "String")]
+    #[display("String")]
     String,
-    #[display(fmt = "Unit")]
+    #[display("Unit")]
     Unit,
-    #[display(fmt = "Int8")]
+    #[display("Int8")]
     Int8,
-    #[display(fmt = "Int16")]
+    #[display("Int16")]
     Int16,
-    #[display(fmt = "Int32")]
+    #[display("Int32")]
     Int32,
-    #[display(fmt = "Int64")]
+    #[display("Int64")]
     Int64,
     /// Indicates single precision floating point which is specified in IEEE 754.
-    #[display(fmt = "Float32")]
+    #[display("Float32")]
     Float32,
     /// Indicates double precision floating point which is specified in IEEE 754.
-    #[display(fmt = "Float64")]
+    #[display("Float64")]
     Float64,
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Tuple(DisplayTupleType),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Record(DisplayRecordType),
-    #[display(fmt = "*const {_0}")]
+    #[display("*const {_0}")]
     Ptr(Box<Self>),
-    #[display(fmt = "*mut {_0}")]
+    #[display("*mut {_0}")]
     PtrMut(Box<Self>),
     /// same as [`Self::Ptr`], but requires to be properly aligned and not to be null even if
     /// value of this type is never dereferenced.
-    #[display(fmt = "&{_0}")]
+    #[display("&{_0}")]
     Ref(Box<Self>),
     /// same as [`Self::PtrMut`], but requires to be properly aligned and not to be null even if
     /// value of this type is never dereferenced.
-    #[display(fmt = "&mut {_0}")]
+    #[display("&mut {_0}")]
     RefMut(Box<Self>),
     /// indicates that value may not present at memory location.
-    #[display(fmt = "Option<{_0}>")]
+    #[display("Option<{_0}>")]
     Option(Box<Self>),
     /// indicates continuous and growable memory.
-    #[display(fmt = "Vec<{_0}>")]
+    #[display("Vec<{_0}>")]
     Vec(Box<Self>),
 }
 
