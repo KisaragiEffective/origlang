@@ -75,34 +75,34 @@ impl Display for DisplayRecordValue {
 
 #[derive(PartialEq, Clone, Debug, Display, From)]
 pub enum TypeBox {
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     NonCoercedInteger(i64),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Int8(i8),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Int16(i16),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Int32(i32),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Int64(i64),
     Float32(f32),
     Float64(f64),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Boolean(bool),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     String(Box<str>),
-    #[display(fmt = "()")]
+    #[display("()")]
     #[from]
     Unit,
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Tuple(DisplayTupleValue),
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     #[from]
     Record(DisplayRecordValue),
 }

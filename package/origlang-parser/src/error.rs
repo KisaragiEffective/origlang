@@ -78,8 +78,8 @@ pub enum ParserErrorInner {
 #[repr(u8)]
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
 pub enum UnexpectedTupleLiteralElementCount {
-    #[display(fmt = "no elements")]
+    #[display("no elements")]
     Zero = 0,
-    #[display(fmt = "only one element")]
+    #[display("only one element")]
     One = 1,
 }

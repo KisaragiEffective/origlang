@@ -9,10 +9,10 @@ pub enum IntermediateStateCandidate {
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum PartiallyParseFixCandidate {
-    #[display(fmt = "No fixes available")]
+    #[display("No fixes available")]
     None,
-    #[display(fmt = "Insert before")]
+    #[display("Insert before")]
     InsertBefore { tokens: Box<[Token]> },
-    #[display(fmt = "Insert after")]
+    #[display("Insert after")]
     InsertAfter { tokens: Box<[Token]> },
 }

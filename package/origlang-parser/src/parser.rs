@@ -19,27 +19,27 @@ use std::string::ToString;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
 pub enum TokenKind {
-    #[display(fmt = "int literal, boolean literal, string literal, or identifier")]
+    #[display("int literal, boolean literal, string literal, or identifier")]
     First,
-    #[display(fmt = "`/` or `*`")]
+    #[display("`/` or `*`")]
     MultiplicativeOps,
-    #[display(fmt = "`+` or `-`")]
+    #[display("`+` or `-`")]
     AdditiveOps,
-    #[display(fmt = "`<=`, `>=`, `<`, `>` or `<=>`")]
+    #[display("`<=`, `>=`, `<`, `>` or `<=>`")]
     ComparisonOps,
-    #[display(fmt = "`==` or `!=`")]
+    #[display("`==` or `!=`")]
     EqualityOps,
-    #[display(fmt = "`<<` or `>>`")]
+    #[display("`<<` or `>>`")]
     ShiftOps,
-    #[display(fmt = "int literal")]
+    #[display("int literal")]
     IntLiteral,
-    #[display(fmt = "identifier")]
+    #[display("identifier")]
     Identifier,
-    #[display(fmt = "keyword:`print`, keyword:`var`, or identifier")]
+    #[display("keyword:`print`, keyword:`var`, or identifier")]
     Statement,
-    #[display(fmt = "{_0}")]
+    #[display("{_0}")]
     Only(DisplayToken),
-    #[display(fmt = "`(` or identifier")]
+    #[display("`(` or identifier")]
     StartOfTypeSignature,
 }
 

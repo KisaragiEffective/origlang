@@ -57,30 +57,30 @@ impl Expression {
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Display)]
 pub enum BinaryOperatorKind {
-    #[display(fmt = "+")]
+    #[display("+")]
     Plus,
-    #[display(fmt = "-")]
+    #[display("-")]
     Minus,
-    #[display(fmt = "*")]
+    #[display("*")]
     Multiply,
-    #[display(fmt = "/")]
+    #[display("/")]
     Divide,
-    #[display(fmt = ">")]
+    #[display(">")]
     More,
-    #[display(fmt = ">=")]
+    #[display(">=")]
     MoreEqual,
-    #[display(fmt = "<")]
+    #[display("<")]
     Less,
-    #[display(fmt = "<=")]
+    #[display("<=")]
     LessEqual,
-    #[display(fmt = "<=>")]
+    #[display("<=>")]
     ThreeWay,
-    #[display(fmt = "==")]
+    #[display("==")]
     Equal,
-    #[display(fmt = "!=")]
+    #[display("!=")]
     NotEqual,
-    #[display(fmt = "<<")]
+    #[display("<<")]
     ShiftLeft,
-    #[display(fmt = ">>")]
+    #[display(">>")]
     ShiftRight,
 }
