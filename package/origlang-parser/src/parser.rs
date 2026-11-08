@@ -886,7 +886,7 @@ impl Parser {
             self.lexer.next();
             self.read_and_consume_or_report_unexpected_token(&Token::NewLine)?;
             let mut statements = vec![];
-            while let Ok(v) = self.parse_statement() {
+            while let Ok(v) = self.lexer.parse_fallible(|| self.parse_statement()) {
                 statements.push(v);
             }
             let final_expression = Box::new(self.parse_lowest_precedence_expression()?);

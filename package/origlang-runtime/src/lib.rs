@@ -478,9 +478,10 @@ impl CanBeEvaluated for CompiledTypedExpression {
             } => {
                 runtime.push_scope();
                 runtime.execute(intermediate_statements);
+                let value = final_expression.as_ref().evaluate(runtime);
                 runtime.pop_scope();
 
-                final_expression.as_ref().evaluate(runtime)
+                value
             }
             Self::Tuple { expressions } => {
                 let mut res = Vec::with_capacity(expressions.len());

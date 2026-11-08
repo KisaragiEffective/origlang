@@ -27,6 +27,7 @@ impl TryIntoTypeCheckedForm for Expression {
     type Err = TypeCheckError;
 
     #[expect(clippy::too_many_lines, clippy::cast_possible_truncation)]
+    #[expect(clippy::result_large_err)] // #739 で急に出てきた
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::IntLiteral { value, suffix } => {
@@ -96,6 +97,17 @@ impl TryIntoTypeCheckedForm for Expression {
                     | BinaryOperatorKind::MoreEqual
                     | BinaryOperatorKind::Less
                     | BinaryOperatorKind::LessEqual => {
+                        let return_type = if matches!(
+                            operator,
+                            BinaryOperatorKind::More
+                                | BinaryOperatorKind::MoreEqual
+                                | BinaryOperatorKind::Less
+                                | BinaryOperatorKind::LessEqual
+                        ) {
+                            Type::Boolean
+                        } else {
+                            lhs_type.clone()
+                        };
                         {
                             match (&lhs_type, &rhs_type) {
                                 (Type::GenericInteger, Type::GenericInteger) => {
@@ -103,7 +115,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                         lhs: Box::new(lhs_expr),
                                         rhs: Box::new(rhs_expr),
                                         operator,
-                                        return_type: Type::GenericInteger,
+                                        return_type,
                                     })
                                 }
                                 (x, y) if x == y && x.is_int_family() => {
@@ -111,8 +123,7 @@ impl TryIntoTypeCheckedForm for Expression {
                                         lhs: Box::new(lhs_expr),
                                         rhs: Box::new(rhs_expr),
                                         operator,
-                                        // it is effectively Copy
-                                        return_type: x.clone(),
+                                        return_type,
                                     })
                                 }
                                 (_, _) => {
@@ -160,7 +171,7 @@ impl TryIntoTypeCheckedForm for Expression {
                         }
                     }
                     BinaryOperatorKind::ShiftLeft | BinaryOperatorKind::ShiftRight => {
-                        if lhs_type == rhs_type {
+                        if lhs_type == rhs_type && lhs_type.is_int_family() {
                             Ok(TypedExpression::BinaryOperator {
                                 lhs: Box::new(lhs_expr),
                                 rhs: Box::new(rhs_expr),
@@ -168,11 +179,13 @@ impl TryIntoTypeCheckedForm for Expression {
                                 return_type: lhs_type,
                             })
                         } else {
-                            Err(TypeCheckError::UnableToUnifyBinaryOperatorOutputType {
+                            Err(TypeChecker::invalid_combination_for_binary_operator(
+                                Type::GenericInteger,
                                 operator,
-                                got_lhs: lhs_type,
-                                got_rhs: rhs_type,
-                            })
+                                Type::GenericInteger,
+                                lhs_type,
+                                rhs_type,
+                            ))
                         }
                     }
                 }
@@ -183,8 +196,8 @@ impl TryIntoTypeCheckedForm for Expression {
                 else_clause_value,
             } => {
                 let cond_expr = checker.check(*condition)?;
-                let then_expr = checker.check(*then_clause_value)?;
-                let else_expr = checker.check(*else_clause_value)?;
+                let then_expr = checker.with_scope(|| checker.check(*then_clause_value))?;
+                let else_expr = checker.with_scope(|| checker.check(*else_clause_value))?;
                 let cond_type = cond_expr.actual_type();
                 let then_type = then_expr.actual_type();
                 let else_type = else_expr.actual_type();
@@ -214,9 +227,7 @@ impl TryIntoTypeCheckedForm for Expression {
             Self::Block {
                 intermediate_statements,
                 final_expression,
-            } => {
-                // Please don't ignore intermediate statements.
-                // TODO: add test for it
+            } => checker.with_scope(|| {
                 let mut checked_intermediates = Vec::with_capacity(intermediate_statements.len());
 
                 for is in intermediate_statements {
@@ -230,7 +241,7 @@ impl TryIntoTypeCheckedForm for Expression {
                     return_type: checked_final.actual_type(),
                     final_expression: Box::new(checked_final),
                 })
-            }
+            }),
             Self::Tuple { expressions } => {
                 let mut checked_expressions = Vec::with_capacity(expressions.len());
                 for expr in expressions {
@@ -329,16 +340,33 @@ fn desugar_recursive_pattern_match(
                     expr_type: Type::tuple(tuple_element_types),
                 });
             }
-            TypedExpression::Block {
-                inner: _,
-                final_expression,
-                return_type: _,
-            } => {
-                // TODO: how can we handle inner statement?
-                rhs = *final_expression;
-                continue;
+            expr @ TypedExpression::Block { .. } => {
+                let new_ident = checker.make_fresh_identifier();
+                let tp = expr.actual_type();
+                let variable = TypedExpression::Variable {
+                    ident: new_ident.clone(),
+                    tp,
+                };
+                let mut statements = vec![TypedStatement::VariableDeclaration {
+                    identifier: new_ident,
+                    expression: expr,
+                }];
+                statements.extend(desugar_recursive_pattern_match(
+                    outer_destruction,
+                    variable,
+                    checker,
+                )?);
+                break Ok(statements);
             }
             TypedExpression::Tuple { expressions } => {
+                if outer_destruction.len() != expressions.len() {
+                    let expression = TypedExpression::Tuple { expressions };
+                    break Err(TypeCheckError::UnsatisfiablePattern {
+                        pattern: SinglePattern::Tuple(outer_destruction.to_vec()),
+                        expr_type: expression.actual_type(),
+                        expression,
+                    });
+                }
                 let typed_statements_checked_result_collection = outer_destruction
                     .iter()
                     .zip(expressions)
@@ -467,6 +495,7 @@ impl TryIntoTypeCheckedForm for Statement {
     type Success = Vec<TypedStatement>;
     type Err = TypeCheckError;
 
+    #[expect(clippy::result_large_err)] // #739 で急に出てきた
     fn type_check(self, checker: &TypeChecker) -> Result<Self::Success, Self::Err> {
         match self {
             Self::Print { expression } => checker
@@ -500,7 +529,7 @@ impl TryIntoTypeCheckedForm for Statement {
                     })
                 }
             }
-            Self::Block { inner_statements } => {
+            Self::Block { inner_statements } => checker.with_scope(|| {
                 let mut checked = Vec::with_capacity(inner_statements.len());
                 for inner_statement in inner_statements {
                     checked.extend(checker.check(inner_statement)?);
@@ -509,7 +538,7 @@ impl TryIntoTypeCheckedForm for Statement {
                 Ok(vec![TypedStatement::Block {
                     inner_statements: checked,
                 }])
-            }
+            }),
             Self::Comment { .. } => Ok(vec![TypedStatement::Block {
                 inner_statements: vec![],
             }]),
@@ -551,6 +580,13 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+    fn with_scope<T>(&self, f: impl FnOnce() -> T) -> T {
+        let outer = self.ctx.borrow().clone();
+        let result = f();
+        *self.ctx.borrow_mut() = outer;
+        result
+    }
+
     #[expect(clippy::result_unit_err)]
     pub fn lower_type_signature_into_type(&self, p0: &TypeSignature) -> Result<Type, ()> {
         match p0 {
@@ -642,6 +678,7 @@ impl TypeChecker {
     }
 }
 
+#[derive(Clone)]
 pub struct Context {
     known_typed_variables: HashMap<Identifier, Type>,
     known_aliases: HashMap<Identifier, Type>,

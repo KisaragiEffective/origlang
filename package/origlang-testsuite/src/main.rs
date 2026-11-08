@@ -23,6 +23,9 @@ use thiserror::Error;
 
 type Err = TestFailureCause;
 
+#[cfg(test)]
+mod regressions;
+
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum TestFailureCause {
     #[error("parser failure: {0}")]
