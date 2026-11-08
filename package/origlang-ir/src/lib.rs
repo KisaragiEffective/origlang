@@ -130,7 +130,7 @@ pub enum CompiledTypedExpression {
         expressions: Vec<Self>,
     },
     ExtractTuple {
-        expr: Box<CompiledTypedExpression>,
+        expr: Box<Self>,
         index: usize,
     },
 }

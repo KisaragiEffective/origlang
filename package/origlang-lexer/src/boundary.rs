@@ -1,5 +1,4 @@
 use std::hint::unreachable_unchecked;
-use thiserror::Error;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Ord, PartialOrd)]
 #[repr(transparent)]

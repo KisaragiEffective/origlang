@@ -8,7 +8,6 @@ use origlang_source_span::{
 
 use crate::error::ParserErrorInner::EndOfFileError;
 use crate::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
-use crate::parser::TokenKind::IntLiteral;
 use crate::recover::PartiallyParseFixCandidate;
 use derive_more::Display;
 use log::{debug, warn};
@@ -44,7 +43,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    fn only(token: &Token) -> Self {
+    const fn only(token: &Token) -> Self {
         Self::Only(token.display())
     }
 }
