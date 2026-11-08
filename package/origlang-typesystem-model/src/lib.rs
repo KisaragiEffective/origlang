@@ -37,7 +37,7 @@ pub struct DisplayRecordType {
 
 impl DisplayRecordType {
     #[must_use]
-    pub fn new(identifier: Identifier, components: Box<[Type]>) -> Self {
+    pub const fn new(identifier: Identifier, components: Box<[Type]>) -> Self {
         Self {
             identifier,
             components,
@@ -113,7 +113,7 @@ impl Type {
     }
 
     #[must_use]
-    pub fn tuple(tuple_elements: Box<[Self]>) -> Self {
+    pub const fn tuple(tuple_elements: Box<[Self]>) -> Self {
         Self::Tuple(DisplayTupleType(tuple_elements))
     }
 
@@ -236,7 +236,7 @@ impl TypedExpression {
     }
 
     #[must_use]
-    pub fn tuple_arity(&self) -> Option<usize> {
+    pub const fn tuple_arity(&self) -> Option<usize> {
         if let Self::Tuple { expressions } = self {
             Some(expressions.len())
         } else {
@@ -274,10 +274,11 @@ pub enum TypedFloatLiteral {
 }
 
 impl TypedFloatLiteral {
+    #[must_use]
     pub const fn actual_type(&self) -> Type {
         match self {
-            TypedFloatLiteral::Float32(_) => Type::Float32,
-            TypedFloatLiteral::Float64(_) => Type::Float64,
+            Self::Float32(_) => Type::Float32,
+            Self::Float64(_) => Type::Float64,
         }
     }
 }

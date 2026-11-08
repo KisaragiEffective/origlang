@@ -23,6 +23,9 @@ use thiserror::Error;
 
 type Err = TestFailureCause;
 
+#[cfg(test)]
+mod regressions;
+
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum TestFailureCause {
     #[error("parser failure: {0}")]
@@ -83,7 +86,7 @@ impl Test {
         let ir = transpiler.optimizer().optimize(ir);
         let ir = transpiler.lower(ir);
         let o = runtime.start(&ir);
-        println!("{o:?}", o = &o);
+        println!("{o:?}");
         let x = Ok(o.borrow().acc().expect("???"));
         x
     }

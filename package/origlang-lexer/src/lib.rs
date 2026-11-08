@@ -359,7 +359,7 @@ impl Lexer<'_> {
         }
     }
 
-    fn current_char_stride(&self) -> Result<Utf8CharStride, LexerError> {
+    const fn current_char_stride(&self) -> Result<Utf8CharStride, LexerError> {
         let current_boundary = self.source_bytes_nth.get();
         let index = current_boundary.as_usize();
         let heading_byte = self.source.as_bytes()[index];
@@ -381,7 +381,7 @@ impl Lexer<'_> {
         Ok(stride)
     }
 
-    fn reached_end(&self) -> bool {
+    const fn reached_end(&self) -> bool {
         // <&str>::len() yields length of BYTES, not CHARS
         self.source_bytes_nth.get().as_usize() >= self.source.len()
     }
@@ -404,7 +404,7 @@ impl Lexer<'_> {
     }
 
     #[must_use = "Dropping token do nothing"]
-    fn create_reset_token(&self) -> TemporalLexerUnwindToken {
+    const fn create_reset_token(&self) -> TemporalLexerUnwindToken {
         TemporalLexerUnwindToken::new(self.source_bytes_nth.get())
     }
 
@@ -460,14 +460,14 @@ impl Lexer<'_> {
             .ok_or_else(|| self.report_out_of_range_error())
     }
 
-    fn report_out_of_range_error(&self) -> LexerError {
+    const fn report_out_of_range_error(&self) -> LexerError {
         LexerError::OutOfRange(OutOfRangeError {
             current: self.source_bytes_nth.get(),
             max: self.source.len(),
         })
     }
 
-    fn line(&self) -> NonZeroUsize {
+    const fn line(&self) -> NonZeroUsize {
         self.lc_manager.line.get()
     }
 
@@ -476,7 +476,7 @@ impl Lexer<'_> {
         self.lc_manager.line.set(line);
     }
 
-    fn column(&self) -> NonZeroUsize {
+    const fn column(&self) -> NonZeroUsize {
         self.lc_manager.column.get()
     }
 

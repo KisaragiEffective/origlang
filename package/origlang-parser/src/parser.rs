@@ -8,7 +8,6 @@ use origlang_source_span::{
 
 use crate::error::ParserErrorInner::EndOfFileError;
 use crate::error::{ParserError, ParserErrorInner, UnexpectedTupleLiteralElementCount};
-use crate::parser::TokenKind::IntLiteral;
 use crate::recover::PartiallyParseFixCandidate;
 use derive_more::Display;
 use log::{debug, warn};
@@ -44,7 +43,7 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    fn only(token: &Token) -> Self {
+    const fn only(token: &Token) -> Self {
         Self::Only(token.display())
     }
 }
@@ -886,7 +885,7 @@ impl Parser {
             self.lexer.next();
             self.read_and_consume_or_report_unexpected_token(&Token::NewLine)?;
             let mut statements = vec![];
-            while let Ok(v) = self.parse_statement() {
+            while let Ok(v) = self.lexer.parse_fallible(|| self.parse_statement()) {
                 statements.push(v);
             }
             let final_expression = Box::new(self.parse_lowest_precedence_expression()?);

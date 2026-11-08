@@ -29,8 +29,8 @@ fn main() {
 
         let to = www.join(name);
 
-        println!("copy: {from}", from = &from.display());
-        println!("copy: {to}", to = &to.display());
+        println!("copy: {from}", from = from.display());
+        println!("copy: {to}", to = to.display());
         copy_file(from, to).expect("copy failed, please build origlang-interop first.");
     }
 

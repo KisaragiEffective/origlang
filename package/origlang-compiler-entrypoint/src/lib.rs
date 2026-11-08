@@ -69,7 +69,7 @@ impl TheCompiler {
         let root = x.parse()?;
         let typeck = TypeChecker::new().check(root)?;
         let ir0_seq = typeck.into_ir();
-        let the_transpiler = TheTranspiler {
+        let _the_transpiler = TheTranspiler {
             optimization_preset: &self.optimization_preset,
         };
 
