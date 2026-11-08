@@ -20,7 +20,15 @@
       "depNameTemplate": "renovate",
       "packageNameTemplate": "renovate",
       "datasourceTemplate": "npm"
-    }    
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/cargo-deny\\.yml$/"],
+      "matchStrings": ["#\\s?renovate: cargo-deny\\s*CARGO_DENY_VERSION:\\s*'(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      "depNameTemplate": "cargo-deny",
+      "packageNameTemplate": "EmbarkStudios/cargo-deny",
+      "datasourceTemplate": "github-releases"
+    }
   ],
   "packageRules": [
     {
