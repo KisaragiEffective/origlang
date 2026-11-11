@@ -6,10 +6,8 @@ use origlang_ast::{SinglePattern, Identifier, RootAst, Statement, TypeSignature}
 use origlang_typesystem_model::{
     AssignableQueryAnswer, Type, TypedExpression, TypedIntLiteral, TypedRootAst, TypedStatement,
 };
-use std::cell::RefCell;
-use std::collections::hash_map::RandomState;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
-use std::hash::BuildHasher;
 
 use crate::type_check::error::TypeCheckError;
 
@@ -279,7 +277,20 @@ fn handle_atomic_pattern(
                 expression: expr,
             }])
         }
-        SinglePattern::Tuple(tp) => desugar_recursive_pattern_match(tp, expr, checker),
+        SinglePattern::Tuple(tp) => {
+            // Evaluate the entire RHS before introducing any of the pattern's bindings.
+            let identifier = checker.make_fresh_identifier();
+            let variable = TypedExpression::Variable {
+                ident: identifier.clone(),
+                tp: expr.actual_type(),
+            };
+            let mut statements = vec![TypedStatement::VariableDeclaration {
+                identifier,
+                expression: expr,
+            }];
+            statements.extend(desugar_recursive_pattern_match(tp, variable, checker)?);
+            Ok(statements)
+        }
     }
 }
 
@@ -577,6 +588,7 @@ impl TryIntoTypeCheckedForm for RootAst {
 
 pub struct TypeChecker {
     ctx: RefCell<Context>,
+    next_identifier: Cell<usize>,
 }
 
 impl TypeChecker {
@@ -619,25 +631,11 @@ impl TypeChecker {
     }
 
     #[must_use]
-    #[expect(clippy::missing_panics_doc)] // do not panic
     pub fn make_fresh_identifier(&self) -> Identifier {
-        // TODO: this implementation is poor. choice more elegant algorithm.
-        let hello = RandomState::new().hash_one(());
-        let m = hello.to_ne_bytes();
-        let m = [
-            b'_',
-            b'_',
-            m[0].clamp(b'a', b'z'),
-            m[1].clamp(b'a', b'z'),
-            m[2].clamp(b'a', b'z'),
-            m[3].clamp(b'a', b'z'),
-            m[4].clamp(b'a', b'z'),
-            m[5].clamp(b'a', b'z'),
-            m[6].clamp(b'a', b'z'),
-            m[7].clamp(b'a', b'z'),
-        ];
-
-        Identifier::new(core::str::from_utf8(&m).expect("not panic").into())
+        let next = self.next_identifier.get();
+        self.next_identifier.set(next + 1);
+        // `$` cannot occur in source identifiers, so generated names cannot be shadowed.
+        Identifier::new(format!("$tuple{next}").into_boxed_str())
     }
 }
 
@@ -668,6 +666,7 @@ impl TypeChecker {
     pub fn new() -> Self {
         Self {
             ctx: RefCell::new(Context::empty()),
+            next_identifier: Cell::new(0),
         }
     }
 

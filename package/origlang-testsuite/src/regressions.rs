@@ -2,6 +2,92 @@ use super::{Test, TestFailureCause};
 use origlang_runtime::TypeBox;
 
 #[test]
+fn tuple_binding_does_not_change_equality_operands() {
+    let src = "var x = true\nvar (x, b) = (1, x == true)\nprint x\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![TypeBox::NonCoercedInteger(1), TypeBox::Boolean(true)]
+    );
+}
+
+#[test]
+fn tuple_binding_does_not_change_arithmetic_operands() {
+    let src = "var x = 1\nvar (x, b) = (true, x + 1)\nprint x\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![TypeBox::Boolean(true), TypeBox::NonCoercedInteger(2)]
+    );
+}
+
+#[test]
+fn tuple_binding_does_not_change_if_condition() {
+    let src = "var x = true\nvar (x, b) = (1, if x then 2 else 3)\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![TypeBox::NonCoercedInteger(2)]
+    );
+}
+
+#[test]
+fn tuple_binding_does_not_replace_extraction_source() {
+    let src = "var t = (1, 2)\nvar (t, b) = t\nprint t\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![TypeBox::NonCoercedInteger(1), TypeBox::NonCoercedInteger(2)]
+    );
+}
+
+#[test]
+fn tuple_binding_does_not_shrink_extraction_source() {
+    let src = "var t = ((1, 2), 3, 4)\nvar (t, b, c) = t\nprint b\nprint c\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![TypeBox::NonCoercedInteger(3), TypeBox::NonCoercedInteger(4)]
+    );
+}
+
+#[test]
+fn tuple_binding_preserves_nested_shadowing() {
+    let src = "var t = (true, (2, 3))\nvar (t, (b, c)) = t\nprint t\nprint b\nprint c\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![
+            TypeBox::Boolean(true),
+            TypeBox::NonCoercedInteger(2),
+            TypeBox::NonCoercedInteger(3)
+        ]
+    );
+}
+
+#[test]
+fn tuple_binding_evaluates_discarded_elements_once_before_binding() {
+    let src = "var x = 7\nvar (x, _, b) = (true, block\nprint x\n0\nend, block\nprint x\n(x)\nend)\nprint x\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![
+            TypeBox::NonCoercedInteger(7),
+            TypeBox::NonCoercedInteger(7),
+            TypeBox::Boolean(true),
+            TypeBox::NonCoercedInteger(7)
+        ]
+    );
+}
+
+#[test]
+fn tuple_binding_evaluates_if_source_once() {
+    let src =
+        "var (a, b) = if true then block\nprint 99\n(1, 2)\nend else (3, 4)\nprint a\nprint b\n";
+    assert_eq!(
+        Test::evaluated_expressions(src).unwrap(),
+        vec![
+            TypeBox::NonCoercedInteger(99),
+            TypeBox::NonCoercedInteger(1),
+            TypeBox::NonCoercedInteger(2)
+        ]
+    );
+}
+
+#[test]
 fn comparisons_have_boolean_type() {
     for suffix in ["", "i8", "i16", "i32", "i64"] {
         for operator in ["<", "<=", ">", ">="] {
