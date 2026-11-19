@@ -9,7 +9,7 @@ on:
 jobs:
   submit:
     permissions:
-      contents: read
+      contents: write # submission writes results into repository
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
