@@ -10,7 +10,7 @@ workflows:
         - 'actions/checkout@v7.0.1'
     '.github/workflows/cargo-submit.yml':
         - 'actions/checkout@v7.0.1'
-        - 'advanced-security/component-detection-dependency-submission-action@v0.2.0'
+        - 'advanced-security/component-detection-dependency-submission-action@v0.2.1'
     '.github/workflows/rust-wasm.yml':
         - 'actions/checkout@v7.0.1'
         - 'swatinem/rust-cache@v2.9.3'
@@ -36,9 +36,9 @@ dependencies:
         commit: 'sha1-ed597411d8f924073f98dfc5c65a23a2325f34cd'
         owner_id: 44036562
         repo_id: 205262760
-    'advanced-security/component-detection-dependency-submission-action@v0.2.0':
-        ref: 'v0.2.0'
-        commit: 'sha1-a02aeda7a175ad4dd38a13c4d3ff2df9da8f2cf0'
+    'advanced-security/component-detection-dependency-submission-action@v0.2.1':
+        ref: 'v0.2.1'
+        commit: 'sha1-9887d3a4295305f4e7b03a1cfdb2099d44cadf52'
         owner_id: 71494179
         repo_id: 604441937
     'alstr/todo-to-issue-action@v5.1.15':
